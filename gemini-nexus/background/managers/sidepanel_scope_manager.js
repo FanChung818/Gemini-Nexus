@@ -63,28 +63,13 @@ export class SidePanelScopeManager {
             }
         });
 
-        chrome.tabs.onActivated.addListener(({ tabId }) => {
-            this.applyToTab(tabId).catch((error) => {
-                console.warn('[SidePanelScopeManager] Failed to apply tab state:', error);
-            });
-        });
-
-        chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+        chrome.tabs.onRemoved.addListener((tabId) => {
             if (this.enabledTabs[tabId]) {
                 delete this.enabledTabs[tabId];
                 this.persistEnabledTabs().catch((error) => {
                     console.warn('[SidePanelScopeManager] Failed to persist removed tab state:', error);
                 });
             }
-
-            chrome.tabs.query({ active: true, windowId: removeInfo.windowId }, (tabs) => {
-                const activeTabId = tabs && tabs[0] ? tabs[0].id : null;
-                if (!activeTabId) return;
-
-                this.applyToTab(activeTabId).catch((error) => {
-                    console.warn('[SidePanelScopeManager] Failed to re-apply active tab state after close:', error);
-                });
-            });
         });
     }
 
