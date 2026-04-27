@@ -91,6 +91,17 @@ export function saveAccountIndicesToStorage(indices) {
     }, '*');
 }
 
+export function requestContextSettingsFromStorage() {
+    window.parent.postMessage({ action: 'GET_CONTEXT_SETTINGS' }, '*');
+}
+
+export function saveContextSettingsToStorage(settings) {
+    window.parent.postMessage({
+        action: 'SAVE_CONTEXT_SETTINGS',
+        payload: settings
+    }, '*');
+}
+
 export function requestConnectionSettingsFromStorage() {
     window.parent.postMessage({ action: 'GET_CONNECTION_SETTINGS' }, '*');
 }

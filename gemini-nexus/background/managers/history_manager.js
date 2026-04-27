@@ -187,3 +187,33 @@ export async function replaceSessionSnapshot(sessionSnapshot) {
         return false;
     }
 }
+
+export async function getSessionContextSummary(sessionId) {
+    if (!sessionId) return null;
+
+    try {
+        const { geminiSessions = [] } = await chrome.storage.local.get(['geminiSessions']);
+        const session = geminiSessions.find(s => s.id === sessionId);
+        return session?.contextSummary || null;
+    } catch (e) {
+        console.error("Error reading context summary:", e);
+        return null;
+    }
+}
+
+export async function updateSessionContextSummary(sessionId, contextSummary) {
+    if (!sessionId || !contextSummary) return false;
+
+    try {
+        const { geminiSessions = [] } = await chrome.storage.local.get(['geminiSessions']);
+        const sessionIndex = geminiSessions.findIndex(s => s.id === sessionId);
+        if (sessionIndex === -1) return false;
+
+        geminiSessions[sessionIndex].contextSummary = contextSummary;
+        await chrome.storage.local.set({ geminiSessions });
+        return true;
+    } catch (e) {
+        console.error("Error updating context summary:", e);
+        return false;
+    }
+}

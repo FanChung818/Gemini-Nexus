@@ -1,6 +1,6 @@
 
 // sandbox/ui/settings.js
-import { saveShortcutsToStorage, saveThemeToStorage, requestThemeFromStorage, saveLanguageToStorage, requestLanguageFromStorage, saveTextSelectionToStorage, requestTextSelectionFromStorage, saveSidebarBehaviorToStorage, saveSidePanelScopeToStorage, saveImageToolsToStorage, requestImageToolsFromStorage, saveAccountIndicesToStorage, requestAccountIndicesFromStorage, saveConnectionSettingsToStorage, requestConnectionSettingsFromStorage, sendToBackground } from '../../lib/messaging.js';
+import { saveShortcutsToStorage, saveThemeToStorage, requestThemeFromStorage, saveLanguageToStorage, requestLanguageFromStorage, saveTextSelectionToStorage, requestTextSelectionFromStorage, saveSidebarBehaviorToStorage, saveSidePanelScopeToStorage, saveImageToolsToStorage, requestImageToolsFromStorage, saveAccountIndicesToStorage, requestAccountIndicesFromStorage, saveContextSettingsToStorage, requestContextSettingsFromStorage, saveConnectionSettingsToStorage, requestConnectionSettingsFromStorage, sendToBackground } from '../../lib/messaging.js';
 import { setLanguagePreference, getLanguagePreference } from '../core/i18n.js';
 import { SettingsView } from './settings/view.js';
 import { DEFAULT_SHORTCUTS } from '../../lib/constants.js';
@@ -16,7 +16,12 @@ export class SettingsController {
         this.textSelectionEnabled = true;
         this.imageToolsEnabled = true;
         this.accountIndices = "0";
+        this.sidebarBehavior = 'auto';
         this.sidePanelScope = 'remembered_tabs';
+        this.contextSettings = {
+            mode: 'summary',
+            recentTurns: 12
+        };
         
         // Connection State
         this.connectionData = {
@@ -57,7 +62,7 @@ export class SettingsController {
             
             onTextSelectionChange: (val) => { this.textSelectionEnabled = (val === 'on' || val === true); saveTextSelectionToStorage(this.textSelectionEnabled); },
             onImageToolsChange: (val) => { this.imageToolsEnabled = (val === 'on' || val === true); saveImageToolsToStorage(this.imageToolsEnabled); },
-            onSidebarBehaviorChange: (val) => saveSidebarBehaviorToStorage(val),
+            onSidebarBehaviorChange: (val) => { this.sidebarBehavior = val || 'auto'; saveSidebarBehaviorToStorage(this.sidebarBehavior); },
             onSidePanelScopeChange: (val) => { this.sidePanelScope = val || 'remembered_tabs'; saveSidePanelScopeToStorage(this.sidePanelScope); },
             onDownloadLogs: () => this.downloadLogs()
         });
@@ -93,13 +98,16 @@ export class SettingsController {
         this.view.setLanguageValue(getLanguagePreference());
         this.view.setToggles(this.textSelectionEnabled, this.imageToolsEnabled);
         this.view.setAccountIndices(this.accountIndices);
+        this.view.setSidebarBehavior(this.sidebarBehavior);
         this.view.setSidePanelScope(this.sidePanelScope);
+        this.view.setContextSettings(this.contextSettings);
         this.view.setConnectionSettings(this.connectionData);
         
         // Refresh from storage
         requestTextSelectionFromStorage();
         requestImageToolsFromStorage();
         requestAccountIndicesFromStorage();
+        requestContextSettingsFromStorage();
         requestConnectionSettingsFromStorage();
         
         this.fetchGithubData();
@@ -126,8 +134,17 @@ export class SettingsController {
         const cleaned = val.replace(/[^0-9,]/g, '');
         saveAccountIndicesToStorage(cleaned);
 
+        this.sidebarBehavior = data.sidebarBehavior || 'auto';
+        saveSidebarBehaviorToStorage(this.sidebarBehavior);
+
         this.sidePanelScope = data.sidePanelScope || 'remembered_tabs';
         saveSidePanelScopeToStorage(this.sidePanelScope);
+
+        this.contextSettings = {
+            mode: data.contextMode === 'recent' ? 'recent' : 'summary',
+            recentTurns: this.normalizeRecentTurns(data.contextRecentTurns)
+        };
+        saveContextSettingsToStorage(this.contextSettings);
         
         // Connection
         this.connectionData = {
@@ -251,6 +268,20 @@ export class SettingsController {
         this.view.setSidePanelScope(this.sidePanelScope);
     }
 
+    updateContextSettings(settings) {
+        this.contextSettings = {
+            mode: settings?.mode === 'recent' ? 'recent' : 'summary',
+            recentTurns: this.normalizeRecentTurns(settings?.recentTurns)
+        };
+        this.view.setContextSettings(this.contextSettings);
+    }
+
+    normalizeRecentTurns(value) {
+        const parsed = Number.parseInt(value, 10);
+        if (!Number.isFinite(parsed)) return 12;
+        return Math.min(50, Math.max(1, parsed));
+    }
+
     updateMcpTestResult(result) {
         if (!this.view || !this.view.connection || typeof this.view.connection.setMcpTestStatus !== 'function') return;
 
@@ -282,7 +313,8 @@ export class SettingsController {
     }
     
     updateSidebarBehavior(behavior) {
-        this.view.setSidebarBehavior(behavior);
+        this.sidebarBehavior = behavior || 'auto';
+        this.view.setSidebarBehavior(this.sidebarBehavior);
     }
 
     updateAccountIndices(indicesString) {

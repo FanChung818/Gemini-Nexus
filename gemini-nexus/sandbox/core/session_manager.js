@@ -106,6 +106,7 @@ export class SessionManager {
             editedMessage
         ];
         session.context = null;
+        session.contextSummary = null;
         session.timestamp = Date.now();
 
         if (messageIndex === 0) {

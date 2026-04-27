@@ -97,6 +97,18 @@ export class MessageBridge {
             });
             return;
         }
+        if (action === 'GET_CONTEXT_SETTINGS') {
+            chrome.storage.local.get(['geminiContextMode', 'geminiContextRecentTurns'], (res) => {
+                this.frame.postMessage({
+                    action: 'RESTORE_CONTEXT_SETTINGS',
+                    payload: {
+                        mode: res.geminiContextMode || 'summary',
+                        recentTurns: res.geminiContextRecentTurns || 12
+                    }
+                });
+            });
+            return;
+        }
         if (action === 'GET_CONNECTION_SETTINGS') {
             chrome.storage.local.get([
                 'geminiProvider',
@@ -166,6 +178,11 @@ export class MessageBridge {
             }
         }
         if (action === 'SAVE_ACCOUNT_INDICES') this.state.save('geminiAccountIndices', payload);
+        if (action === 'SAVE_CONTEXT_SETTINGS') {
+            this.state.save('geminiContextMode', payload?.mode === 'recent' ? 'recent' : 'summary');
+            const recentTurns = Number.parseInt(payload?.recentTurns, 10);
+            this.state.save('geminiContextRecentTurns', Number.isFinite(recentTurns) ? Math.min(50, Math.max(1, recentTurns)) : 12);
+        }
         if (action === 'SAVE_CONNECTION_SETTINGS') {
             this.state.save('geminiProvider', payload.provider);
             // Official

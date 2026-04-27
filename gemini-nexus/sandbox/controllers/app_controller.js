@@ -169,6 +169,10 @@ export class AppController {
             this.ui.settings.updateSidePanelScope(payload);
             return;
         }
+        if (action === 'RESTORE_CONTEXT_SETTINGS') {
+            this.ui.settings.updateContextSettings(payload);
+            return;
+        }
         if (action === 'RESTORE_SIDE_PANEL_TAB_CONTEXT') {
             this.currentTabId = payload?.tabId || null;
             this.boundSessionId = payload?.sessionId || null;

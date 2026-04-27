@@ -13,7 +13,9 @@ export async function getConnectionSettings() {
         'geminiApiKeyPointer',
         'geminiOpenaiBaseUrl',
         'geminiOpenaiApiKey',
-        'geminiOpenaiModel'
+        'geminiOpenaiModel',
+        'geminiContextMode',
+        'geminiContextRecentTurns'
     ]);
 
     // Legacy Migration Logic
@@ -60,6 +62,9 @@ export async function getConnectionSettings() {
         // OpenAI
         openaiBaseUrl: stored.geminiOpenaiBaseUrl,
         openaiApiKey: stored.geminiOpenaiApiKey,
-        openaiModel: stored.geminiOpenaiModel
+        openaiModel: stored.geminiOpenaiModel,
+        // Context management
+        contextMode: stored.geminiContextMode || "summary",
+        contextRecentTurns: stored.geminiContextRecentTurns || 12
     };
 }

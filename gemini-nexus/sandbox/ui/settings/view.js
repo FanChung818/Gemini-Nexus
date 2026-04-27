@@ -81,7 +81,10 @@ export class SettingsView {
             textSelection: generalData.textSelection,
             imageTools: generalData.imageTools,
             accountIndices: generalData.accountIndices,
-            sidePanelScope: generalData.sidePanelScope
+            sidebarBehavior: generalData.sidebarBehavior,
+            sidePanelScope: generalData.sidePanelScope,
+            contextMode: generalData.contextMode,
+            contextRecentTurns: generalData.contextRecentTurns
         };
         
         this.fire('onSave', data);
@@ -140,6 +143,10 @@ export class SettingsView {
 
     setSidePanelScope(scope) {
         this.general.setSidePanelScope(scope);
+    }
+
+    setContextSettings(settings) {
+        this.general.setContextSettings(settings);
     }
 
     // Delegation to Connection

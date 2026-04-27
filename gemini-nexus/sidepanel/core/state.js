@@ -35,6 +35,8 @@ export class StateManager {
             'geminiOpenaiBaseUrl',
             'geminiOpenaiApiKey',
             'geminiOpenaiModel',
+            'geminiContextMode',
+            'geminiContextRecentTurns',
             'geminiMcpEnabled',
             'geminiMcpTransport',
             'geminiMcpServerUrl',
@@ -133,6 +135,13 @@ export class StateManager {
         });
 
         this.frame.postMessage({ action: 'RESTORE_SIDEBAR_BEHAVIOR', payload: this.data.geminiSidebarBehavior || 'auto' });
+        this.frame.postMessage({
+            action: 'RESTORE_CONTEXT_SETTINGS',
+            payload: {
+                mode: this.data.geminiContextMode || 'summary',
+                recentTurns: this.data.geminiContextRecentTurns || 12
+            }
+        });
         this.frame.postMessage({ action: 'RESTORE_SIDE_PANEL_SCOPE', payload: this.data.geminiSidePanelScope || 'remembered_tabs' });
         this.postCurrentTabContext();
         this.frame.postMessage({ action: 'RESTORE_SESSIONS', payload: this.data.geminiSessions || [] });

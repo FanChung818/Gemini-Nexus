@@ -1,6 +1,6 @@
 
 // sandbox/controllers/message_handler.js
-import { appendMessage } from '../render/message.js';
+import { appendContextCompressionNotice, appendMessage } from '../render/message.js';
 import { cropImage } from '../../lib/crop_utils.js';
 import { t } from '../core/i18n.js';
 import { WatermarkRemover } from '../../lib/watermark_remover.js';
@@ -12,6 +12,7 @@ export class MessageHandler {
         this.imageManager = imageManager;
         this.app = appController; // Reference back to app for state like captureMode
         this.streamingBubble = null;
+        this.contextCompressionNotice = null;
     }
 
     async handle(request) {
@@ -33,6 +34,11 @@ export class MessageHandler {
         // 0. Stream Update
         if (request.action === "GEMINI_STREAM_UPDATE") {
             this.handleStreamUpdate(request);
+            return;
+        }
+
+        if (request.action === "GEMINI_CONTEXT_STATUS") {
+            this.handleContextStatus(request);
             return;
         }
 
@@ -108,6 +114,33 @@ export class MessageHandler {
         if (!this.app.isGenerating) {
             this.app.isGenerating = true;
             this.ui.setLoading(true);
+        }
+    }
+
+    handleContextStatus(request) {
+        if (!this.isCurrentSessionMessage(request)) return;
+
+        if (request.state === 'compressing') {
+            this.contextCompressionNotice = appendContextCompressionNotice(
+                this.ui.historyDiv,
+                t('contextCompressing')
+            );
+            return;
+        }
+
+        if (!this.contextCompressionNotice) {
+            this.contextCompressionNotice = appendContextCompressionNotice(this.ui.historyDiv, "");
+        }
+
+        if (request.state === 'compressed') {
+            this.contextCompressionNotice.update(t('contextCompressed'));
+            this.contextCompressionNotice = null;
+            return;
+        }
+
+        if (request.state === 'compression_failed') {
+            this.contextCompressionNotice.update(t('contextCompressionFallback'));
+            this.contextCompressionNotice = null;
         }
     }
 

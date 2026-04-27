@@ -4,12 +4,25 @@ import { sendOfficialMessage } from '../../../services/providers/official.js';
 import { sendWebMessage } from '../../../services/providers/web.js';
 import { sendOpenAIMessage } from '../../../services/providers/openai_compatible.js';
 import { getHistory } from './history_store.js';
+import { prepareManagedContext } from './context_manager.js';
 
 function getRequestHistory(request) {
     if (Array.isArray(request.historyOverride)) {
         return request.historyOverride;
     }
     return null;
+}
+
+function createContextStatusSender(request, settings) {
+    return (state, detail = {}) => {
+        chrome.runtime.sendMessage({
+            action: "GEMINI_CONTEXT_STATUS",
+            sessionId: request.sessionId || null,
+            state,
+            mode: settings.contextMode || 'summary',
+            recentTurns: detail.recentTurns || settings.contextRecentTurns || 12
+        }).catch(() => {});
+    };
 }
 
 export class RequestDispatcher {
@@ -32,11 +45,12 @@ export class RequestDispatcher {
         
         // Fetch History
         let history = getRequestHistory(request) || await getHistory(request.sessionId);
+        const context = await prepareManagedContext(request, settings, history, signal, createContextStatusSender(request, settings));
 
         const response = await sendOfficialMessage(
             request.text, 
-            request.systemInstruction, 
-            history, 
+            context.systemInstruction,
+            context.history,
             {
                 baseUrl: settings.officialBaseUrl,
                 apiKey: settings.apiKey,
@@ -79,11 +93,12 @@ export class RequestDispatcher {
         };
 
         let history = getRequestHistory(request) || await getHistory(request.sessionId);
+        const context = await prepareManagedContext(request, settings, history, signal, createContextStatusSender(request, settings));
 
         const response = await sendOpenAIMessage(
             request.text,
-            request.systemInstruction,
-            history,
+            context.systemInstruction,
+            context.history,
             config,
             files,
             signal,

@@ -45,6 +45,56 @@ body.layout-wide .msg.ai {
     to { opacity: 1; transform: translateY(0); }
 }
 
+.context-compression-notice {
+    display: grid;
+    grid-template-columns: minmax(24px, 1fr) auto minmax(24px, 1fr);
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    animation: fadeIn 0.3s cubic-bezier(0.2, 0, 0, 1) forwards;
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.context-compression-line {
+    height: 1px;
+    background: var(--border-color);
+    opacity: 0.9;
+}
+
+.context-compression-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    max-width: 100%;
+    text-align: center;
+}
+
+.context-compression-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+}
+
+.context-compression-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.context-compression-text {
+    overflow-wrap: anywhere;
+}
+
+.context-compression-complete {
+    color: var(--text-secondary);
+}
+
 /* --- User Message (Bubble) --- */
 .msg.user { 
     align-self: flex-end; 
