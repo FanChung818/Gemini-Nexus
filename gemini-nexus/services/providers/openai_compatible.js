@@ -84,6 +84,10 @@ export async function sendOpenAIMessage(prompt, systemInstruction, history, conf
         stream: true
     };
 
+    if (config.reasoningEffort) {
+        payload.reasoning_effort = config.reasoningEffort;
+    }
+
     const headers = {
         'Content-Type': 'application/json'
     };

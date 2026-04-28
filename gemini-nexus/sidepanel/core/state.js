@@ -35,6 +35,7 @@ export class StateManager {
             'geminiOpenaiBaseUrl',
             'geminiOpenaiApiKey',
             'geminiOpenaiModel',
+            'geminiOpenaiThinkingLevel',
             'geminiContextMode',
             'geminiContextRecentTurns',
             'geminiMcpEnabled',
@@ -125,6 +126,7 @@ export class StateManager {
                 openaiBaseUrl: this.data.geminiOpenaiBaseUrl || "",
                 openaiApiKey: this.data.geminiOpenaiApiKey || "",
                 openaiModel: this.data.geminiOpenaiModel || "",
+                openaiThinkingLevel: this.data.geminiOpenaiThinkingLevel || "low",
                 // MCP
                 mcpEnabled: this.data.geminiMcpEnabled === true,
                 mcpTransport: this.data.geminiMcpTransport || "sse",

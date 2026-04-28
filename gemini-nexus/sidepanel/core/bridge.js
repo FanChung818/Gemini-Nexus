@@ -121,6 +121,7 @@ export class MessageBridge {
                 'geminiOpenaiBaseUrl',
                 'geminiOpenaiApiKey',
                 'geminiOpenaiModel',
+                'geminiOpenaiThinkingLevel',
                 'geminiMcpEnabled',
                 'geminiMcpTransport',
                 'geminiMcpServerUrl',
@@ -140,6 +141,7 @@ export class MessageBridge {
                         openaiBaseUrl: res.geminiOpenaiBaseUrl || "",
                         openaiApiKey: res.geminiOpenaiApiKey || "",
                         openaiModel: res.geminiOpenaiModel || "",
+                        openaiThinkingLevel: res.geminiOpenaiThinkingLevel || "low",
                         // MCP
                         mcpEnabled: res.geminiMcpEnabled === true,
                         mcpTransport: res.geminiMcpTransport || "sse",
@@ -196,6 +198,7 @@ export class MessageBridge {
             this.state.save('geminiOpenaiBaseUrl', payload.openaiBaseUrl);
             this.state.save('geminiOpenaiApiKey', payload.openaiApiKey);
             this.state.save('geminiOpenaiModel', payload.openaiModel);
+            this.state.save('geminiOpenaiThinkingLevel', payload.openaiThinkingLevel || "low");
             // MCP
             this.state.save('geminiMcpEnabled', payload.mcpEnabled === true);
             this.state.save('geminiMcpTransport', payload.mcpTransport || "sse");

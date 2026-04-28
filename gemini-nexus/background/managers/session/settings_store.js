@@ -14,6 +14,7 @@ export async function getConnectionSettings() {
         'geminiOpenaiBaseUrl',
         'geminiOpenaiApiKey',
         'geminiOpenaiModel',
+        'geminiOpenaiThinkingLevel',
         'geminiContextMode',
         'geminiContextRecentTurns'
     ]);
@@ -63,6 +64,7 @@ export async function getConnectionSettings() {
         openaiBaseUrl: stored.geminiOpenaiBaseUrl,
         openaiApiKey: stored.geminiOpenaiApiKey,
         openaiModel: stored.geminiOpenaiModel,
+        openaiThinkingLevel: stored.geminiOpenaiThinkingLevel || "low",
         // Context management
         contextMode: stored.geminiContextMode || "summary",
         contextRecentTurns: stored.geminiContextRecentTurns || 12

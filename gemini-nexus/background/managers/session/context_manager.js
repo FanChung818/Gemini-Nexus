@@ -158,7 +158,8 @@ async function generateCompressedMessage(compressionPrompt, settings, signal) {
             {
                 baseUrl: settings.openaiBaseUrl,
                 apiKey: settings.openaiApiKey,
-                model: settings.summaryModel || settings.openaiModel?.split(',')?.[0]?.trim() || settings.openaiModel
+                model: settings.summaryModel || settings.openaiModel?.split(',')?.[0]?.trim() || settings.openaiModel,
+                reasoningEffort: settings.openaiThinkingLevel
             },
             [],
             signal,

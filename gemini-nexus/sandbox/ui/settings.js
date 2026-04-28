@@ -35,6 +35,7 @@ export class SettingsController {
             openaiBaseUrl: "",
             openaiApiKey: "",
             openaiModel: "",
+            openaiThinkingLevel: "low",
             // MCP (External Tools)
             mcpEnabled: false,
             mcpTransport: "sse",
@@ -157,6 +158,7 @@ export class SettingsController {
             openaiBaseUrl: data.connection.openaiBaseUrl,
             openaiApiKey: data.connection.openaiApiKey,
             openaiModel: data.connection.openaiModel,
+            openaiThinkingLevel: data.connection.openaiThinkingLevel || "low",
             // MCP
             mcpEnabled: data.connection.mcpEnabled === true,
             mcpTransport: data.connection.mcpTransport || "sse",

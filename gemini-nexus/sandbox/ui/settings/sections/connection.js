@@ -55,6 +55,7 @@ export class ConnectionSection {
             openaiBaseUrl: get('openai-base-url'),
             openaiApiKey: get('openai-api-key'),
             openaiModel: get('openai-model'),
+            openaiThinkingLevelSelect: get('openai-thinking-level-select'),
 
             // MCP Fields
             mcpEnabled: get('mcp-enabled'),
@@ -257,7 +258,7 @@ export class ConnectionSection {
     setData(data) {
         const { 
             providerSelect, officialBaseUrl, apiKeyInput, officialModel, thinkingLevelSelect, officialWebSearchEnabled,
-            openaiBaseUrl, openaiApiKey, openaiModel,
+            openaiBaseUrl, openaiApiKey, openaiModel, openaiThinkingLevelSelect,
             mcpEnabled
         } = this.elements;
 
@@ -278,6 +279,7 @@ export class ConnectionSection {
         if (openaiBaseUrl) openaiBaseUrl.value = data.openaiBaseUrl || "";
         if (openaiApiKey) openaiApiKey.value = data.openaiApiKey || "";
         if (openaiModel) openaiModel.value = data.openaiModel || "";
+        if (openaiThinkingLevelSelect) openaiThinkingLevelSelect.value = data.openaiThinkingLevel || "low";
 
         // MCP
         if (mcpEnabled) {
@@ -320,7 +322,7 @@ export class ConnectionSection {
     getData() {
         const {
             providerSelect, officialBaseUrl, apiKeyInput, officialModel, thinkingLevelSelect, officialWebSearchEnabled,
-            openaiBaseUrl, openaiApiKey, openaiModel,
+            openaiBaseUrl, openaiApiKey, openaiModel, openaiThinkingLevelSelect,
             mcpEnabled
         } = this.elements;
 
@@ -341,6 +343,7 @@ export class ConnectionSection {
             openaiBaseUrl: openaiBaseUrl ? openaiBaseUrl.value.trim() : "",
             openaiApiKey: openaiApiKey ? openaiApiKey.value.trim() : "",
             openaiModel: openaiModel ? openaiModel.value.trim() : "",
+            openaiThinkingLevel: openaiThinkingLevelSelect ? openaiThinkingLevelSelect.value : "low",
 
             // MCP - Multi-server mode: all enabled servers will be used
             mcpEnabled: mcpEnabled ? mcpEnabled.checked === true : false,

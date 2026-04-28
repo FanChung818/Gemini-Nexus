@@ -125,7 +125,8 @@ export class RequestDispatcher {
         const config = {
             baseUrl: settings.openaiBaseUrl,
             apiKey: settings.openaiApiKey,
-            model: targetModel
+            model: targetModel,
+            reasoningEffort: settings.openaiThinkingLevel
         };
 
         const history = await resolveRequestHistory(request);

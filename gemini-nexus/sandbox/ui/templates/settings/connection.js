@@ -56,6 +56,15 @@ export const ConnectionSettingsTemplate = `
                 <label style="font-weight: 500; display: block; margin-bottom: 2px;">Model IDs (Comma separated)</label>
                 <input type="text" id="openai-model" class="shortcut-input" style="width: 100%; text-align: left; box-sizing: border-box;" placeholder="e.g. gpt-4o, claude-3-5-sonnet">
             </div>
+            <div>
+                <label style="font-weight: 500; display: block; margin-bottom: 2px;">Thinking Level</label>
+                <select id="openai-thinking-level-select" class="shortcut-input" style="width: 100%; text-align: left; padding: 6px 12px;">
+                    <option value="minimal">Minimal</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                </select>
+            </div>
         </div>
     </div>
 
