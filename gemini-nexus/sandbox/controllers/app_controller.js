@@ -20,6 +20,7 @@ export class AppController {
         this.sidePanelScope = 'remembered_tabs';
         this.currentTabId = null;
         this.boundSessionId = null;
+        this.sessionsRestored = false;
         
         // Sidebar Restore Behavior: 'auto', 'restore', 'new'
         this.sidebarRestoreBehavior = 'auto';
@@ -154,6 +155,24 @@ export class AppController {
         }, '*');
     }
 
+    getBoundSession() {
+        return this.boundSessionId
+            ? this.sessionManager.getSessionById(this.boundSessionId)
+            : null;
+    }
+
+    restoreRememberedTabSession() {
+        const boundSession = this.getBoundSession();
+        if (boundSession) {
+            if (this.sessionManager.currentSessionId !== boundSession.id) {
+                this.switchToSession(boundSession.id);
+            }
+            return;
+        }
+
+        this.sessionFlow.enterDraft();
+    }
+
     // --- Event Handling ---
 
     async handleIncomingMessage(event) {
@@ -177,13 +196,21 @@ export class AppController {
         if (action === 'RESTORE_SIDE_PANEL_TAB_CONTEXT') {
             this.currentTabId = payload?.tabId || null;
             this.boundSessionId = payload?.sessionId || null;
+            if (this.sessionsRestored && this.sidePanelScope === 'remembered_tabs') {
+                this.restoreRememberedTabSession();
+            }
             return;
         }
 
         // Restore Sessions
         if (action === 'RESTORE_SESSIONS') {
-            this.sessionManager.setSessions(payload || []);
+            const restoredSessions = Array.isArray(payload) ? payload : [];
+            this.sessionManager.setSessions(restoredSessions);
+            this.sessionsRestored = true;
             this.sessionFlow.refreshHistoryUI();
+            if (this.sessionManager.sessions.length !== restoredSessions.length) {
+                saveSessionsToStorage(this.sessionManager.getPersistableSessions());
+            }
 
             const currentId = this.sessionManager.currentSessionId;
             const currentSessionExists = this.sessionManager.getCurrentSession();
@@ -211,15 +238,7 @@ export class AppController {
                  }
 
                  if (this.sidePanelScope === 'remembered_tabs') {
-                     const boundSession = this.boundSessionId
-                         ? (payload || []).find(session => session.id === this.boundSessionId)
-                         : null;
-
-                     if (boundSession) {
-                         this.switchToSession(boundSession.id);
-                     } else {
-                         this.handleNewChat();
-                     }
+                     this.restoreRememberedTabSession();
                  } else if (shouldRestore && sorted.length > 0) {
                      this.switchToSession(sorted[0].id);
                  } else {

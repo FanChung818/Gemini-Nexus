@@ -23,19 +23,46 @@ export class SessionManager {
     }
 
     setSessions(sessions) {
-        this.sessions = sessions || [];
+        this.sessions = this.filterPersistableSessions(sessions || []);
+        if (this.currentSessionId && !this.getSessionById(this.currentSessionId)) {
+            this.currentSessionId = null;
+        }
     }
 
     getCurrentSession() {
-        return this.sessions.find(s => s.id === this.currentSessionId);
+        return this.getSessionById(this.currentSessionId);
     }
 
     getSortedSessions() {
-        return [...this.sessions].sort((a, b) => b.timestamp - a.timestamp);
+        return this.getPersistableSessions().sort((a, b) => b.timestamp - a.timestamp);
     }
 
     setCurrentId(id) {
-        this.currentSessionId = id;
+        this.currentSessionId = this.getSessionById(id) ? id : null;
+    }
+
+    enterDraft() {
+        this.currentSessionId = null;
+    }
+
+    getSessionById(id) {
+        if (!id) return null;
+        return this.sessions.find(s => s.id === id) || null;
+    }
+
+    getPersistableSessions() {
+        return this.filterPersistableSessions(this.sessions);
+    }
+
+    filterPersistableSessions(sessions) {
+        if (!Array.isArray(sessions)) return [];
+        return sessions.filter(session => !this.isDiscardableBlankSession(session));
+    }
+
+    isDiscardableBlankSession(session) {
+        if (!session || typeof session !== 'object') return true;
+        const messageCount = Array.isArray(session.messages) ? session.messages.length : 0;
+        return messageCount === 0;
     }
 
     deleteSession(id) {

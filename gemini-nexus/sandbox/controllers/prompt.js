@@ -119,6 +119,7 @@ export class PromptController {
 
         const currentId = this.sessionManager.currentSessionId;
         const session = this.sessionManager.getCurrentSession();
+        if (!session) return;
 
         // Update Title if needed
         if (session.messages.length === 0) {
@@ -143,8 +144,8 @@ export class PromptController {
         
         this.sessionManager.addMessage(currentId, 'user', text, displayAttachments.length > 0 ? displayAttachments : null);
         
-        saveSessionsToStorage(this.sessionManager.sessions);
-        this.app.sessionFlow.refreshHistoryUI();
+        saveSessionsToStorage(this.sessionManager.getPersistableSessions());
+        this.app.sessionFlow.switchToSession(currentId);
 
         if (session.context) {
              sendToBackground({
@@ -186,7 +187,7 @@ export class PromptController {
         const editResult = this.sessionManager.editUserMessageAndTruncate(currentId, messageIndex, nextText);
         if (!editResult) return false;
 
-        saveSessionsToStorage(this.sessionManager.sessions);
+        saveSessionsToStorage(this.sessionManager.getPersistableSessions());
         this.app.sessionFlow.refreshHistoryUI();
         this.app.rerender();
 

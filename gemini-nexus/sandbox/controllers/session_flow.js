@@ -12,11 +12,18 @@ export class SessionFlowController {
     }
 
     handleNewChat() {
+        this.enterDraft();
+    }
+
+    enterDraft() {
         this.app.messageHandler.resetStream();
-        
-        const s = this.sessionManager.createSession();
-        s.title = t('newChat'); 
-        this.switchToSession(s.id);
+        this.sessionManager.enterDraft();
+        this.app.boundSessionId = null;
+        this.app.saveCurrentTabSessionBinding(null);
+        sendToBackground({ action: "RESET_CONTEXT" });
+        this.ui.clearChatHistory();
+        this.ui.resetInput();
+        this.refreshHistoryUI();
     }
 
     switchToSession(sessionId) {
@@ -163,13 +170,13 @@ export class SessionFlowController {
 
     handleDeleteSession(sessionId) {
         const switchNeeded = this.sessionManager.deleteSession(sessionId);
-        saveSessionsToStorage(this.sessionManager.sessions);
+        saveSessionsToStorage(this.sessionManager.getPersistableSessions());
         
         if (switchNeeded) {
             if (this.sessionManager.sessions.length > 0) {
                 this.switchToSession(this.sessionManager.currentSessionId);
             } else {
-                this.handleNewChat();
+                this.enterDraft();
             }
         } else {
             this.refreshHistoryUI();

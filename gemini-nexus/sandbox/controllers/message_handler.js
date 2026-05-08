@@ -492,7 +492,7 @@ export class MessageHandler {
                 
                 // Clear reference
                 this.streamingBubble = null;
-            } else if (!this.hasPersistedAiReply(session, request)) {
+            } else {
                 // Fallback if no stream occurred (or single short response)
                 appendMessage(this.ui.historyDiv, request.text, 'ai', request.images, request.thoughts, request.sources, {
                     isFinal: true,
