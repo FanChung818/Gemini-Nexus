@@ -7,6 +7,7 @@ import { t } from '../core/i18n.js';
 
 const MAX_VISIBLE_SOURCES = 2;
 const THOUGHTS_REGION_PREFIX = 'thoughts-content';
+const TOOL_MESSAGE_KINDS = new Set(['tool-output', 'tool-status']);
 
 function getSourceUrlSet(sourceList) {
     if (!Array.isArray(sourceList)) return new Set();
@@ -159,6 +160,10 @@ function hasDisplayableText(text) {
     return typeof text === 'string' ? text.trim().length > 0 : Boolean(text);
 }
 
+function isToolMessageKind(kind) {
+    return TOOL_MESSAGE_KINDS.has(kind);
+}
+
 function getThoughtsStartedAtFromOptions(options) {
     if (Number.isFinite(options.thoughtsStartedAt)) {
         return options.thoughtsStartedAt;
@@ -231,6 +236,9 @@ export function appendContextCompressionNotice(container, text, options = {}) {
 export function appendMessage(container, text, role, attachment = null, thoughts = null, sources = null, options = {}) {
     const div = document.createElement('div');
     div.className = `msg ${role}`;
+    if (options.kind) div.classList.add(`msg-${options.kind}`);
+    if (options.toolOutputKey) div.dataset.toolOutputKey = options.toolOutputKey;
+    if (options.toolStatusKey) div.dataset.toolStatusKey = options.toolStatusKey;
     
     // Store current text state
     let currentText = text || "";
@@ -291,14 +299,22 @@ export function appendMessage(container, text, role, attachment = null, thoughts
     let thoughtsStatusTimer = null;
     let sourcesDiv = null;
     let editCancel = null;
+    let copyBtn = null;
     let currentSources = Array.isArray(sources) ? sources : [];
 
     const renderMessageContent = () => {
         if (!contentDiv) return;
-        const displayText = role === 'ai'
+        const renderRole = isToolMessageKind(options.kind) ? options.kind : role;
+        const displayText = renderRole === 'ai'
             ? cleanupStructuredSourceText(currentText, currentSources)
             : currentText;
-        renderContent(contentDiv, displayText, role);
+        const hideEmptyAiContent = renderRole === 'ai' && !hasDisplayableText(displayText);
+        contentDiv.hidden = hideEmptyAiContent;
+        if (hideEmptyAiContent) {
+            contentDiv.innerHTML = '';
+            return;
+        }
+        renderContent(contentDiv, displayText, renderRole, options);
     };
 
     const buildSourcesElement = (sourceList) => {
@@ -395,6 +411,86 @@ export function appendMessage(container, text, role, attachment = null, thoughts
         return wrapper;
     };
 
+    const hasCopyableMessageText = () => {
+        if (isToolMessageKind(options.kind)) return false;
+        const copyText = role === 'ai'
+            ? cleanupStructuredSourceText(currentText, currentSources)
+            : currentText;
+        return hasDisplayableText(copyText);
+    };
+
+    const getSpacingKind = () => {
+        if (isToolMessageKind(options.kind)) return 'tool';
+        const displayText = role === 'ai'
+            ? cleanupStructuredSourceText(currentText, currentSources)
+            : currentText;
+        if (role === 'ai' && hasDisplayableThoughts(currentThoughts) && !hasDisplayableText(displayText)) {
+            return 'thinking';
+        }
+        return 'normal';
+    };
+
+    const isCompactSpacingPair = (previousKind, currentKind) => {
+        if (!previousKind || !currentKind) return false;
+        if (previousKind === 'tool' && currentKind === 'tool') return true;
+        return (previousKind === 'thinking' && currentKind === 'tool')
+            || (previousKind === 'tool' && currentKind === 'thinking');
+    };
+
+    const syncCompactSpacing = ({ skipNext = false } = {}) => {
+        if (!container.contains(div)) return;
+        const spacingKind = getSpacingKind();
+        div.dataset.messageSpacingKind = spacingKind;
+        div.classList.toggle('msg-thinking-only', spacingKind === 'thinking');
+
+        const previousKind = div.previousElementSibling?.dataset?.messageSpacingKind || '';
+        div.classList.toggle('msg-compact-chain', isCompactSpacingPair(previousKind, spacingKind));
+
+        if (skipNext) return;
+        const nextController = div.nextElementSibling?.__messageController;
+        if (nextController && typeof nextController.syncCompactSpacing === 'function') {
+            nextController.syncCompactSpacing({ skipNext: true });
+        }
+    };
+
+    const copyIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+    const checkIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+
+    const createCopyButton = () => {
+        const button = document.createElement('button');
+        button.className = 'copy-btn';
+        button.title = 'Copy content';
+        button.innerHTML = copyIcon;
+
+        button.addEventListener('click', async () => {
+            try {
+                // Use currentText closure to get latest streaming text.
+                await copyToClipboard(currentText);
+                button.innerHTML = checkIcon;
+                setTimeout(() => {
+                    button.innerHTML = copyIcon;
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+            }
+        });
+
+        return button;
+    };
+
+    const syncCopyButton = () => {
+        const shouldShowCopy = hasCopyableMessageText();
+        if (shouldShowCopy && !copyBtn) {
+            copyBtn = createCopyButton();
+            div.appendChild(copyBtn);
+            return;
+        }
+        if (!shouldShowCopy && copyBtn) {
+            copyBtn.remove();
+            copyBtn = null;
+        }
+    };
+
     const getThoughtsCompleteLabel = () => {
         if (thoughtsDurationSeconds !== null) {
             return t('thoughtsCompleteWithDuration').replace('{seconds}', formatThoughtDuration(thoughtsDurationSeconds));
@@ -469,12 +565,14 @@ export function appendMessage(container, text, role, attachment = null, thoughts
         setThoughtsVisible(hasThoughts);
         if (!hasThoughts) {
             stopThoughtsStatusTimer();
+            syncCompactSpacing();
             return;
         }
 
         if (state.isFinal || state.hasDisplayableText) {
             finishThoughts();
             updateThoughtsStatus(false);
+            syncCompactSpacing();
             return;
         }
 
@@ -485,11 +583,13 @@ export function appendMessage(container, text, role, attachment = null, thoughts
             updateThoughtsStatus(true);
             startThoughtsStatusTimer();
             setThoughtsExpanded(true);
+            syncCompactSpacing();
             return;
         }
 
         stopThoughtsStatusTimer();
         updateThoughtsStatus(false);
+        syncCompactSpacing();
     };
 
     // Allow creating empty AI bubbles for streaming
@@ -564,32 +664,10 @@ export function appendMessage(container, text, role, attachment = null, thoughts
             }
         }
 
-        // --- Add Copy Button ---
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'copy-btn';
-        copyBtn.title = 'Copy content';
-        
-        const copyIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
-        const checkIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+        syncCopyButton();
+        syncCompactSpacing();
 
-        copyBtn.innerHTML = copyIcon;
-
-        copyBtn.addEventListener('click', async () => {
-            try {
-                // Use currentText closure to get latest streaming text
-                await copyToClipboard(currentText);
-                copyBtn.innerHTML = checkIcon;
-                setTimeout(() => {
-                    copyBtn.innerHTML = copyIcon;
-                }, 2000);
-            } catch (err) {
-                console.error('Failed to copy text: ', err);
-            }
-        });
-
-        div.appendChild(copyBtn);
-
-        if (role === 'user' && typeof options.onEdit === 'function') {
+        if (role === 'user' && !isToolMessageKind(options.kind) && typeof options.onEdit === 'function') {
             const editBtn = document.createElement('button');
             editBtn.className = 'edit-btn';
             editBtn.title = t('editMessage');
@@ -603,7 +681,7 @@ export function appendMessage(container, text, role, attachment = null, thoughts
 
                 div.classList.add('editing');
                 contentDiv.style.display = 'none';
-                copyBtn.style.display = 'none';
+                if (copyBtn) copyBtn.style.display = 'none';
                 editBtn.style.display = 'none';
 
                 const editor = document.createElement('div');
@@ -634,14 +712,14 @@ export function appendMessage(container, text, role, attachment = null, thoughts
                 actions.appendChild(saveBtn);
                 editor.appendChild(textarea);
                 editor.appendChild(actions);
-                div.insertBefore(editor, copyBtn);
+                div.insertBefore(editor, copyBtn || editBtn);
 
                 const cleanup = () => {
                     document.removeEventListener('pointerdown', handleOutsidePointer, true);
                     document.removeEventListener('keydown', handleDocumentKey, true);
                     editor.remove();
                     contentDiv.style.display = '';
-                    copyBtn.style.display = '';
+                    if (copyBtn) copyBtn.style.display = '';
                     editBtn.style.display = '';
                     div.classList.remove('editing');
                     editCancel = null;
@@ -723,6 +801,7 @@ export function appendMessage(container, text, role, attachment = null, thoughts
     }
 
     container.appendChild(div);
+    syncCompactSpacing();
     
     // --- Scroll Logic ---
     // Instead of scrolling to bottom, we scroll to the top of the NEW message.
@@ -736,18 +815,38 @@ export function appendMessage(container, text, role, attachment = null, thoughts
     }, 10);
 
     // Return controller
-    return {
+    const controller = {
         div,
         update: (newText, newThoughts, state = {}) => {
             if (newText !== undefined) {
                 currentText = newText;
+                if (state.toolStatus !== undefined) {
+                    options.toolStatus = state.toolStatus;
+                }
+                if (state.isCollapsed !== undefined) {
+                    options.isCollapsed = state.isCollapsed;
+                }
+                if (state.toolCallText !== undefined) {
+                    options.toolCallText = state.toolCallText;
+                }
+                if (state.callIndex !== undefined) {
+                    options.callIndex = state.callIndex;
+                }
+                if (state.callCount !== undefined) {
+                    options.callCount = state.callCount;
+                }
                 renderMessageContent();
+                syncCopyButton();
             }
             
+            const displayText = role === 'ai'
+                ? cleanupStructuredSourceText(currentText, currentSources)
+                : currentText;
             updateThoughts(newThoughts, {
                 ...state,
-                hasDisplayableText: hasDisplayableText(currentText)
+                hasDisplayableText: hasDisplayableText(displayText)
             });
+            syncCompactSpacing();
             
             // Note: We removed the auto-scroll-to-bottom logic here.
             // If the user is at the start of the message, we want them to stay there
@@ -757,12 +856,15 @@ export function appendMessage(container, text, role, attachment = null, thoughts
             if (newText !== undefined) {
                 currentText = newText;
                 renderMessageContent();
+                syncCopyButton();
             }
             if (Number.isFinite(state.thoughtsDurationSeconds)) {
                 thoughtsDurationSeconds = state.thoughtsDurationSeconds;
             }
             updateThoughts(newThoughts, { isFinal: true });
+            syncCompactSpacing();
         },
+        syncCompactSpacing,
         getThoughtsDurationSeconds: () => thoughtsDurationSeconds,
         dispose: () => {
             stopThoughtsStatusTimer();
@@ -786,6 +888,8 @@ export function appendMessage(container, text, role, attachment = null, thoughts
             if (sourcesDiv || !Array.isArray(sourceList) || sourceList.length === 0) return;
             currentSources = sourceList;
             renderMessageContent();
+            syncCopyButton();
+            syncCompactSpacing();
 
             const builtSources = buildSourcesElement(sourceList);
             if (!builtSources) return;
@@ -799,4 +903,6 @@ export function appendMessage(container, text, role, attachment = null, thoughts
             }
         }
     };
+    div.__messageController = controller;
+    return controller;
 }

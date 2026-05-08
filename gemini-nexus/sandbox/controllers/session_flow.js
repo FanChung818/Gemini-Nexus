@@ -29,6 +29,8 @@ export class SessionFlowController {
         this.ui.clearChatHistory();
         const compressionNoticeIndex = this.getCompressionNoticeIndex(session);
         session.messages.forEach((msg, index) => {
+            if (this.shouldSkipRestoredMessage(msg)) return;
+
             if (index === compressionNoticeIndex) {
                 this.appendRestoredCompressionNotice();
             }
@@ -38,8 +40,16 @@ export class SessionFlowController {
             if (msg.role === 'ai') attachment = msg.generatedImages;
             // Pass msg.thoughts to appendMessage
             appendMessage(this.ui.historyDiv, msg.text, msg.role, attachment, msg.thoughts, msg.sources, {
+                kind: this.getMessageKind(msg),
+                toolName: this.getRestoredToolName(msg),
+                step: this.getRestoredToolStep(msg),
+                toolStatus: this.getRestoredToolStatus(msg),
+                toolCallText: this.getRestoredToolCallText(msg),
+                callIndex: this.getRestoredToolCallIndex(msg),
+                callCount: this.getRestoredToolCallCount(msg),
+                isCollapsed: true,
                 thoughtsDurationSeconds: msg.thoughtsDurationSeconds,
-                onEdit: msg.role === 'user'
+                onEdit: msg.role === 'user' && this.getMessageKind(msg) !== 'tool-output'
                     ? this.app.prompt.getMessageEditOptions(index).onEdit
                     : null
             });
@@ -80,6 +90,61 @@ export class SessionFlowController {
                 generatingSessionId: this.app.generatingSessionId
             }
         );
+    }
+
+    shouldSkipRestoredMessage(message) {
+        if (!message) return false;
+        if (message.officialContent && !this.hasDisplayableRestoredContent(message)) return true;
+        if (message.role !== 'ai') return false;
+        return !this.hasDisplayableRestoredContent(message);
+    }
+
+    hasDisplayableRestoredContent(message) {
+        const text = typeof message.text === 'string' ? message.text : '';
+        const thoughts = typeof message.thoughts === 'string' ? message.thoughts : '';
+        return Boolean(text.trim() || thoughts.trim());
+    }
+
+    getMessageKind(message) {
+        if (!message || message.role !== 'user' || typeof message.text !== 'string') {
+            return null;
+        }
+        if (message.kind === 'tool-output') return 'tool-output';
+        return message.text.startsWith('[Tool Output:') ? 'tool-output' : null;
+    }
+
+    getRestoredToolName(message) {
+        if (this.getMessageKind(message) !== 'tool-output') return '';
+        if (message.toolName) return message.toolName;
+        const match = message.text.match(/^\[Tool Output:\s*([^\]]+)\]/);
+        return match ? match[1].trim() : '';
+    }
+
+    getRestoredToolStep(message) {
+        if (this.getMessageKind(message) !== 'tool-output') return '';
+        if (message.toolStep) return message.toolStep;
+        const match = message.text.match(/\n\n\[Proceeding to step\s+(\d+)\]\s*$/);
+        return match ? match[1] : '';
+    }
+
+    getRestoredToolStatus(message) {
+        if (this.getMessageKind(message) !== 'tool-output') return 'completed';
+        return message.toolStatus || 'completed';
+    }
+
+    getRestoredToolCallText(message) {
+        if (this.getMessageKind(message) !== 'tool-output') return '';
+        return message.toolCallText || '';
+    }
+
+    getRestoredToolCallIndex(message) {
+        if (this.getMessageKind(message) !== 'tool-output') return '';
+        return message.toolCallIndex || '';
+    }
+
+    getRestoredToolCallCount(message) {
+        if (this.getMessageKind(message) !== 'tool-output') return '';
+        return message.toolCallCount || '';
     }
 
     getCompressionNoticeIndex(session) {

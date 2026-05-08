@@ -180,7 +180,7 @@ export class BrowserControlManager {
                 return "Error: No active tab found, restricted URL, or debugger disconnected.";
             }
 
-            console.log(`[MCP] Executing tool: ${name}`, args);
+            console.log(`[MCP] Running tool: ${name}`, args);
 
             // Delegate to dispatcher
             const result = await this.dispatcher.dispatch(name, args);

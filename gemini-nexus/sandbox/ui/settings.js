@@ -66,6 +66,7 @@ export class SettingsController {
                 name: "Local Proxy",
                 transport: "sse",
                 url: "http://127.0.0.1:3006/sse",
+                headers: {},
                 enabled: true,
                 toolMode: "all",
                 enabledTools: []

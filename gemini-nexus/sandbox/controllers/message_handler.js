@@ -9,6 +9,180 @@ function hasDisplayableThoughts(thoughts) {
     return typeof thoughts === 'string' ? thoughts.trim().length > 0 : Boolean(thoughts);
 }
 
+function hasDisplayableText(text) {
+    return typeof text === 'string' ? text.trim().length > 0 : Boolean(text);
+}
+
+function parseJsonObject(text) {
+    try {
+        const parsed = JSON.parse(text);
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+    } catch (_) {
+        return null;
+    }
+}
+
+function stripJsonFence(text) {
+    const trimmed = typeof text === 'string' ? text.trim() : '';
+    if (!trimmed.startsWith('```')) return trimmed;
+
+    const opening = trimmed.match(/^```(?:json)?\s*/i);
+    if (!opening) return trimmed;
+
+    const body = trimmed.slice(opening[0].length);
+    const closing = body.match(/\s*```\s*$/);
+    return closing ? body.slice(0, closing.index).trim() : body.trim();
+}
+
+function isPlainObject(value) {
+    return value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isPlaceholderToolName(toolName) {
+    const normalized = typeof toolName === 'string'
+        ? toolName.trim().toLowerCase().replace(/[\s-]+/g, '_')
+        : '';
+    return !normalized || ['tool', 'tool_name', 'name', 'example_tool'].includes(normalized);
+}
+
+function isCompleteToolCallObject(value) {
+    return isPlainObject(value)
+        && typeof value.tool === 'string'
+        && !isPlaceholderToolName(value.tool)
+        && isPlainObject(value.args);
+}
+
+function isLikelyPartialToolCall(candidate) {
+    const text = typeof candidate === 'string' ? candidate.trim() : '';
+    if (!text || !text.startsWith('{')) return false;
+    if (!/"tool"\s*:/.test(text)) return false;
+
+    const toolMatch = text.match(/"tool"\s*:\s*"([^"]*)/);
+    const hasToolString = Boolean(toolMatch && !isPlaceholderToolName(toolMatch[1]));
+    const hasArgsKey = /"args"\s*:/.test(text);
+    const isIncomplete = !text.endsWith('}');
+    return hasToolString && hasArgsKey && isIncomplete;
+}
+
+function isToolCallCandidate(text) {
+    const trimmed = typeof text === 'string' ? text.trim() : '';
+    if (!trimmed) return false;
+
+    const candidate = stripJsonFence(trimmed);
+    const parsed = parseJsonObject(candidate);
+
+    if (isCompleteToolCallObject(parsed)) return true;
+
+    return isLikelyPartialToolCall(candidate);
+}
+
+function isToolCallOnlyText(text) {
+    return isToolCallCandidate(text);
+}
+
+function findTrailingFencedToolCall(text) {
+    const value = typeof text === 'string' ? text : '';
+    const fencePattern = /(^|\n)([ \t]*```(?:json)?[ \t]*\n?[\s\S]*?\n?```[ \t]*)/gi;
+    let match;
+    let trailingMatch = null;
+    while ((match = fencePattern.exec(value)) !== null) {
+        if (value.slice(fencePattern.lastIndex).trim() === '') {
+            trailingMatch = {
+                start: match.index + match[1].length,
+                block: match[2]
+            };
+        }
+    }
+    if (!trailingMatch) return null;
+
+    const block = trailingMatch.block;
+    if (!isToolCallCandidate(block)) return null;
+
+    return {
+        start: trailingMatch.start,
+        end: value.length,
+        toolCallText: block.trim()
+    };
+}
+
+function findTrailingPartialFencedToolCall(text) {
+    const value = typeof text === 'string' ? text : '';
+    const fenceStartPattern = /(^|\n)([ \t]*```(?:json)?[ \t]*\n?)/gi;
+    let match;
+    let lastStart = null;
+    while ((match = fenceStartPattern.exec(value)) !== null) {
+        lastStart = {
+            start: match.index + match[1].length,
+            prefixEnd: fenceStartPattern.lastIndex
+        };
+    }
+    if (!lastStart) return null;
+
+    const block = value.slice(lastStart.start);
+    if (block.trim().endsWith('```')) return null;
+    if (!isToolCallCandidate(block)) return null;
+
+    return {
+        start: lastStart.start,
+        end: value.length,
+        toolCallText: block.trim()
+    };
+}
+
+function findTrailingBareToolCall(text) {
+    const value = typeof text === 'string' ? text : '';
+    const toolPattern = /"tool"\s*:/g;
+    const matches = [...value.matchAll(toolPattern)];
+
+    for (let i = matches.length - 1; i >= 0; i--) {
+        const toolIndex = matches[i].index;
+        const start = value.lastIndexOf('{', toolIndex);
+        if (start === -1) continue;
+
+        const before = value.slice(0, start);
+        if (before.trim() && !/\n\s*$/.test(before)) continue;
+
+        const suffix = value.slice(start).trimEnd();
+        if (isToolCallCandidate(suffix)) {
+            return {
+                start,
+                end: value.length,
+                toolCallText: suffix.trim()
+            };
+        }
+    }
+
+    return null;
+}
+
+function splitToolCallFromText(text) {
+    const value = typeof text === 'string' ? text : '';
+    if (!value.trim()) {
+        return {
+            displayText: value,
+            toolCallText: '',
+            hasToolCall: false
+        };
+    }
+
+    const match = findTrailingFencedToolCall(value)
+        || findTrailingPartialFencedToolCall(value)
+        || findTrailingBareToolCall(value);
+    if (!match) {
+        return {
+            displayText: value,
+            toolCallText: '',
+            hasToolCall: false
+        };
+    }
+
+    return {
+        displayText: value.slice(0, match.start).trimEnd(),
+        toolCallText: match.toolCallText,
+        hasToolCall: true
+    };
+}
+
 export class MessageHandler {
     constructor(sessionManager, uiController, imageManager, appController) {
         this.sessionManager = sessionManager;
@@ -50,6 +224,16 @@ export class MessageHandler {
         // 1. AI Reply
         if (request.action === "GEMINI_REPLY") {
             this.handleGeminiReply(request);
+            return;
+        }
+
+        if (request.action === "TOOL_OUTPUT_MESSAGE") {
+            this.handleToolOutputMessage(request);
+            return;
+        }
+
+        if (request.action === "TOOL_CALL_STATUS_MESSAGE") {
+            this.handleToolCallStatusMessage(request);
             return;
         }
 
@@ -145,7 +329,13 @@ export class MessageHandler {
         };
 
         if (request.text !== undefined) {
-            next.text = request.text || "";
+            const rawText = request.text || "";
+            const split = splitToolCallFromText(rawText);
+            next.rawText = rawText;
+            next.text = split.displayText;
+            if (split.hasToolCall) {
+                next.toolCallText = split.toolCallText;
+            }
         }
         if (request.thoughts !== undefined) {
             next.thoughts = request.thoughts || "";
@@ -193,6 +383,7 @@ export class MessageHandler {
     handleStreamUpdate(request) {
         if (!this.isGeneratingSessionMessage(request)) return;
         const state = this.cacheStreamState(request);
+        const displayText = state?.text || "";
 
         // Prevent race condition: Ignore stream updates arriving shortly after user cancelled
         if (this.app.prompt.isCancellationRecent()) {
@@ -208,7 +399,7 @@ export class MessageHandler {
         }
         
         // Update content if text or thoughts exist
-        this.streamingBubble.update(request.text, request.thoughts, { isStreaming: true });
+        this.streamingBubble.update(displayText, request.thoughts, { isStreaming: true });
         
         // Ensure UI state reflects generation
         if (!this.app.isGenerating) {
@@ -309,6 +500,246 @@ export class MessageHandler {
                 });
             }
         }
+    }
+
+    handleToolOutputMessage(request) {
+        if (!this.isGeneratingSessionMessage(request)) return;
+        const sessionId = this.getRequestSessionId(request);
+        const toolCallText = this.getRequestToolCallText(request, sessionId);
+
+        if (!this.isCurrentSessionMessage(request)) {
+            this.clearStreamState(sessionId);
+            return;
+        }
+
+        this.finalizeActiveStream({
+            text: request.toolCallText || this.getStreamRawText(sessionId),
+            thoughts: this.getStreamThoughts(sessionId),
+            clearToolCallJson: true
+        });
+        this.clearStreamState(sessionId);
+
+        const session = this.sessionManager.getCurrentSession();
+        const renderedKey = this.getToolOutputKey(request);
+        if (renderedKey && this.hasRenderedToolOutput(renderedKey)) {
+            this.removeRenderedToolStatus(this.getToolStatusKey(request));
+            return;
+        }
+
+        this.removeRenderedToolStatus(this.getToolStatusKey(request));
+
+        if (session && !this.hasPersistedToolOutput(session, request)) {
+            session.messages.push({
+                role: 'user',
+                text: this.buildToolOutputHistoryText(request),
+                image: request.images || null,
+                kind: 'tool-output',
+                toolName: request.toolName || '',
+                toolStatus: request.status || this.getToolOutputStatus(request),
+                toolCallText,
+                toolStep: request.step,
+                toolCallIndex: request.callIndex,
+                toolCallCount: request.callCount
+            });
+            session.timestamp = Date.now();
+            this.app.sessionFlow.refreshHistoryUI();
+        }
+
+        appendMessage(
+            this.ui.historyDiv,
+            request.text || '',
+            'user',
+            request.images || null,
+            null,
+            null,
+            {
+                kind: 'tool-output',
+                toolName: request.toolName || '',
+                toolStatus: request.status || this.getToolOutputStatus(request),
+                toolCallText,
+                step: request.step,
+                callIndex: request.callIndex,
+                callCount: request.callCount,
+                toolOutputKey: renderedKey
+            }
+        );
+        this.ui.scrollToBottom();
+    }
+
+    handleToolCallStatusMessage(request) {
+        if (!this.isGeneratingSessionMessage(request)) return;
+        if (!this.isCurrentSessionMessage(request)) return;
+
+        const sessionId = this.getRequestSessionId(request);
+        const toolCallText = this.getRequestToolCallText(request, sessionId);
+        this.finalizeActiveStream({
+            text: request.toolCallText || this.getStreamRawText(sessionId),
+            thoughts: this.getStreamThoughts(sessionId),
+            clearToolCallJson: true
+        });
+        this.clearStreamState(sessionId);
+
+        const statusKey = request.statusKey || this.getToolStatusKey(request);
+        const existing = this.findRenderedToolStatus(statusKey);
+        if (existing && typeof existing.update === 'function') {
+            existing.update(request.text || '', null, {
+                toolStatus: request.status || 'completed',
+                toolCallText,
+                callIndex: request.callIndex,
+                callCount: request.callCount,
+                isCollapsed: true
+            });
+            this.ui.scrollToBottom();
+            return;
+        }
+
+        const controller = appendMessage(
+            this.ui.historyDiv,
+            request.text || '',
+            'user',
+            null,
+            null,
+            null,
+            {
+                kind: 'tool-status',
+                toolName: request.toolName || '',
+                toolStatus: request.status || 'running',
+                toolCallText,
+                callIndex: request.callIndex,
+                callCount: request.callCount,
+                toolStatusKey: statusKey,
+                isCollapsed: true
+            }
+        );
+
+        this.ui.scrollToBottom();
+        return controller;
+    }
+
+    finalizeActiveStream(state = {}) {
+        if (!this.streamingBubble) return;
+        let finalText;
+        if (state.clearToolCallJson) {
+            const split = splitToolCallFromText(state.text || "");
+            if (split.hasToolCall) {
+                finalText = split.displayText;
+            } else if (isToolCallOnlyText(state.text)) {
+                finalText = "";
+            }
+        }
+        if (state.clearToolCallJson && !hasDisplayableText(finalText) && !hasDisplayableThoughts(state.thoughts)) {
+            if (typeof this.streamingBubble.dispose === 'function') {
+                this.streamingBubble.dispose();
+            }
+            if (this.streamingBubble.div && typeof this.streamingBubble.div.remove === 'function') {
+                this.streamingBubble.div.remove();
+            }
+            this.streamingBubble = null;
+            return;
+        }
+        if (typeof this.streamingBubble.finalize === 'function') {
+            this.streamingBubble.finalize(finalText, undefined);
+        } else if (typeof this.streamingBubble.dispose === 'function') {
+            this.streamingBubble.dispose();
+        }
+        this.streamingBubble = null;
+    }
+
+    getStreamToolCallText(sessionId) {
+        if (!sessionId) return "";
+        const state = this.streamStates.get(sessionId);
+        if (typeof state?.toolCallText === 'string' && state.toolCallText.trim()) {
+            return state.toolCallText;
+        }
+        const split = splitToolCallFromText(state?.rawText || state?.text || "");
+        return split.toolCallText;
+    }
+
+    getStreamRawText(sessionId) {
+        if (!sessionId) return "";
+        const state = this.streamStates.get(sessionId);
+        return typeof state?.rawText === 'string' ? state.rawText : (state?.text || "");
+    }
+
+    getStreamThoughts(sessionId) {
+        if (!sessionId) return "";
+        const state = this.streamStates.get(sessionId);
+        return typeof state?.thoughts === 'string' ? state.thoughts : "";
+    }
+
+    getRequestToolCallText(request, sessionId) {
+        const requestText = typeof request?.toolCallText === 'string' ? request.toolCallText : "";
+        const split = splitToolCallFromText(requestText);
+        if (split.hasToolCall) return split.toolCallText;
+        if (isToolCallOnlyText(requestText)) return requestText.trim();
+        return this.getStreamToolCallText(sessionId);
+    }
+
+    buildToolOutputHistoryText(request) {
+        const toolName = request.toolName || 'tool';
+        const step = Number.isFinite(request.step) ? request.step : '';
+        const suffix = step ? `\n\n[Proceeding to step ${step}]` : '';
+        return `[Tool Output: ${toolName}]\n${request.text || ''}${suffix}`;
+    }
+
+    getToolOutputKey(request) {
+        if (!request) return '';
+        return [
+            request.sessionId || '',
+            request.toolName || '',
+            Number.isFinite(request.step) ? request.step : '',
+            Number.isFinite(request.callIndex) ? request.callIndex : '',
+            request.text || ''
+        ].join('|');
+    }
+
+    hasRenderedToolOutput(key) {
+        if (!key || !this.ui || !this.ui.historyDiv) return false;
+        return Array.from(this.ui.historyDiv.querySelectorAll('[data-tool-output-key]'))
+            .some(element => element.dataset.toolOutputKey === key);
+    }
+
+    getToolStatusKey(request) {
+        if (!request) return '';
+        const parts = [
+            request.sessionId || '',
+            request.toolName || ''
+        ];
+        if (Number.isFinite(request.callIndex) && Number.isFinite(request.callCount) && request.callCount > 1) {
+            parts.push(String(request.callIndex));
+        }
+        return parts.join('|');
+    }
+
+    findRenderedToolStatus(key) {
+        if (!key || !this.ui || !this.ui.historyDiv) return null;
+        const element = Array.from(this.ui.historyDiv.querySelectorAll('[data-tool-status-key]'))
+            .find(candidate => candidate.dataset.toolStatusKey === key);
+        return element?.__messageController || null;
+    }
+
+    removeRenderedToolStatus(key) {
+        const controller = this.findRenderedToolStatus(key);
+        if (!controller) return;
+        if (typeof controller.dispose === 'function') {
+            controller.dispose();
+        }
+        if (controller.div && typeof controller.div.remove === 'function') {
+            controller.div.remove();
+        }
+    }
+
+    hasPersistedToolOutput(session, request) {
+        if (!session || !Array.isArray(session.messages)) return false;
+        const expected = this.buildToolOutputHistoryText(request);
+        return session.messages.some(message => {
+            return message && message.role === 'user' && message.text === expected;
+        });
+    }
+
+    getToolOutputStatus(request) {
+        const text = typeof request?.text === 'string' ? request.text.trim() : '';
+        return text.startsWith('Error executing tool:') ? 'failed' : 'completed';
     }
 
     handleImageResult(request) {

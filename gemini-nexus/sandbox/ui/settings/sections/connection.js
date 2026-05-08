@@ -4,6 +4,45 @@ import { sendToBackground } from '../../../../lib/messaging.js';
 
 const OPENAI_WEB_SEARCH_MODES = new Set(['off', 'responses', 'chat']);
 
+function normalizeMcpHeaders(headers) {
+    if (!headers || typeof headers !== 'object' || Array.isArray(headers)) return {};
+
+    const result = {};
+    for (const [name, value] of Object.entries(headers)) {
+        const key = String(name || '').trim();
+        if (!key || value === undefined || value === null) continue;
+
+        const text = String(value).trim();
+        if (!text) continue;
+        result[key] = text;
+    }
+    return result;
+}
+
+function formatMcpHeaders(headers) {
+    const normalized = normalizeMcpHeaders(headers);
+    if (Object.keys(normalized).length === 0) return '';
+    return JSON.stringify(normalized, null, 2);
+}
+
+function parseMcpHeadersText(text) {
+    const raw = (text || '').trim();
+    if (!raw) return {};
+
+    let parsed;
+    try {
+        parsed = JSON.parse(raw);
+    } catch {
+        throw new Error('Request headers must be valid JSON.');
+    }
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('Request headers must be a JSON object.');
+    }
+
+    return normalizeMcpHeaders(parsed);
+}
+
 function normalizeOpenAISettings(data) {
     const hasUseResponsesSetting = typeof data.openaiUseResponsesApi === 'boolean';
     const hasWebSearchSetting = typeof data.openaiWebSearch === 'boolean';
@@ -19,6 +58,24 @@ function normalizeOpenAISettings(data) {
         useResponsesApi: data.openaiUseResponsesApi === true,
         webSearch: hasWebSearchSetting ? data.openaiWebSearch === true : false
     };
+}
+
+function inferMcpTransport(transport, url) {
+    const normalized = (transport || 'sse').toLowerCase();
+    if (normalized === 'streamablehttp') return 'streamable-http';
+    if (normalized === 'websocket') return 'ws';
+
+    if (normalized === 'sse' && typeof url === 'string') {
+        try {
+            const parsed = new URL(url.trim());
+            const path = parsed.pathname.replace(/\/+$/, '').toLowerCase();
+            if (parsed.protocol.startsWith('http') && !path.endsWith('/sse')) {
+                return 'streamable-http';
+            }
+        } catch {}
+    }
+
+    return normalized;
 }
 
 export class ConnectionSection {
@@ -42,6 +99,7 @@ export class ConnectionSection {
             name: 'Local Proxy',
             transport: 'sse',
             url: 'http://127.0.0.1:3006/sse',
+            headers: {},
             enabled: true,
             toolMode: 'all', // 'all' | 'selected'
             enabledTools: [] // only used when toolMode === 'selected'
@@ -87,6 +145,7 @@ export class ConnectionSection {
             mcpServerName: get('mcp-server-name'),
             mcpTransport: get('mcp-transport'),
             mcpServerUrl: get('mcp-server-url'),
+            mcpHeaders: get('mcp-headers'),
             mcpServerEnabled: get('mcp-server-enabled'),
             mcpTestConnection: get('mcp-test-connection'),
             mcpTestStatus: get('mcp-test-status'),
@@ -122,6 +181,7 @@ export class ConnectionSection {
             mcpServerName,
             mcpTransport,
             mcpServerUrl,
+            mcpHeaders,
             mcpServerEnabled,
             mcpTestConnection,
             mcpToolMode,
@@ -181,6 +241,7 @@ export class ConnectionSection {
 
         if (mcpServerName) mcpServerName.addEventListener('input', onEdit);
         if (mcpServerUrl) mcpServerUrl.addEventListener('input', onEdit);
+        if (mcpHeaders) mcpHeaders.addEventListener('input', onEdit);
         if (mcpTransport) {
             mcpTransport.addEventListener('change', () => {
                 const server = this._getActiveServer();
@@ -221,7 +282,7 @@ export class ConnectionSection {
 
         if (mcpRefreshTools) {
             mcpRefreshTools.addEventListener('click', () => {
-                this._saveCurrentServerEdits();
+                if (!this._saveCurrentServerEdits()) return;
                 const server = this._getActiveServer();
                 if (!server) return;
 
@@ -229,8 +290,9 @@ export class ConnectionSection {
                 sendToBackground({
                     action: 'MCP_LIST_TOOLS',
                     serverId: server.id,
-                    transport: server.transport || 'sse',
-                    url: server.url || ''
+                    transport: inferMcpTransport(server.transport, server.url),
+                    url: server.url || '',
+                    headers: normalizeMcpHeaders(server.headers)
                 });
             });
         }
@@ -261,7 +323,7 @@ export class ConnectionSection {
 
         if (mcpTestConnection) {
             mcpTestConnection.addEventListener('click', () => {
-                this._saveCurrentServerEdits();
+                if (!this._saveCurrentServerEdits()) return;
                 const server = this._getActiveServer();
                 if (!server) return;
 
@@ -269,8 +331,9 @@ export class ConnectionSection {
                 sendToBackground({
                     action: 'MCP_TEST_CONNECTION',
                     serverId: server.id,
-                    transport: server.transport || 'sse',
-                    url: server.url || ''
+                    transport: inferMcpTransport(server.transport, server.url),
+                    url: server.url || '',
+                    headers: normalizeMcpHeaders(server.headers)
                 });
             });
         }
@@ -321,6 +384,7 @@ export class ConnectionSection {
                 name: s.name || '',
                 transport: s.transport || 'sse',
                 url: s.url || '',
+                headers: normalizeMcpHeaders(s.headers),
                 enabled: s.enabled !== false,
                 toolMode: s.toolMode === 'selected' ? 'selected' : 'all',
                 enabledTools: Array.isArray(s.enabledTools) ? s.enabledTools : []
@@ -333,6 +397,7 @@ export class ConnectionSection {
             const server = this._getDefaultServer();
             server.transport = legacyTransport;
             server.url = legacyUrl || server.url;
+            server.headers = normalizeMcpHeaders(data.mcpHeaders);
             server.enabled = data.mcpEnabled === true;
             this.mcpServers = [server];
             this.mcpActiveServerId = server.id;
@@ -419,18 +484,28 @@ export class ConnectionSection {
             mcpServerName,
             mcpTransport,
             mcpServerUrl,
+            mcpHeaders,
             mcpServerEnabled,
             mcpToolMode
         } = this.elements;
 
         const server = this._getActiveServer();
-        if (!server) return;
+        if (!server) return false;
 
         const prevKey = this._serverKey(server);
 
         if (mcpServerName) server.name = mcpServerName.value || '';
-        if (mcpTransport) server.transport = mcpTransport.value || 'sse';
         if (mcpServerUrl) server.url = (mcpServerUrl.value || '').trim();
+        if (mcpTransport) server.transport = inferMcpTransport(mcpTransport.value || 'sse', server.url);
+        if (mcpHeaders) {
+            try {
+                server.headers = parseMcpHeadersText(mcpHeaders.value);
+                this.setMcpTestStatus('');
+            } catch (e) {
+                this.setMcpTestStatus(e.message || 'Invalid request headers.', true);
+                return false;
+            }
+        }
         if (mcpServerEnabled) server.enabled = mcpServerEnabled.checked === true;
         if (mcpToolMode) server.toolMode = mcpToolMode.value === 'selected' ? 'selected' : 'all';
 
@@ -439,6 +514,7 @@ export class ConnectionSection {
         if (prevKey !== nextKey) {
             this.mcpToolsCache.delete(server.id);
         }
+        return true;
     }
 
     _loadActiveServerIntoForm() {
@@ -447,6 +523,7 @@ export class ConnectionSection {
             mcpServerName,
             mcpTransport,
             mcpServerUrl,
+            mcpHeaders,
             mcpServerEnabled,
             mcpToolMode
         } = this.elements;
@@ -456,9 +533,12 @@ export class ConnectionSection {
 
         if (mcpServerSelect) mcpServerSelect.value = server.id;
         if (mcpServerName) mcpServerName.value = server.name || '';
-        if (mcpTransport) mcpTransport.value = server.transport || 'sse';
+        const transport = inferMcpTransport(server.transport || 'sse', server.url || '');
+        server.transport = transport;
+        if (mcpTransport) mcpTransport.value = transport;
         if (mcpServerUrl) mcpServerUrl.value = server.url || '';
         if (mcpServerUrl) mcpServerUrl.placeholder = this._getDefaultUrlForTransport(server.transport || 'sse');
+        if (mcpHeaders) mcpHeaders.value = formatMcpHeaders(server.headers);
         if (mcpServerEnabled) mcpServerEnabled.checked = server.enabled !== false;
         if (mcpToolMode) mcpToolMode.value = server.toolMode === 'selected' ? 'selected' : 'all';
 
@@ -498,7 +578,12 @@ export class ConnectionSection {
     _serverKey(server) {
         const transport = (server.transport || 'sse').toLowerCase();
         const url = (server.url || '').trim();
-        return `${transport}:${url}`;
+        const headers = normalizeMcpHeaders(server.headers);
+        const headersKey = Object.keys(headers)
+            .sort((a, b) => a.localeCompare(b))
+            .map(key => `${key}:${headers[key]}`)
+            .join('\n');
+        return `${transport}:${url}:${headersKey}`;
     }
 
     _getCachedTools(server) {
@@ -511,9 +596,10 @@ export class ConnectionSection {
     setMcpToolsList(serverId, transport, url, tools) {
         const id = serverId || (this._getActiveServer() ? this._getActiveServer().id : null);
         if (!id) return;
+        const server = this.mcpServers.find(s => s && s.id === id);
 
         this.mcpToolsCache.set(id, {
-            key: `${(transport || 'sse').toLowerCase()}:${(url || '').trim()}`,
+            key: server ? this._serverKey(server) : `${(transport || 'sse').toLowerCase()}:${(url || '').trim()}:`,
             tools: Array.isArray(tools) ? tools : []
         });
 

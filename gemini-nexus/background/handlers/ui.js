@@ -206,7 +206,9 @@ export class UIMessageHandler {
                     const tools = await this.mcpManager.listTools({
                         enableMcpTools: true,
                         mcpTransport: transport,
-                        mcpServerUrl: url
+                        mcpServerUrl: url,
+                        mcpServerId: request.serverId || '_test_',
+                        mcpHeaders: request.headers
                     });
 
                     sendResponse({
@@ -242,7 +244,9 @@ export class UIMessageHandler {
                     const tools = await this.mcpManager.listTools({
                         enableMcpTools: true,
                         mcpTransport: transport,
-                        mcpServerUrl: url
+                        mcpServerUrl: url,
+                        mcpServerId: request.serverId || '_tools_',
+                        mcpHeaders: request.headers
                     });
 
                     // Return only lightweight fields for UI

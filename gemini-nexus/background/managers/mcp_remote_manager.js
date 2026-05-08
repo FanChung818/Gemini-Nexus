@@ -31,6 +31,68 @@ function asHttpUrl(url) {
   return trimmed;
 }
 
+function inferTransport(transport, url) {
+  const normalized = (transport || 'sse').toLowerCase();
+  if (normalized === 'streamablehttp') return 'streamable-http';
+  if (normalized === 'websocket') return 'ws';
+
+  // Treat legacy/default SSE selections conservatively: only explicit /sse
+  // HTTP endpoints use the old SSE transport. Modern MCP HTTP endpoints are
+  // typically Streamable HTTP and do not emit the legacy "endpoint" event.
+  if (normalized === 'sse' && typeof url === 'string') {
+    try {
+      const parsed = new URL(url.trim());
+      const path = parsed.pathname.replace(/\/+$/, '').toLowerCase();
+      if (parsed.protocol.startsWith('http') && !path.endsWith('/sse')) {
+        return 'streamable-http';
+      }
+    } catch {}
+  }
+
+  return normalized;
+}
+
+function normalizeHeaders(headers) {
+  if (!headers || typeof headers !== 'object' || Array.isArray(headers)) return {};
+
+  const result = {};
+  for (const [name, value] of Object.entries(headers)) {
+    const key = String(name || '').trim();
+    if (!key || value === undefined || value === null) continue;
+
+    const text = String(value).trim();
+    if (!text) continue;
+    result[key] = text;
+  }
+  return result;
+}
+
+function hasHeaders(headers) {
+  return Object.keys(normalizeHeaders(headers)).length > 0;
+}
+
+function stableHeadersKey(headers) {
+  const normalized = normalizeHeaders(headers);
+  return Object.keys(normalized)
+    .sort((a, b) => a.localeCompare(b))
+    .map(key => `${key}:${normalized[key]}`)
+    .join('\n');
+}
+
+function mergeHeaders(baseHeaders, customHeaders) {
+  return {
+    ...(baseHeaders || {}),
+    ...normalizeHeaders(customHeaders),
+  };
+}
+
+function mergeHttpTransportHeaders(conn, baseHeaders) {
+  const headers = mergeHeaders(baseHeaders, conn.headers);
+  if (conn.sessionId) headers['Mcp-Session-Id'] = conn.sessionId;
+  if (conn.protocolVersion) headers['MCP-Protocol-Version'] = conn.protocolVersion;
+  return headers;
+}
+
 function extractTextFromContent(content) {
   if (!Array.isArray(content)) return '';
   return content
@@ -121,6 +183,9 @@ export class McpRemoteManager {
       ssePostUrl: null,
       sseReaderTask: null,
       httpPostUrl: null,
+      headers: {},
+      sessionId: null,
+      protocolVersion: null,
       _resolveSseEndpoint: null
     };
   }
@@ -179,6 +244,9 @@ export class McpRemoteManager {
     conn.ssePostUrl = null;
     conn.sseReaderTask = null;
     conn.httpPostUrl = null;
+    conn.headers = {};
+    conn.sessionId = null;
+    conn.protocolVersion = null;
   }
 
   _clearIdleTimer(conn) {
@@ -242,7 +310,7 @@ export class McpRemoteManager {
     } else {
       fetch(conn.ssePostUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: mergeHeaders({ 'Content-Type': 'application/json' }, conn.headers),
         body: JSON.stringify(msg),
       }).catch(err => {
         const entry = conn.pending.get(id);
@@ -268,7 +336,7 @@ export class McpRemoteManager {
       if (!conn.ssePostUrl) return;
       fetch(conn.ssePostUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: mergeHeaders({ 'Content-Type': 'application/json' }, conn.headers),
         body: JSON.stringify(msg),
       }).catch(() => {});
       return;
@@ -278,7 +346,10 @@ export class McpRemoteManager {
       if (!conn.httpPostUrl) return;
       fetch(conn.httpPostUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: mergeHttpTransportHeaders(conn, {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+        }),
         body: JSON.stringify(msg),
       }).catch(() => {});
     }
@@ -292,11 +363,17 @@ export class McpRemoteManager {
     return this.connections.get(serverId);
   }
 
-  async _ensureConnectedForServer(serverId, transport, url) {
+  async _ensureConnectedForServer(serverId, transport, url, headers = {}) {
     const conn = this._getOrCreateConnection(serverId);
-    const transportLower = (transport || 'sse').toLowerCase();
+    const transportLower = inferTransport(transport, url);
+    const normalizedHeaders = normalizeHeaders(headers);
+    const headerKey = stableHeadersKey(normalizedHeaders);
 
     if (transportLower === 'ws' || transportLower === 'websocket') {
+      if (hasHeaders(normalizedHeaders)) {
+        throw new Error('Custom MCP headers are not supported for WebSocket transport in browser extensions. Use SSE or Streamable HTTP.');
+      }
+
       const wsUrl = asWsUrl(url);
       if (!wsUrl) throw new Error('Invalid MCP server URL');
       const key = `ws:${wsUrl}`;
@@ -309,6 +386,7 @@ export class McpRemoteManager {
       this._disconnectState(conn);
       conn.configKey = key;
       conn.transport = 'ws';
+      conn.headers = {};
 
       await new Promise((resolve, reject) => {
         const ws = new WebSocket(wsUrl);
@@ -357,7 +435,7 @@ export class McpRemoteManager {
     if (transportLower === 'sse') {
       const sseUrlStr = asHttpUrl(url);
       if (!sseUrlStr) throw new Error('Invalid MCP SSE URL');
-      const key = `sse:${sseUrlStr}`;
+      const key = `sse:${sseUrlStr}:${headerKey}`;
 
       if (conn.transport === 'sse' && conn.initialized && conn.configKey === key && conn.ssePostUrl) {
         this._bumpIdleClose(conn, serverId);
@@ -367,6 +445,7 @@ export class McpRemoteManager {
       this._disconnectState(conn);
       conn.configKey = key;
       conn.transport = 'sse';
+      conn.headers = normalizedHeaders;
 
       await this._connectSse(conn, sseUrlStr);
       await this._initializeHandshake(conn);
@@ -377,7 +456,7 @@ export class McpRemoteManager {
     if (transportLower === 'streamable-http' || transportLower === 'streamablehttp') {
       const httpUrl = asHttpUrl(url);
       if (!httpUrl) throw new Error('Invalid Streamable HTTP URL');
-      const key = `streamable-http:${httpUrl}`;
+      const key = `streamable-http:${httpUrl}:${headerKey}`;
 
       if (conn.transport === 'streamable-http' && conn.initialized && conn.configKey === key && conn.httpPostUrl) {
         this._bumpIdleClose(conn, serverId);
@@ -388,6 +467,9 @@ export class McpRemoteManager {
       conn.configKey = key;
       conn.transport = 'streamable-http';
       conn.httpPostUrl = httpUrl;
+      conn.headers = normalizedHeaders;
+      conn.sessionId = null;
+      conn.protocolVersion = null;
 
       await this._initializeHandshake(conn);
       this._bumpIdleClose(conn, serverId);
@@ -403,7 +485,7 @@ export class McpRemoteManager {
       throw new Error('MCP is not enabled or server URL is missing.');
     }
     const serverId = config.mcpServerId || '_legacy_';
-    return await this._ensureConnectedForServer(serverId, config.mcpTransport, config.mcpServerUrl);
+    return await this._ensureConnectedForServer(serverId, config.mcpTransport, config.mcpServerUrl, config.mcpHeaders);
   }
 
   async _sendRpcStreamableHttp(conn, method, params) {
@@ -419,9 +501,15 @@ export class McpRemoteManager {
 
     const response = await fetch(conn.httpPostUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: mergeHttpTransportHeaders(conn, {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+      }),
       body: JSON.stringify(msg),
     });
+
+    const sessionId = response.headers.get('Mcp-Session-Id');
+    if (sessionId) conn.sessionId = sessionId;
 
     const text = await response.text();
 
@@ -467,7 +555,7 @@ export class McpRemoteManager {
 
     const response = await fetch(sseUrl.toString(), {
       method: 'GET',
-      headers: { Accept: 'text/event-stream', 'Cache-Control': 'no-cache' },
+      headers: mergeHeaders({ Accept: 'text/event-stream', 'Cache-Control': 'no-cache' }, conn.headers),
       signal: abort.signal,
     });
 
@@ -569,6 +657,7 @@ export class McpRemoteManager {
           clientInfo: { name: this.clientName, version: this.clientVersion },
         });
 
+        conn.protocolVersion = protocolVersion;
         this._sendNotification(conn, 'notifications/initialized', {});
         conn.initialized = true;
         return;
@@ -597,8 +686,8 @@ export class McpRemoteManager {
   }
 
   // List tools for a specific server by ID
-  async listToolsForServer(serverId, transport, url) {
-    const conn = await this._ensureConnectedForServer(serverId, transport, url);
+  async listToolsForServer(serverId, transport, url, headers = {}) {
+    const conn = await this._ensureConnectedForServer(serverId, transport, url, headers);
 
     const now = Date.now();
     if (conn.toolsCache && now - conn.toolsCacheAt < 5 * 60 * 1000) {
@@ -624,7 +713,7 @@ export class McpRemoteManager {
     const results = await Promise.allSettled(
       activeServers.map(async (server) => {
         console.log('[MCP] Connecting to server:', server.id, server.url);
-        const tools = await this.listToolsForServer(server.id, server.transport, server.url);
+        const tools = await this.listToolsForServer(server.id, server.transport, server.url, server.headers);
         console.log('[MCP] Server', server.id, 'returned', tools.length, 'tools');
         // Tag tools with server info for routing
         return tools.map(t => ({
@@ -677,7 +766,7 @@ export class McpRemoteManager {
       throw new Error(`Server not found: ${serverId}`);
     }
 
-    const conn = await this._ensureConnectedForServer(serverId, server.transport, server.url);
+    const conn = await this._ensureConnectedForServer(serverId, server.transport, server.url, server.headers);
     const result = await this._sendRpc(conn, 'tools/call', {
       name: toolName,
       arguments: args || {},

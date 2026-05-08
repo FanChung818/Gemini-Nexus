@@ -43,7 +43,8 @@ export async function saveToHistory(text, result, filesObj = null) {
                     thoughtsDurationSeconds: result.thoughtsDurationSeconds,
                     sources: result.sources || null,
                     generatedImages: result.images, // Save generated images
-                    thoughtSignature: result.thoughtSignature // Save context signature for Gemini 3
+                    thoughtSignature: result.thoughtSignature, // Save context signature for Gemini 3
+                    officialContent: result.officialContent || null
                 }
             ],
             context: result.context
@@ -86,7 +87,8 @@ export async function appendAiMessage(sessionId, result) {
                 thoughtsDurationSeconds: result.thoughtsDurationSeconds,
                 sources: result.sources || null,
                 generatedImages: result.images,
-                thoughtSignature: result.thoughtSignature // Save context signature for Gemini 3
+                thoughtSignature: result.thoughtSignature, // Save context signature for Gemini 3
+                officialContent: result.officialContent || null
             });
             session.context = result.context; // Update context
             session.timestamp = Date.now();
@@ -111,14 +113,68 @@ export async function appendAiMessage(sessionId, result) {
     }
 }
 
+export async function appendRawMessages(sessionId, messages) {
+    try {
+        if (!sessionId || !Array.isArray(messages) || messages.length === 0) return false;
+
+        const { geminiSessions = [] } = await chrome.storage.local.get(['geminiSessions']);
+        const sessionIndex = geminiSessions.findIndex(s => s.id === sessionId);
+
+        if (sessionIndex === -1) return false;
+
+        const session = geminiSessions[sessionIndex];
+        messages.forEach(message => {
+            if (message && typeof message === 'object') {
+                session.messages.push(message);
+            }
+        });
+        session.timestamp = Date.now();
+
+        geminiSessions.splice(sessionIndex, 1);
+        geminiSessions.unshift(session);
+
+        await chrome.storage.local.set({ geminiSessions });
+
+        chrome.runtime.sendMessage({
+            action: "SESSIONS_UPDATED",
+            sessions: geminiSessions
+        }).catch(() => {});
+
+        return true;
+    } catch (e) {
+        console.error("Error appending raw history messages:", e);
+        return false;
+    }
+}
+
+export async function appendAiMessageIfDisplayable(sessionId, result) {
+    const text = typeof result?.text === 'string' ? result.text : '';
+    const thoughts = typeof result?.thoughts === 'string' ? result.thoughts : '';
+    const hasText = text.trim().length > 0;
+    const hasThoughts = thoughts.trim().length > 0;
+    const hasThoughtSignature = typeof result?.thoughtSignature === 'string'
+        && result.thoughtSignature.trim().length > 0;
+
+    if (!hasText && !hasThoughts && !hasThoughtSignature) {
+        return false;
+    }
+
+    return appendAiMessage(sessionId, {
+        ...result,
+        text,
+        thoughts: hasThoughts ? thoughts : null
+    });
+}
+
 /**
  * Appends a User message (or Tool Output) to an existing session.
  * Used for the automated browser control loop.
  * @param {string} sessionId 
  * @param {string} text 
  * @param {Array} images - Optional array of base64 image strings
+ * @param {object} metadata - Optional structured metadata for non-chat UI rows.
  */
-export async function appendUserMessage(sessionId, text, images = null) {
+export async function appendUserMessage(sessionId, text, images = null, metadata = null) {
     try {
         const { geminiSessions = [] } = await chrome.storage.local.get(['geminiSessions']);
         const sessionIndex = geminiSessions.findIndex(s => s.id === sessionId);
@@ -126,11 +182,21 @@ export async function appendUserMessage(sessionId, text, images = null) {
         if (sessionIndex !== -1) {
             const session = geminiSessions[sessionIndex];
             
-            session.messages.push({
+            const message = {
                 role: 'user',
                 text: text,
                 image: images // Store image array if present
-            });
+            };
+
+            if (metadata && typeof metadata === 'object') {
+                Object.entries(metadata).forEach(([key, value]) => {
+                    if (value !== undefined && value !== null && value !== '') {
+                        message[key] = value;
+                    }
+                });
+            }
+
+            session.messages.push(message);
             session.timestamp = Date.now();
             
             // Move to top

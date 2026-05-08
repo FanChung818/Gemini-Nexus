@@ -116,6 +116,11 @@ export const ConnectionSettingsTemplate = `
                 <label data-i18n="mcpServerUrl" style="font-weight: 500; display: block; margin-bottom: 2px;">Server URL</label>
                 <input type="text" id="mcp-server-url" class="shortcut-input" style="width: 100%; text-align: left; box-sizing: border-box;" placeholder="http://127.0.0.1:3006/sse">
             </div>
+            <div>
+                <label data-i18n="mcpHeaders" style="font-weight: 500; display: block; margin-bottom: 2px;">Request Headers (JSON)</label>
+                <textarea id="mcp-headers" class="shortcut-input" style="width: 100%; min-height: 74px; resize: vertical; text-align: left; box-sizing: border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; line-height: 1.4;" data-i18n-placeholder="mcpHeadersPlaceholder" placeholder='{"Authorization":"Bearer xxx"}'></textarea>
+                <div data-i18n="mcpHeadersDesc" style="font-size: 11px; opacity: 0.75; margin-top: 4px;">Optional JSON object. Applied to SSE and Streamable HTTP requests.</div>
+            </div>
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
                 <label style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="mcp-server-enabled" />

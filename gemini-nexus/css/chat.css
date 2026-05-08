@@ -8,8 +8,16 @@
     padding-bottom: 140px; /* Space for input */
     display: flex; 
     flex-direction: column; 
-    gap: 24px; /* Increased gap for breathing room */
+    gap: 10px;
     scroll-behavior: smooth;
+}
+
+#chat-history > :not([hidden]) + :not([hidden]) {
+    margin-top: 14px;
+}
+
+#chat-history > :not([hidden]) + .msg.msg-compact-chain {
+    margin-top: 0;
 }
 
 /* Wide Layout Overrides */
@@ -111,6 +119,150 @@ body.layout-wide .msg.ai {
     padding: 0;
     background: transparent;
     white-space: normal;
+}
+
+.msg.user.msg-tool-output {
+    align-self: flex-start;
+    max-width: min(720px, 86%);
+    width: auto;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bg-input) 86%, transparent);
+    color: var(--text-primary);
+    white-space: normal;
+}
+
+.msg.user.msg-tool-status {
+    align-self: flex-start;
+    max-width: min(640px, 82%);
+    width: auto;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bg-input) 78%, transparent);
+    color: var(--text-primary);
+    white-space: normal;
+}
+
+.tool-disclosure {
+    min-width: min(360px, 72vw);
+}
+
+.tool-disclosure-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    line-height: 1.35;
+    text-align: left;
+    cursor: pointer;
+}
+
+.tool-disclosure-toggle:hover .tool-disclosure-title,
+.tool-disclosure-toggle:focus-visible .tool-disclosure-title {
+    color: var(--text-primary);
+}
+
+.tool-disclosure-toggle:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+.tool-disclosure-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 14px;
+    width: 14px;
+    height: 18px;
+    color: var(--text-tertiary);
+    font-size: 18px;
+    line-height: 1;
+    transform: rotate(0deg);
+    transition: transform 0.18s ease, color 0.2s;
+}
+
+.tool-disclosure-expanded .tool-disclosure-arrow {
+    transform: rotate(90deg);
+}
+
+.tool-disclosure-main {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 5px 8px;
+    min-width: 0;
+}
+
+.tool-disclosure-title {
+    min-width: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.tool-disclosure-badge {
+    flex: 0 0 auto;
+    color: var(--text-tertiary);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.tool-disclosure-failed .tool-disclosure-badge,
+.tool-disclosure-failed .tool-disclosure-title {
+    color: var(--danger, #c62828);
+}
+
+.tool-disclosure-preview {
+    flex: 1 1 100%;
+    min-width: 0;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.tool-disclosure-body {
+    margin-top: 8px;
+    margin-left: 6px;
+    padding-left: 14px;
+    border-left: 2px solid var(--border-color);
+}
+
+.tool-disclosure-meta {
+    margin-bottom: 8px;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.tool-call-body {
+    margin-bottom: 8px;
+}
+
+.tool-call-body .code-block-wrapper,
+.tool-output-body .code-block-wrapper {
+    margin: 0;
+    max-width: 100%;
+}
+
+.tool-call-body .code-block-wrapper pre,
+.tool-output-body .code-block-wrapper pre {
+    max-height: 220px;
+    padding: 12px;
+    font-size: 12px;
+    line-height: 1.45;
 }
 
 /* User Copy Button - Floating on Hover */

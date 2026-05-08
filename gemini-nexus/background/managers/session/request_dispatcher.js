@@ -38,8 +38,18 @@ function isCurrentUserMessage(message, request) {
 
 function omitCurrentUserMessage(history, request) {
     if (!Array.isArray(history) || history.length === 0) return history || [];
-    const lastMessage = history[history.length - 1];
-    return isCurrentUserMessage(lastMessage, request) ? history.slice(0, -1) : history;
+    let end = history.length;
+    const currentBatchId = request.officialFunctionResponseBatchId;
+
+    if (currentBatchId) {
+        while (end > 0 && history[end - 1]?.officialFunctionResponseBatchId === currentBatchId) {
+            end--;
+        }
+    }
+
+    const trimmed = end === history.length ? history : history.slice(0, end);
+    const lastMessage = trimmed[trimmed.length - 1];
+    return isCurrentUserMessage(lastMessage, request) ? trimmed.slice(0, -1) : trimmed;
 }
 
 function assertOpenAIWebSearchSupported(model, reasoningEffort) {
@@ -105,6 +115,7 @@ export class RequestDispatcher {
                 apiKey: settings.apiKey,
                 model: request.model,
                 configuredModels: settings.officialModel,
+                officialUserParts: request.officialUserParts
             },
             settings.thinkingLevel, 
             files, 
@@ -122,7 +133,9 @@ export class RequestDispatcher {
             images: response.images,
             status: "success",
             context: null, // Official API is stateless
-            thoughtSignature: response.thoughtSignature
+            thoughtSignature: response.thoughtSignature,
+            officialContent: response.officialContent || null,
+            functionCalls: Array.isArray(response.functionCalls) ? response.functionCalls : []
         };
     }
 
