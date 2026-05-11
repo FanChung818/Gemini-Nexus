@@ -40,6 +40,7 @@ function createUi() {
         restoreChatScrollState: vi.fn(),
         scrollToBottom: vi.fn(),
         settings: {
+            connectionData: { provider: 'web' },
             updateContextSettings: vi.fn(),
             updateConnectionSettings: vi.fn(),
             updateSidebarBehavior: vi.fn(),
@@ -177,5 +178,20 @@ describe('AppController session restore behavior', () => {
         expect(ui.restoreChatScrollState).toHaveBeenCalledWith({ scrollTop: 120, isNearBottom: false });
         expect(ui.scrollToBottom).not.toHaveBeenCalled();
         expect(markRendered).toHaveBeenCalledWith('real', 2);
+    });
+
+    it('saves model changes with the active provider so OpenAI selection can persist separately', () => {
+        const { app, ui } = createAppHarness();
+        ui.settings.connectionData.provider = 'openai';
+
+        app.handleModelChange('gpt-5');
+
+        expect(window.parent.postMessage).toHaveBeenCalledWith({
+            action: 'SAVE_MODEL',
+            payload: {
+                provider: 'openai',
+                model: 'gpt-5'
+            }
+        }, '*');
     });
 });

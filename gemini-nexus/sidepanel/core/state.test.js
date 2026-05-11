@@ -50,6 +50,12 @@ function setupChrome(activeTabId = 33) {
     return listeners;
 }
 
+function setupChromeWithLocalData(localData, activeTabId = 33) {
+    const listeners = setupChrome(activeTabId);
+    chrome.storage.local.get.mockImplementation((keys, callback) => callback(localData));
+    return listeners;
+}
+
 describe('StateManager tab ownership', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -83,5 +89,33 @@ describe('StateManager tab ownership', () => {
 
         expect(chrome.tabs.query).toHaveBeenCalledWith({ active: true, currentWindow: true }, expect.any(Function));
         expect(manager.getCurrentTabId()).toBe(44);
+    });
+
+    it('restores the OpenAI-specific selected model when the OpenAI provider is active', () => {
+        setupChromeWithLocalData({
+            geminiProvider: 'openai',
+            geminiModel: 'gemini-3-flash',
+            geminiOpenaiModel: 'gpt-4.1, gpt-5',
+            geminiOpenaiSelectedModel: 'gpt-5'
+        });
+        const frame = createFrame();
+        const manager = new StateManager(frame);
+
+        manager.init();
+        manager.markUiReady();
+
+        expect(frame.postMessage).toHaveBeenCalledWith({
+            action: 'RESTORE_CONNECTION_SETTINGS',
+            payload: expect.objectContaining({
+                provider: 'openai',
+                openaiModel: 'gpt-4.1, gpt-5',
+                openaiSelectedModel: 'gpt-5',
+                selectedModel: 'gpt-5'
+            })
+        });
+        expect(frame.postMessage).toHaveBeenCalledWith({
+            action: 'RESTORE_MODEL',
+            payload: 'gpt-5'
+        });
     });
 });

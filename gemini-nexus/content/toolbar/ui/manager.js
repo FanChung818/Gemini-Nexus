@@ -28,6 +28,7 @@
             this.domBuilder = new DOMBuilder();
             this.callbacks = {};
             this.isBuilt = false;
+            this.provider = 'web';
             
             // Sub-Managers
             this.grammarManager = null;
@@ -212,6 +213,10 @@
             return this.view ? this.view.getSelectedModel() : "gemini-2.5-flash";
         }
 
+        getProvider() {
+            return this.provider;
+        }
+
         setSelectedModel(model) {
             if (this.view) {
                 this.view.setSelectedModel(model);
@@ -220,6 +225,7 @@
 
         updateModelList(settings, currentModel) {
             const provider = settings.provider || (settings.useOfficialApi ? 'official' : 'web');
+            this.provider = provider;
             let opts = [];
             
             if (provider === 'official') {

@@ -66,7 +66,7 @@
             // Listen for global setting changes to keep toolbar in sync
             chrome.storage.onChanged.addListener((changes, area) => {
                 if (area === 'local') {
-                    const keys = ['geminiModel', 'geminiProvider', 'geminiUseOfficialApi', 'geminiOfficialModel', 'geminiOpenaiModel'];
+                    const keys = ['geminiModel', 'geminiProvider', 'geminiUseOfficialApi', 'geminiOfficialModel', 'geminiOpenaiModel', 'geminiOpenaiSelectedModel'];
                     if (keys.some(k => changes[k])) {
                         this.syncSettings();
                     }
@@ -84,7 +84,8 @@
                 'geminiProvider', 
                 'geminiUseOfficialApi', 
                 'geminiOfficialModel',
-                'geminiOpenaiModel'
+                'geminiOpenaiModel',
+                'geminiOpenaiSelectedModel'
             ]);
             
             const settings = {
@@ -95,7 +96,11 @@
             };
             
             // Update UI options and selection
-            this.ui.updateModelList(settings, result.geminiModel);
+            const provider = settings.provider || (settings.useOfficialApi ? 'official' : 'web');
+            const selectedModel = provider === 'openai'
+                ? (result.geminiOpenaiSelectedModel || result.geminiModel)
+                : result.geminiModel;
+            this.ui.updateModelList(settings, selectedModel);
         }
         
         setSelectionEnabled(enabled) {
@@ -228,7 +233,12 @@
         // --- Action Dispatcher ---
 
         handleModelChange(model) {
-            // Update Global Preference
+            const provider = this.ui.getProvider ? this.ui.getProvider() : 'web';
+            if (provider === 'openai') {
+                chrome.storage.local.set({ 'geminiOpenaiSelectedModel': model });
+                return;
+            }
+
             chrome.storage.local.set({ 'geminiModel': model });
         }
 

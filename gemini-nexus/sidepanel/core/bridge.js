@@ -24,6 +24,30 @@ function normalizeOpenAISettings(data) {
     };
 }
 
+function getSelectedModelForProvider(data, provider) {
+    if (provider === 'openai') {
+        return data.geminiOpenaiSelectedModel || data.geminiModel || 'openai_custom';
+    }
+
+    return data.geminiModel || 'gemini-2.5-flash';
+}
+
+function getModelSaveKey(payload) {
+    if (payload && typeof payload === 'object') {
+        return payload.provider === 'openai' ? 'geminiOpenaiSelectedModel' : 'geminiModel';
+    }
+
+    return 'geminiModel';
+}
+
+function getModelSaveValue(payload) {
+    if (payload && typeof payload === 'object') {
+        return payload.model;
+    }
+
+    return payload;
+}
+
 export class MessageBridge {
     constructor(frameManager, stateManager) {
         this.frame = frameManager;
@@ -143,6 +167,7 @@ export class MessageBridge {
                 'geminiOpenaiBaseUrl',
                 'geminiOpenaiApiKey',
                 'geminiOpenaiModel',
+                'geminiOpenaiSelectedModel',
                 'geminiOpenaiThinkingLevel',
                 'geminiOpenaiUseResponsesApi',
                 'geminiOpenaiWebSearchMode',
@@ -154,11 +179,15 @@ export class MessageBridge {
                 'geminiMcpActiveServerId'
             ], (res) => {
                 const openaiSettings = normalizeOpenAISettings(res);
+                const provider = res.geminiProvider || (res.geminiUseOfficialApi ? 'official' : 'web');
+                const selectedModel = getSelectedModelForProvider(res, provider);
                 this.frame.postMessage({ 
                     action: 'RESTORE_CONNECTION_SETTINGS', 
                     payload: { 
-                        provider: res.geminiProvider || (res.geminiUseOfficialApi ? 'official' : 'web'),
+                        provider,
                         useOfficialApi: res.geminiUseOfficialApi === true, 
+                        selectedModel,
+                        openaiSelectedModel: res.geminiOpenaiSelectedModel || "",
                         officialBaseUrl: res.geminiOfficialBaseUrl || "https://generativelanguage.googleapis.com/v1beta",
                         apiKey: res.geminiApiKey || "",
                         officialModel: res.geminiOfficialModel || "gemini-3-flash-preview, gemini-3-pro-preview",
@@ -185,7 +214,12 @@ export class MessageBridge {
         // 6. Data Setters (Sync to Storage & Cache)
         if (action === 'SAVE_SESSIONS') this.state.save('geminiSessions', payload);
         if (action === 'SAVE_SHORTCUTS') this.state.save('geminiShortcuts', payload);
-        if (action === 'SAVE_MODEL') this.state.save('geminiModel', payload);
+        if (action === 'SAVE_MODEL') {
+            const model = getModelSaveValue(payload);
+            if (typeof model === 'string' && model.trim()) {
+                this.state.save(getModelSaveKey(payload), model);
+            }
+        }
         if (action === 'SAVE_THEME') this.state.save('geminiTheme', payload);
         if (action === 'SAVE_LANGUAGE') this.state.save('geminiLanguage', payload);
         if (action === 'SAVE_TEXT_SELECTION') this.state.save('geminiTextSelectionEnabled', payload);

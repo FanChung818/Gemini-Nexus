@@ -129,7 +129,15 @@ export class AppController {
     }
 
     handleModelChange(model) {
-        window.parent.postMessage({ action: 'SAVE_MODEL', payload: model }, '*');
+        const connectionData = this.ui.settings?.connectionData;
+        const provider = connectionData?.provider || (connectionData?.useOfficialApi ? 'official' : 'web');
+        if (provider === 'openai' && connectionData) {
+            connectionData.openaiSelectedModel = model;
+        }
+        window.parent.postMessage({
+            action: 'SAVE_MODEL',
+            payload: { provider, model }
+        }, '*');
     }
 
     handleDeleteSession(sessionId) {

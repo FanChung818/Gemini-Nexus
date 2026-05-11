@@ -32,6 +32,14 @@ function normalizeOpenAISettings(data) {
     };
 }
 
+function getSelectedModelForProvider(data, provider) {
+    if (provider === 'openai') {
+        return data.geminiOpenaiSelectedModel || data.geminiModel || 'openai_custom';
+    }
+
+    return data.geminiModel || 'gemini-2.5-flash';
+}
+
 export class StateManager {
     constructor(frameManager) {
         this.frame = frameManager;
@@ -67,6 +75,7 @@ export class StateManager {
             'geminiOpenaiBaseUrl',
             'geminiOpenaiApiKey',
             'geminiOpenaiModel',
+            'geminiOpenaiSelectedModel',
             'geminiOpenaiThinkingLevel',
             'geminiOpenaiUseResponsesApi',
             'geminiOpenaiWebSearchMode',
@@ -159,6 +168,8 @@ export class StateManager {
 
         // --- Push Data ---
         const openaiSettings = normalizeOpenAISettings(this.data);
+        const provider = this.data.geminiProvider || (this.data.geminiUseOfficialApi ? 'official' : 'web');
+        const selectedModel = getSelectedModelForProvider(this.data, provider);
         
         // 1. Preferences
         
@@ -166,8 +177,10 @@ export class StateManager {
         this.frame.postMessage({ 
             action: 'RESTORE_CONNECTION_SETTINGS', 
             payload: { 
-                provider: this.data.geminiProvider || (this.data.geminiUseOfficialApi ? 'official' : 'web'),
+                provider,
                 useOfficialApi: this.data.geminiUseOfficialApi === true, // Legacy
+                selectedModel,
+                openaiSelectedModel: this.data.geminiOpenaiSelectedModel || "",
                 officialBaseUrl: this.data.geminiOfficialBaseUrl || "https://generativelanguage.googleapis.com/v1beta",
                 apiKey: this.data.geminiApiKey || "",
                 officialModel: this.data.geminiOfficialModel || "gemini-3-flash-preview, gemini-3-pro-preview",
@@ -202,7 +215,7 @@ export class StateManager {
         this.frame.postMessage({ action: 'RESTORE_SHORTCUTS', payload: this.data.geminiShortcuts || null });
         
         // Model restore should happen after connection settings to ensure the correct list is active
-        this.frame.postMessage({ action: 'RESTORE_MODEL', payload: this.data.geminiModel || 'gemini-2.5-flash' });
+        this.frame.postMessage({ action: 'RESTORE_MODEL', payload: selectedModel });
         
         this.frame.postMessage({ action: 'RESTORE_TEXT_SELECTION', payload: this.data.geminiTextSelectionEnabled !== false });
         this.frame.postMessage({ action: 'RESTORE_IMAGE_TOOLS', payload: this.data.geminiImageToolsEnabled !== false });

@@ -67,12 +67,13 @@ export class UIController {
     updateModelList(settings) {
         if (!this.modelSelect) return;
         
-        const current = this.modelSelect.value;
-        this.modelSelect.innerHTML = '';
-        
         // Determine provider. Fallback to 'web' if not set.
         // Legacy support: if provider missing but useOfficialApi is true, assume 'official'.
         const provider = settings.provider || (settings.useOfficialApi ? 'official' : 'web');
+        const preferred = provider === 'openai'
+            ? (settings.openaiSelectedModel || settings.selectedModel || this.modelSelect.value)
+            : (settings.selectedModel || this.modelSelect.value);
+        this.modelSelect.innerHTML = '';
         
         let opts = [];
         if (provider === 'official') {
@@ -111,9 +112,9 @@ export class UIController {
         });
         
         // Restore selection if valid, else default
-        const match = opts.find(o => o.val === current);
+        const match = opts.find(o => o.val === preferred);
         if (match) {
-            this.modelSelect.value = current;
+            this.modelSelect.value = preferred;
         } else {
             // Default to first option
             if (opts.length > 0) {
