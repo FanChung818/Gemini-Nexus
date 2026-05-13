@@ -1,4 +1,3 @@
-
 // sandbox/ui/templates.js
 
 export { SidebarTemplate } from './templates/sidebar.js';

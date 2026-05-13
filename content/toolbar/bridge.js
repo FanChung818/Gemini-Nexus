@@ -1,6 +1,5 @@
-
 // content/toolbar/bridge.js
-(function() {
+(function () {
     class RendererBridge {
         constructor(hostElement) {
             this.host = hostElement;
@@ -16,7 +15,7 @@
             this.iframe.style.display = 'none';
             // Append to main host (outside shadow) to ensure it loads
             this.host.appendChild(this.iframe);
-            
+
             window.addEventListener('message', (e) => {
                 // Handle Render Results
                 if (e.data.action === 'RENDER_RESULT') {
@@ -36,15 +35,18 @@
                 }
             });
         }
-        
+
         async render(text, images = []) {
             const id = this.reqId++;
             return new Promise((resolve) => {
                 this.requests[id] = resolve;
                 if (this.iframe.contentWindow) {
-                     this.iframe.contentWindow.postMessage({ action: 'RENDER', text, images, reqId: id }, '*');
+                    this.iframe.contentWindow.postMessage(
+                        { action: 'RENDER', text, images, reqId: id },
+                        '*'
+                    );
                 } else {
-                     resolve({ html: text, fetchTasks: [] }); // Fallback
+                    resolve({ html: text, fetchTasks: [] }); // Fallback
                 }
             });
         }
@@ -54,9 +56,12 @@
             return new Promise((resolve) => {
                 this.requests[id] = resolve;
                 if (this.iframe.contentWindow) {
-                     this.iframe.contentWindow.postMessage({ action: 'PROCESS_IMAGE', base64, reqId: id }, '*');
+                    this.iframe.contentWindow.postMessage(
+                        { action: 'PROCESS_IMAGE', base64, reqId: id },
+                        '*'
+                    );
                 } else {
-                     resolve(base64); // Fallback to original
+                    resolve(base64); // Fallback to original
                 }
             });
         }

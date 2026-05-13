@@ -1,4 +1,3 @@
-
 // background/control/snapshot/formatter.js
 
 export class SnapshotFormatter {
@@ -22,13 +21,20 @@ export class SnapshotFormatter {
             multiselectable: 'multiselectable',
             modal: 'modal',
             required: 'required',
-            readonly: 'readonly'
+            readonly: 'readonly',
         };
 
         // Properties to exclude from generic attribute listing (handled explicitly)
         this.excludedProps = new Set([
-            'id', 'role', 'name', 'elementHandle', 'children', 'backendNodeId', 'value', 'parentId',
-            'description' 
+            'id',
+            'role',
+            'name',
+            'elementHandle',
+            'children',
+            'backendNodeId',
+            'value',
+            'parentId',
+            'description',
         ]);
     }
 
@@ -45,7 +51,10 @@ export class SnapshotFormatter {
     }
 
     _hasProp(node, propName) {
-        return node.properties && node.properties.some(p => p.name === propName && p.value.value === true);
+        return (
+            node.properties &&
+            node.properties.some((p) => p.name === propName && p.value.value === true)
+        );
     }
 
     // Filter out noise nodes to keep the tree token-efficient
@@ -54,36 +63,49 @@ export class SnapshotFormatter {
         const role = this._getVal(node.role);
         const name = this._getVal(node.name);
         const value = this._getVal(node.value);
-        
+
         // Interaction nodes are always interesting
-        if (this._hasProp(node, 'focused') || this._hasProp(node, 'editable') || this._hasProp(node, 'required')) {
+        if (
+            this._hasProp(node, 'focused') ||
+            this._hasProp(node, 'editable') ||
+            this._hasProp(node, 'required')
+        ) {
             return true;
         }
 
         // Skip purely structural/generic roles unless they have specific content
         const uninterestingRoles = new Set([
-            'generic', 'presentation', 'none', 'div', 'text', 
-            'paragraph', 'section', 'StructuralContainer', 'unknown',
-            'LayoutTable', 'LayoutTableRow', 'LayoutTableCell'
+            'generic',
+            'presentation',
+            'none',
+            'div',
+            'text',
+            'paragraph',
+            'section',
+            'StructuralContainer',
+            'unknown',
+            'LayoutTable',
+            'LayoutTableRow',
+            'LayoutTableCell',
         ]);
-        
+
         if (uninterestingRoles.has(role)) {
-             const hasName = name && String(name).trim().length > 0;
-             // Some generic nodes wrap value content
-             const hasValue = value !== undefined && String(value).trim().length > 0;
-             
-             if (hasName || hasValue) return true;
-             return false; 
+            const hasName = name && String(name).trim().length > 0;
+            // Some generic nodes wrap value content
+            const hasValue = value !== undefined && String(value).trim().length > 0;
+
+            if (hasName || hasValue) return true;
+            return false;
         }
         return true;
     }
 
     format(nodes) {
         // Identify Root: Node that is not a child of any other node
-        const allChildIds = new Set(nodes.flatMap(n => n.childIds || []));
-        const root = nodes.find(n => !allChildIds.has(n.nodeId));
-        
-        if (!root) return "Error: Could not find root of A11y tree.";
+        const allChildIds = new Set(nodes.flatMap((n) => n.childIds || []));
+        const root = nodes.find((n) => !allChildIds.has(n.nodeId));
+
+        if (!root) return 'Error: Could not find root of A11y tree.';
 
         return this._formatNode(root, nodes, 0);
     }
@@ -100,14 +122,14 @@ export class SnapshotFormatter {
             // 1. Assign Stable UID
             this.nodeCounter++;
             const uid = `${this.snapshotPrefix}_${this.nodeCounter}`;
-            
+
             // Notify manager to map this UID
             this.onNode(node, uid);
 
             // 2. Extract Core Attributes
             let role = this._getVal(node.role);
             if (node.ignored) role = 'ignored';
-            
+
             const name = this._getVal(node.name);
             let value = this._getVal(node.value);
             const description = this._getVal(node.description);
@@ -115,15 +137,15 @@ export class SnapshotFormatter {
             let parts = [`uid=${uid}`];
             if (role) parts.push(role);
             if (name) parts.push(this._escapeStr(name));
-            
+
             // Optimization: Don't print value if it is identical to name (text)
             // Common in Select options where value often equals text label
-            if (value !== undefined && value !== "") {
+            if (value !== undefined && value !== '') {
                 if (String(value) !== name) {
                     parts.push(`value=${this._escapeStr(value)}`);
                 }
             }
-            
+
             if (description) parts.push(`desc=${this._escapeStr(description)}`);
 
             // 3. Process Properties (States & Capabilities)
@@ -137,36 +159,37 @@ export class SnapshotFormatter {
 
                 for (const key of sortedKeys) {
                     if (this.excludedProps.has(key)) continue;
-                    
+
                     const val = propsMap[key];
-                    
+
                     if (typeof val === 'boolean') {
-                        // Capability: If property exists (even false), it might imply a capability 
+                        // Capability: If property exists (even false), it might imply a capability
                         // (e.g. 'focused' existing means it is 'focusable')
                         if (key in this.booleanPropertyMap) {
                             parts.push(this.booleanPropertyMap[key]);
                         }
-                        
+
                         // State: If true, print the state itself
                         if (val === true) {
                             parts.push(key);
                         }
-                    } else if (val !== undefined && val !== "") {
+                    } else if (val !== undefined && val !== '') {
                         // Optimization: skip value in properties too if redundant
                         if (key === 'value' && String(val) === name) continue;
                         parts.push(`${key}=${this._escapeStr(val)}`);
                     }
                 }
             }
-            
-            // 4. Mark if selected in DevTools
-            const isSelected = this.selectedBackendNodeId && 
-                             node.backendDOMNodeId === this.selectedBackendNodeId;
 
-            line = ' '.repeat(depth * 2) + 
-                   parts.join(' ') + 
-                   (isSelected ? ' [selected in the DevTools Elements panel]' : '') +
-                   '\n';
+            // 4. Mark if selected in DevTools
+            const isSelected =
+                this.selectedBackendNodeId && node.backendDOMNodeId === this.selectedBackendNodeId;
+
+            line =
+                ' '.repeat(depth * 2) +
+                parts.join(' ') +
+                (isSelected ? ' [selected in the DevTools Elements panel]' : '') +
+                '\n';
         }
 
         // 5. Process Children
@@ -175,7 +198,7 @@ export class SnapshotFormatter {
 
         if (node.childIds) {
             for (const childId of node.childIds) {
-                const child = allNodes.find(n => n.nodeId === childId);
+                const child = allNodes.find((n) => n.nodeId === childId);
                 if (child) {
                     line += this._formatNode(child, allNodes, nextDepth);
                 }

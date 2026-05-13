@@ -1,4 +1,3 @@
-
 // sandbox/ui/ui_controller.js
 import { ChatController } from './chat.js';
 import { SidebarController } from './sidebar.js';
@@ -10,11 +9,11 @@ export class UIController {
     constructor(elements) {
         // Initialize Sub-Controllers
         this.chat = new ChatController(elements);
-        
+
         this.sidebar = new SidebarController(elements, {
-            onOverlayClick: () => this.settings.close()
+            onOverlayClick: () => this.settings.close(),
         });
-        
+
         // Settings and Viewer now self-manage their DOM
         this.settings = new SettingsController({
             onOpen: () => this.sidebar.close(),
@@ -23,11 +22,11 @@ export class UIController {
                 if (meta.providerChanged) {
                     document.dispatchEvent(new CustomEvent('gemini-provider-changed'));
                 }
-            }
+            },
         });
-        
+
         this.viewer = new ViewerController();
-        
+
         this.tabSelector = new TabSelectorController();
 
         // Properties exposed for external use (AppController/MessageHandler)
@@ -66,53 +65,60 @@ export class UIController {
 
     updateModelList(settings) {
         if (!this.modelSelect) return;
-        
+
         // Determine provider. Fallback to 'web' if not set.
         // Legacy support: if provider missing but useOfficialApi is true, assume 'official'.
         const provider = settings.provider || (settings.useOfficialApi ? 'official' : 'web');
-        const preferred = provider === 'openai'
-            ? (settings.openaiSelectedModel || settings.selectedModel || this.modelSelect.value)
-            : (settings.selectedModel || this.modelSelect.value);
+        const preferred =
+            provider === 'openai'
+                ? settings.openaiSelectedModel || settings.selectedModel || this.modelSelect.value
+                : settings.selectedModel || this.modelSelect.value;
         this.modelSelect.innerHTML = '';
-        
+
         let opts = [];
         if (provider === 'official') {
-            const rawModels = settings.officialModel || "";
-            const models = rawModels.split(',').map(m => m.trim()).filter(m => m);
+            const rawModels = settings.officialModel || '';
+            const models = rawModels
+                .split(',')
+                .map((m) => m.trim())
+                .filter((m) => m);
             if (models.length === 0) {
                 opts = [{ val: 'gemini-3-flash-preview', txt: 'gemini-3-flash-preview' }];
             } else {
-                opts = models.map(m => ({ val: m, txt: m }));
+                opts = models.map((m) => ({ val: m, txt: m }));
             }
         } else if (provider === 'openai') {
             // OpenAI Compatible: Support multiple models comma-separated
-            const rawModels = settings.openaiModel || "";
+            const rawModels = settings.openaiModel || '';
             // Split by comma, trim whitespace, remove empty entries
-            const models = rawModels.split(',').map(m => m.trim()).filter(m => m);
-            
+            const models = rawModels
+                .split(',')
+                .map((m) => m.trim())
+                .filter((m) => m);
+
             if (models.length === 0) {
                 opts = [{ val: 'openai_custom', txt: 'Custom Model' }];
             } else {
-                opts = models.map(m => ({ val: m, txt: m }));
+                opts = models.map((m) => ({ val: m, txt: m }));
             }
         } else {
             // Web Client Models
             opts = [
                 { val: 'gemini-3-flash', txt: 'Fast' },
                 { val: 'gemini-3-flash-thinking', txt: 'Thinking' },
-                { val: 'gemini-3-pro', txt: '3 Pro' }
+                { val: 'gemini-3-pro', txt: '3 Pro' },
             ];
         }
-        
-        opts.forEach(o => {
+
+        opts.forEach((o) => {
             const opt = document.createElement('option');
             opt.value = o.val;
             opt.textContent = o.txt;
             this.modelSelect.appendChild(opt);
         });
-        
+
         // Restore selection if valid, else default
-        const match = opts.find(o => o.val === preferred);
+        const match = opts.find((o) => o.val === preferred);
         if (match) {
             this.modelSelect.value = preferred;
         } else {
@@ -123,14 +129,14 @@ export class UIController {
             // Dispatch change to update app state
             this.modelSelect.dispatchEvent(new Event('change'));
         }
-        
+
         this.resizeModelSelect();
     }
 
     resizeModelSelect() {
         const select = this.modelSelect;
         if (!select) return;
-        
+
         // Safety check for empty or invalid selection
         if (select.selectedIndex === -1) {
             if (select.options.length > 0) select.selectedIndex = 0;
@@ -144,7 +150,7 @@ export class UIController {
             fontSize: '13px',
             fontWeight: '500',
             fontFamily: window.getComputedStyle(select).fontFamily,
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
         });
         tempSpan.textContent = select.options[select.selectedIndex].text;
         document.body.appendChild(tempSpan);
@@ -156,32 +162,58 @@ export class UIController {
     // --- Delegation Methods ---
 
     // Chat / Input
-    updateStatus(text) { this.chat.updateStatus(text); }
-    clearChatHistory() { this.chat.clear(); }
-    getChatScrollState() { return this.chat.getScrollState(); }
-    restoreChatScrollState(state) { this.chat.restoreScrollState(state); }
-    followStreamingContent() { this.chat.followStreamingContent(); }
-    scrollToBottom(options) { this.chat.scrollToBottom(options); }
-    resetInput() { this.chat.resetInput(); }
-    setLoading(isLoading) { this.chat.setLoading(isLoading); }
-    
+    updateStatus(text) {
+        this.chat.updateStatus(text);
+    }
+    clearChatHistory() {
+        this.chat.clear();
+    }
+    getChatScrollState() {
+        return this.chat.getScrollState();
+    }
+    restoreChatScrollState(state) {
+        this.chat.restoreScrollState(state);
+    }
+    followStreamingContent() {
+        this.chat.followStreamingContent();
+    }
+    scrollToBottom(options) {
+        this.chat.scrollToBottom(options);
+    }
+    resetInput() {
+        this.chat.resetInput();
+    }
+    setLoading(isLoading) {
+        this.chat.setLoading(isLoading);
+    }
+
     // Sidebar
-    toggleSidebar() { this.sidebar.toggle(); }
-    closeSidebar() { this.sidebar.close(); }
+    toggleSidebar() {
+        this.sidebar.toggle();
+    }
+    closeSidebar() {
+        this.sidebar.close();
+    }
     renderHistoryList(sessions, currentId, callbacks, renderState) {
         this.sidebar.renderList(sessions, currentId, callbacks, renderState);
     }
 
     // Settings
-    updateShortcuts(payload) { this.settings.updateShortcuts(payload); }
-    updateTheme(theme) { this.settings.updateTheme(theme); }
-    updateLanguage(lang) { this.settings.updateLanguage(lang); }
-    
+    updateShortcuts(payload) {
+        this.settings.updateShortcuts(payload);
+    }
+    updateTheme(theme) {
+        this.settings.updateTheme(theme);
+    }
+    updateLanguage(lang) {
+        this.settings.updateLanguage(lang);
+    }
+
     // Tab Selector
     openTabSelector(tabs, onSelect, lockedTabId) {
         this.tabSelector.open(tabs, onSelect, lockedTabId);
     }
-    
+
     toggleTabSwitcher(show) {
         if (this.tabSwitcherBtn) {
             this.tabSwitcherBtn.style.display = show ? 'flex' : 'none';

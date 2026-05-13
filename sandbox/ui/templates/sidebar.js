@@ -1,4 +1,3 @@
-
 export const SidebarTemplate = `
     <!-- SIDEBAR -->
     <div id="history-sidebar" class="sidebar">
@@ -8,7 +7,7 @@ export const SidebarTemplate = `
                 <input type="text" id="history-search" data-i18n-placeholder="searchPlaceholder" placeholder="Search for chats" autocomplete="off">
             </div>
         </div>
-        
+
         <div class="history-list-label" data-i18n="recentLabel">Recent</div>
         <div id="history-list" class="history-list"></div>
 

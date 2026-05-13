@@ -1,4 +1,3 @@
-
 // sandbox/ui/viewer.js
 
 export class ViewerController {
@@ -9,7 +8,7 @@ export class ViewerController {
             pointX: 0,
             pointY: 0,
             startX: 0,
-            startY: 0
+            startY: 0,
         };
 
         this.queryElements();
@@ -19,10 +18,10 @@ export class ViewerController {
     queryElements() {
         this.viewer = document.getElementById('image-viewer');
         if (!this.viewer) return;
-        
+
         this.container = document.getElementById('viewer-container');
         this.fullImage = document.getElementById('full-image');
-        
+
         // Controls
         this.btnZoomIn = document.getElementById('viewer-zoom-in');
         this.btnZoomOut = document.getElementById('viewer-zoom-out');
@@ -113,7 +112,7 @@ export class ViewerController {
         e.preventDefault();
         const delta = -Math.sign(e.deltaY);
         const step = 0.1;
-        const newScale = this.state.scale + (delta * step);
+        const newScale = this.state.scale + delta * step;
         this.setScale(newScale);
     }
 
@@ -160,12 +159,15 @@ export class ViewerController {
         if (!src) return;
 
         // Delegate to parent (Sidepanel) to bypass Sandbox restrictions
-        window.parent.postMessage({
-            action: 'DOWNLOAD_IMAGE',
-            payload: {
-                url: src,
-                filename: `gemini-image-${Date.now()}.png`
-            }
-        }, '*');
+        window.parent.postMessage(
+            {
+                action: 'DOWNLOAD_IMAGE',
+                payload: {
+                    url: src,
+                    filename: `gemini-image-${Date.now()}.png`,
+                },
+            },
+            '*'
+        );
     }
 }

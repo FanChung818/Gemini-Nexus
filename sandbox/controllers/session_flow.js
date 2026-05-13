@@ -1,7 +1,6 @@
-
 // sandbox/controllers/session_flow.js
 import { appendContextCompressionNotice, appendMessage } from '../render/message.js';
-import { sendToBackground, saveSessionsToStorage } from '../../shared/messaging.js';
+import { sendToBackground, saveSessionsToStorage } from '../../shared/messaging/index.js';
 import { t } from '../core/i18n.js';
 
 export class SessionFlowController {
@@ -20,7 +19,7 @@ export class SessionFlowController {
         this.sessionManager.enterDraft();
         this.app.boundSessionId = null;
         this.app.saveCurrentTabSessionBinding(null);
-        sendToBackground({ action: "RESET_CONTEXT" });
+        sendToBackground({ action: 'RESET_CONTEXT' });
         this.ui.clearChatHistory();
         this.ui.resetInput();
         this.refreshHistoryUI();
@@ -29,7 +28,7 @@ export class SessionFlowController {
     switchToSession(sessionId, options = {}) {
         this.app.messageHandler.resetStream();
         this.sessionManager.setCurrentId(sessionId);
-        
+
         const session = this.sessionManager.getCurrentSession();
         if (!session) return;
 
@@ -46,22 +45,31 @@ export class SessionFlowController {
             if (msg.role === 'user') attachment = msg.image;
             if (msg.role === 'ai') attachment = msg.generatedImages;
             // Pass msg.thoughts to appendMessage
-            appendMessage(this.ui.historyDiv, msg.text, msg.role, attachment, msg.thoughts, msg.sources, {
-                kind: this.getMessageKind(msg),
-                toolName: this.getRestoredToolName(msg),
-                step: this.getRestoredToolStep(msg),
-                toolStatus: this.getRestoredToolStatus(msg),
-                toolCallText: this.getRestoredToolCallText(msg),
-                callIndex: this.getRestoredToolCallIndex(msg),
-                callCount: this.getRestoredToolCallCount(msg),
-                suppressCopy: msg.suppressCopy === true,
-                isCollapsed: true,
-                thoughtsDurationSeconds: msg.thoughtsDurationSeconds,
-                autoScroll: false,
-                onEdit: msg.role === 'user' && this.getMessageKind(msg) !== 'tool-output'
-                    ? this.app.prompt.getMessageEditOptions(index).onEdit
-                    : null
-            });
+            appendMessage(
+                this.ui.historyDiv,
+                msg.text,
+                msg.role,
+                attachment,
+                msg.thoughts,
+                msg.sources,
+                {
+                    kind: this.getMessageKind(msg),
+                    toolName: this.getRestoredToolName(msg),
+                    step: this.getRestoredToolStep(msg),
+                    toolStatus: this.getRestoredToolStatus(msg),
+                    toolCallText: this.getRestoredToolCallText(msg),
+                    callIndex: this.getRestoredToolCallIndex(msg),
+                    callCount: this.getRestoredToolCallCount(msg),
+                    suppressCopy: msg.suppressCopy === true,
+                    isCollapsed: true,
+                    thoughtsDurationSeconds: msg.thoughtsDurationSeconds,
+                    autoScroll: false,
+                    onEdit:
+                        msg.role === 'user' && this.getMessageKind(msg) !== 'tool-output'
+                            ? this.app.prompt.getMessageEditOptions(index).onEdit
+                            : null,
+                }
+            );
         });
         if (compressionNoticeIndex === session.messages.length) {
             this.appendRestoredCompressionNotice();
@@ -78,12 +86,12 @@ export class SessionFlowController {
 
         if (session.context) {
             sendToBackground({
-                action: "SET_CONTEXT",
+                action: 'SET_CONTEXT',
                 context: session.context,
-                model: this.app.getSelectedModel()
+                model: this.app.getSelectedModel(),
             });
         } else {
-            sendToBackground({ action: "RESET_CONTEXT" });
+            sendToBackground({ action: 'RESET_CONTEXT' });
         }
 
         this.refreshHistoryUI();
@@ -96,11 +104,11 @@ export class SessionFlowController {
             this.sessionManager.currentSessionId,
             {
                 onSwitch: (id) => this.switchToSession(id),
-                onDelete: (id) => this.handleDeleteSession(id)
+                onDelete: (id) => this.handleDeleteSession(id),
             },
             {
                 isGenerating: this.app.isGenerating,
-                generatingSessionId: this.app.generatingSessionId
+                generatingSessionId: this.app.generatingSessionId,
             }
         );
     }
@@ -170,14 +178,14 @@ export class SessionFlowController {
     appendRestoredCompressionNotice() {
         appendContextCompressionNotice(this.ui.historyDiv, t('contextCompressed'), {
             complete: true,
-            scroll: false
+            scroll: false,
         });
     }
 
     handleDeleteSession(sessionId) {
         const switchNeeded = this.sessionManager.deleteSession(sessionId);
         saveSessionsToStorage(this.sessionManager.getPersistableSessions());
-        
+
         if (switchNeeded) {
             if (this.sessionManager.sessions.length > 0) {
                 this.switchToSession(this.sessionManager.currentSessionId);

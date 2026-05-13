@@ -1,4 +1,3 @@
-
 // sidepanel/index.js - Bridge between Sandbox and Background
 import { FrameManager } from './core/frame.js';
 import { StateManager } from './core/state.js';

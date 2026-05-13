@@ -1,4 +1,4 @@
-(function() {
+(function () {
     window.GeminiStyles = window.GeminiStyles || {};
     window.GeminiStyles.PanelBody = `
         /* --- Window Body --- */
@@ -19,7 +19,7 @@
             margin-bottom: 12px;
             flex-shrink: 0;
         }
-        
+
         input[type="text"]#ask-input {
             width: 100%;
             padding: 10px 12px;

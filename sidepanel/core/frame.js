@@ -1,4 +1,3 @@
-
 // sidepanel/core/frame.js
 
 export class FrameManager {
@@ -15,7 +14,7 @@ export class FrameManager {
 
         const params = new URLSearchParams({
             theme: cachedTheme,
-            lang: cachedLang
+            lang: cachedLang,
         });
 
         // Set an absolute extension URL to avoid relative-frame navigation errors.
@@ -36,7 +35,7 @@ export class FrameManager {
     getWindow() {
         return this.iframe.contentWindow;
     }
-    
+
     isWindow(sourceWindow) {
         return this.iframe.contentWindow && sourceWindow === this.iframe.contentWindow;
     }

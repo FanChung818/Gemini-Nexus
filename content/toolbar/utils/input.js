@@ -1,6 +1,5 @@
-
 // content/toolbar/utils/input.js
-(function() {
+(function () {
     class InputManager {
         constructor() {
             this.sourceInputElement = null;
@@ -11,7 +10,10 @@
 
         capture() {
             const activeElement = document.activeElement;
-            if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+            if (
+                activeElement &&
+                (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')
+            ) {
                 const start = activeElement.selectionStart;
                 const end = activeElement.selectionEnd;
                 if (start !== null && end !== null && start !== end) {
@@ -62,7 +64,8 @@
 
             try {
                 if (element.tagName === 'TEXTAREA' || element.tagName === 'INPUT') {
-                    const start = this.sourceSelectionStart !== null ? this.sourceSelectionStart : 0;
+                    const start =
+                        this.sourceSelectionStart !== null ? this.sourceSelectionStart : 0;
                     const end = this.sourceSelectionEnd !== null ? this.sourceSelectionEnd : start;
                     const value = element.value;
 
@@ -77,7 +80,6 @@
                     }
 
                     element.dispatchEvent(new Event('input', { bubbles: true }));
-
                 } else if (element.isContentEditable) {
                     element.focus();
 
@@ -100,7 +102,7 @@
                 }
                 return true;
             } catch (err) {
-                console.error("Failed to insert text:", err);
+                console.error('Failed to insert text:', err);
                 return false;
             }
         }
@@ -112,7 +114,7 @@
         get source() {
             return this.sourceInputElement;
         }
-        
+
         get range() {
             return this.sourceSelectionRange;
         }
@@ -123,7 +125,7 @@
             this.sourceSelectionStart = null;
             this.sourceSelectionEnd = null;
         }
-        
+
         reset() {
             this._reset();
         }

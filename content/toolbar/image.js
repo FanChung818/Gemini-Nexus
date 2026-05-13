@@ -1,14 +1,13 @@
-
 // content/toolbar/image.js
 
-(function() {
+(function () {
     class GeminiImageDetector {
         constructor(callbacks) {
             this.callbacks = callbacks || {}; // { onShow, onHide }
             this.hoveredImage = null;
             this.imageButtonTimeout = null;
             this.isEnabled = false;
-            
+
             // Bind method for event listeners
             this.onImageHover = this.onImageHover.bind(this);
         }
@@ -46,7 +45,7 @@
                 if (this.imageButtonTimeout) clearTimeout(this.imageButtonTimeout);
                 this.hoveredImage = img;
                 const rect = img.getBoundingClientRect();
-                
+
                 if (this.callbacks.onShow) {
                     this.callbacks.onShow(rect);
                 }
@@ -62,7 +61,7 @@
                     this.callbacks.onHide();
                 }
                 this.hoveredImage = null;
-            }, delay); 
+            }, delay);
         }
 
         cancelHide() {

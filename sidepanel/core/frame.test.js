@@ -12,8 +12,8 @@ describe('FrameManager', () => {
         localStorage.clear();
         globalThis.chrome = {
             runtime: {
-                getURL: vi.fn((path) => `chrome-extension://test-id/${path}`)
-            }
+                getURL: vi.fn((path) => `chrome-extension://test-id/${path}`),
+            },
         };
     });
 
@@ -24,7 +24,9 @@ describe('FrameManager', () => {
         const manager = new FrameManager();
         manager.init();
 
-        expect(chrome.runtime.getURL).toHaveBeenCalledWith('sandbox/index.html?theme=dark&lang=zh-CN');
+        expect(chrome.runtime.getURL).toHaveBeenCalledWith(
+            'sandbox/index.html?theme=dark&lang=zh-CN'
+        );
         expect(document.getElementById('sandbox-frame').src).toBe(
             'chrome-extension://test-id/sandbox/index.html?theme=dark&lang=zh-CN'
         );

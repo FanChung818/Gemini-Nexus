@@ -1,13 +1,32 @@
-
 // background/control/actions/emulation.js
 import { BaseActionHandler } from './base.js';
 
 const NETWORK_CONDITIONS = {
-    'Offline': { offline: true, downloadThroughput: 0, uploadThroughput: 0, latency: 0 },
-    'Slow 3G': { offline: false, downloadThroughput: ((500 * 1024) / 8) * 0.8, uploadThroughput: ((500 * 1024) / 8) * 0.8, latency: 400 * 5 },
-    'Fast 3G': { offline: false, downloadThroughput: ((1.6 * 1024 * 1024) / 8) * 0.9, uploadThroughput: ((750 * 1024) / 8) * 0.9, latency: 150 * 3.75 },
-    'Slow 4G': { offline: false, downloadThroughput: ((1.6 * 1024 * 1024) / 8), uploadThroughput: ((750 * 1024) / 8), latency: 150 * 2.5 },
-    'Fast 4G': { offline: false, downloadThroughput: ((1.6 * 1024 * 1024) / 8), uploadThroughput: ((750 * 1024) / 8), latency: 150 }
+    Offline: { offline: true, downloadThroughput: 0, uploadThroughput: 0, latency: 0 },
+    'Slow 3G': {
+        offline: false,
+        downloadThroughput: ((500 * 1024) / 8) * 0.8,
+        uploadThroughput: ((500 * 1024) / 8) * 0.8,
+        latency: 400 * 5,
+    },
+    'Fast 3G': {
+        offline: false,
+        downloadThroughput: ((1.6 * 1024 * 1024) / 8) * 0.9,
+        uploadThroughput: ((750 * 1024) / 8) * 0.9,
+        latency: 150 * 3.75,
+    },
+    'Slow 4G': {
+        offline: false,
+        downloadThroughput: (1.6 * 1024 * 1024) / 8,
+        uploadThroughput: (750 * 1024) / 8,
+        latency: 150 * 2.5,
+    },
+    'Fast 4G': {
+        offline: false,
+        downloadThroughput: (1.6 * 1024 * 1024) / 8,
+        uploadThroughput: (750 * 1024) / 8,
+        latency: 150,
+    },
 };
 
 export class EmulationActions extends BaseActionHandler {
@@ -20,7 +39,12 @@ export class EmulationActions extends BaseActionHandler {
             let multiplier = 1;
 
             if (networkConditions === 'No emulation') {
-                conditions = { offline: false, downloadThroughput: -1, uploadThroughput: -1, latency: 0 };
+                conditions = {
+                    offline: false,
+                    downloadThroughput: -1,
+                    uploadThroughput: -1,
+                    latency: 0,
+                };
             } else if (NETWORK_CONDITIONS[networkConditions]) {
                 conditions = NETWORK_CONDITIONS[networkConditions];
                 // Approximate multiplier based on conditions
@@ -55,24 +79,24 @@ export class EmulationActions extends BaseActionHandler {
                 await this.cmd('Emulation.setGeolocationOverride', {
                     latitude: parseFloat(latitude),
                     longitude: parseFloat(longitude),
-                    accuracy: accuracy
+                    accuracy: accuracy,
                 });
                 response.push(`Geolocation set to Lat: ${latitude}, Lon: ${longitude}`);
             }
         }
 
-        return response.length ? response.join(', ') : "No emulation changes applied.";
+        return response.length ? response.join(', ') : 'No emulation changes applied.';
     }
 
     async resizePage({ width, height }) {
         if (!width || !height) return "Error: 'width' and 'height' are required for resize_page.";
-        
+
         try {
             await this.cmd('Emulation.setDeviceMetricsOverride', {
                 width: width,
                 height: height,
                 deviceScaleFactor: 1, // Default to standard desktop scale
-                mobile: false
+                mobile: false,
             });
             return `Viewport resized to ${width}x${height}.`;
         } catch (e) {

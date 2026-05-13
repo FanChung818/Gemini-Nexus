@@ -7,7 +7,7 @@ function createFrame() {
     return {
         getWindow: vi.fn(() => ({})),
         postMessage: vi.fn(),
-        reveal: vi.fn()
+        reveal: vi.fn(),
     };
 }
 
@@ -17,34 +17,34 @@ function setupChrome(activeTabId = 33) {
     globalThis.chrome = {
         storage: {
             local: {
-                get: vi.fn((keys, callback) => callback({}))
+                get: vi.fn((keys, callback) => callback({})),
             },
             session: {
                 get: vi.fn((keys, callback) => callback({ geminiSidePanelSessionBindings: {} })),
-                set: vi.fn()
+                set: vi.fn(),
             },
             onChanged: {
                 addListener: vi.fn((listener) => {
                     listeners.storageChanged = listener;
-                })
-            }
+                }),
+            },
         },
         tabs: {
             query: vi.fn((query, callback) => callback([{ id: activeTabId }])),
             onActivated: {
                 addListener: vi.fn((listener) => {
                     listeners.activated = listener;
-                })
+                }),
             },
             onRemoved: {
                 addListener: vi.fn((listener) => {
                     listeners.removed = listener;
-                })
-            }
+                }),
+            },
         },
         runtime: {
-            getManifest: vi.fn(() => ({ version: 'test' }))
-        }
+            getManifest: vi.fn(() => ({ version: 'test' })),
+        },
     };
 
     return listeners;
@@ -63,8 +63,16 @@ describe('StateManager tab ownership', () => {
     });
 
     it('parses a positive owner tab id from the side panel URL', () => {
-        expect(getOwnerTabIdFromLocation({ href: 'chrome-extension://id/sidepanel/index.html?tabId=123' })).toBe(123);
-        expect(getOwnerTabIdFromLocation({ href: 'chrome-extension://id/sidepanel/index.html?tabId=0' })).toBeNull();
+        expect(
+            getOwnerTabIdFromLocation({
+                href: 'chrome-extension://id/sidepanel/index.html?tabId=123',
+            })
+        ).toBe(123);
+        expect(
+            getOwnerTabIdFromLocation({
+                href: 'chrome-extension://id/sidepanel/index.html?tabId=0',
+            })
+        ).toBeNull();
         expect(getOwnerTabIdFromLocation({ href: 'not a url' })).toBeNull();
     });
 
@@ -87,7 +95,10 @@ describe('StateManager tab ownership', () => {
         manager.init();
         listeners.activated({ tabId: 44 });
 
-        expect(chrome.tabs.query).toHaveBeenCalledWith({ active: true, currentWindow: true }, expect.any(Function));
+        expect(chrome.tabs.query).toHaveBeenCalledWith(
+            { active: true, currentWindow: true },
+            expect.any(Function)
+        );
         expect(manager.getCurrentTabId()).toBe(44);
     });
 
@@ -96,7 +107,7 @@ describe('StateManager tab ownership', () => {
             geminiProvider: 'openai',
             geminiModel: 'gemini-3-flash',
             geminiOpenaiModel: 'gpt-4.1, gpt-5',
-            geminiOpenaiSelectedModel: 'gpt-5'
+            geminiOpenaiSelectedModel: 'gpt-5',
         });
         const frame = createFrame();
         const manager = new StateManager(frame);
@@ -110,12 +121,12 @@ describe('StateManager tab ownership', () => {
                 provider: 'openai',
                 openaiModel: 'gpt-4.1, gpt-5',
                 openaiSelectedModel: 'gpt-5',
-                selectedModel: 'gpt-5'
-            })
+                selectedModel: 'gpt-5',
+            }),
         });
         expect(frame.postMessage).toHaveBeenCalledWith({
             action: 'RESTORE_MODEL',
-            payload: 'gpt-5'
+            payload: 'gpt-5',
         });
     });
 });

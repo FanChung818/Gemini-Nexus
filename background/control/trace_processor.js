@@ -1,4 +1,3 @@
-
 // background/control/trace_processor.js
 
 /**
@@ -9,7 +8,7 @@
 export class TraceProcessor {
     static process(events) {
         if (!events || events.length === 0) {
-            return { error: "No trace events collected." };
+            return { error: 'No trace events collected.' };
         }
 
         const metrics = {
@@ -17,11 +16,11 @@ export class TraceProcessor {
             lcp: null,
             cls: 0,
             domContentLoaded: null,
-            load: null
+            load: null,
         };
 
         let navigationStart = 0;
-        let url = "";
+        let url = '';
 
         // Iterate events to find metrics
         for (const e of events) {
@@ -50,10 +49,10 @@ export class TraceProcessor {
             // CLS (Layout Shift)
             if (name === 'LayoutShift') {
                 if (args && args.data && !args.data.hadRecentInput) {
-                    metrics.cls += (args.data.score || 0);
+                    metrics.cls += args.data.score || 0;
                 }
             }
-            
+
             // Document Load
             if (name === 'DomContentLoadedEventEnd') {
                 metrics.domContentLoaded = (e.ts - navigationStart) / 1000;
@@ -66,7 +65,7 @@ export class TraceProcessor {
         return {
             url,
             metrics,
-            eventCount: events.length
+            eventCount: events.length,
         };
     }
 
@@ -74,7 +73,7 @@ export class TraceProcessor {
         if (result.error) return result.error;
 
         const m = result.metrics;
-        const f = (val) => val ? val.toFixed(2) : 'N/A';
+        const f = (val) => (val ? val.toFixed(2) : 'N/A');
 
         return `## Summary of Performance trace findings:
 URL: ${result.url || 'Unknown'}
@@ -90,8 +89,8 @@ Events Captured: ${result.eventCount}
 # Available Insights:
 (Note: Deep insight analysis requires full Chrome DevTools Frontend integration. Basic metrics provided above.)
 
-- **LCP Analysis**: ${m.lcp > 2500 ? "LCP is slow (>2.5s). Optimize render blocking resources and image loading." : "LCP is good."}
-- **CLS Analysis**: ${m.cls > 0.1 ? "Layout stability issues detected. Check for unsized images or dynamic content injection." : "Layout is stable."}
+- **LCP Analysis**: ${m.lcp > 2500 ? 'LCP is slow (>2.5s). Optimize render blocking resources and image loading.' : 'LCP is good.'}
+- **CLS Analysis**: ${m.cls > 0.1 ? 'Layout stability issues detected. Check for unsized images or dynamic content injection.' : 'Layout is stable.'}
 `;
     }
 }

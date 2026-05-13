@@ -1,5 +1,4 @@
-
-(function() {
+(function () {
     /**
      * Manages Grammar Correction Mode state and UI
      */
@@ -27,7 +26,7 @@
         getSourceInfo() {
             return {
                 element: this.sourceInputElement,
-                range: this.sourceSelectionRange
+                range: this.sourceSelectionRange,
             };
         }
 

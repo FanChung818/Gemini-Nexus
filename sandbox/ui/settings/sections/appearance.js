@@ -1,4 +1,3 @@
-
 // sandbox/ui/settings/sections/appearance.js
 
 export class AppearanceSection {
@@ -13,7 +12,7 @@ export class AppearanceSection {
         const get = (id) => document.getElementById(id);
         this.elements = {
             themeSelect: get('theme-select'),
-            languageSelect: get('language-select')
+            languageSelect: get('language-select'),
         };
     }
 
@@ -21,17 +20,21 @@ export class AppearanceSection {
         const { themeSelect, languageSelect } = this.elements;
 
         if (themeSelect) {
-            themeSelect.addEventListener('change', (e) => this.fire('onThemeChange', e.target.value));
+            themeSelect.addEventListener('change', (e) =>
+                this.fire('onThemeChange', e.target.value)
+            );
         }
         if (languageSelect) {
-            languageSelect.addEventListener('change', (e) => this.fire('onLanguageChange', e.target.value));
+            languageSelect.addEventListener('change', (e) =>
+                this.fire('onLanguageChange', e.target.value)
+            );
         }
 
         // System Theme Listener
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-             if (themeSelect && themeSelect.value === 'system') {
-                 this.applyVisualTheme('system');
-             }
+            if (themeSelect && themeSelect.value === 'system') {
+                this.applyVisualTheme('system');
+            }
         });
     }
 
@@ -47,7 +50,7 @@ export class AppearanceSection {
     applyVisualTheme(theme) {
         let applied = theme;
         if (theme === 'system') {
-             applied = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            applied = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         }
         document.documentElement.setAttribute('data-theme', applied);
     }

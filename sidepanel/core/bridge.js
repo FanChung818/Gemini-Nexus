@@ -1,26 +1,30 @@
-
 // sidepanel/core/bridge.js
 import { downloadFile, downloadText } from '../utils/download.js';
-import { DEFAULT_CONTEXT_RECENT_TURNS } from '../../shared/constants.js';
+import { DEFAULT_CONTEXT_RECENT_TURNS } from '../../shared/config/constants.js';
 
 const OPENAI_WEB_SEARCH_MODES = new Set(['off', 'responses', 'chat']);
 
 function normalizeOpenAISettings(data) {
     const legacyMode = data.geminiOpenaiWebSearchMode ?? data.openaiWebSearchMode;
-    const hasUseResponsesSetting = typeof data.geminiOpenaiUseResponsesApi === 'boolean' || typeof data.openaiUseResponsesApi === 'boolean';
-    const hasWebSearchSetting = typeof data.geminiOpenaiWebSearch === 'boolean' || typeof data.openaiWebSearch === 'boolean';
+    const hasUseResponsesSetting =
+        typeof data.geminiOpenaiUseResponsesApi === 'boolean' ||
+        typeof data.openaiUseResponsesApi === 'boolean';
+    const hasWebSearchSetting =
+        typeof data.geminiOpenaiWebSearch === 'boolean' ||
+        typeof data.openaiWebSearch === 'boolean';
     const legacyEnabled = data.geminiOpenaiWebSearch === true || data.openaiWebSearch === true;
 
     if (!hasUseResponsesSetting && OPENAI_WEB_SEARCH_MODES.has(legacyMode)) {
         return {
             useResponsesApi: legacyMode === 'responses',
-            webSearch: legacyMode === 'responses' || legacyMode === 'chat'
+            webSearch: legacyMode === 'responses' || legacyMode === 'chat',
         };
     }
 
     return {
-        useResponsesApi: data.geminiOpenaiUseResponsesApi === true || data.openaiUseResponsesApi === true,
-        webSearch: hasWebSearchSetting ? legacyEnabled : false
+        useResponsesApi:
+            data.geminiOpenaiUseResponsesApi === true || data.openaiUseResponsesApi === true,
+        webSearch: hasWebSearchSetting ? legacyEnabled : false,
     };
 }
 
@@ -88,17 +92,24 @@ export class MessageBridge {
         // 3. Background Forwarding
         if (action === 'FORWARD_TO_BACKGROUND') {
             const scopedPayload = this._attachCurrentTabContext(payload);
-            chrome.runtime.sendMessage(scopedPayload)
-                .then(response => {
+            chrome.runtime
+                .sendMessage(scopedPayload)
+                .then((response) => {
                     // If request demands a reply (e.g., GET_LOGS, CHECK_PAGE_CONTEXT), send it back
-                    if (response && (scopedPayload.action === 'GET_LOGS' || scopedPayload.action === 'CHECK_PAGE_CONTEXT' || scopedPayload.action === 'MCP_TEST_CONNECTION' || scopedPayload.action === 'MCP_LIST_TOOLS')) {
+                    if (
+                        response &&
+                        (scopedPayload.action === 'GET_LOGS' ||
+                            scopedPayload.action === 'CHECK_PAGE_CONTEXT' ||
+                            scopedPayload.action === 'MCP_TEST_CONNECTION' ||
+                            scopedPayload.action === 'MCP_LIST_TOOLS')
+                    ) {
                         this.frame.postMessage({
                             action: 'BACKGROUND_MESSAGE',
-                            payload: response
+                            payload: response,
                         });
                     }
                 })
-                .catch(err => console.warn("Error forwarding to background:", err));
+                .catch((err) => console.warn('Error forwarding to background:', err));
             return;
         }
 
@@ -114,11 +125,17 @@ export class MessageBridge {
 
         // 5. Data Getters (Immediate Response)
         if (action === 'GET_THEME') {
-            this.frame.postMessage({ action: 'RESTORE_THEME', payload: this.state.getCached('geminiTheme') });
+            this.frame.postMessage({
+                action: 'RESTORE_THEME',
+                payload: this.state.getCached('geminiTheme'),
+            });
             return;
         }
         if (action === 'GET_LANGUAGE') {
-            this.frame.postMessage({ action: 'RESTORE_LANGUAGE', payload: this.state.getCached('geminiLanguage') });
+            this.frame.postMessage({
+                action: 'RESTORE_LANGUAGE',
+                payload: this.state.getCached('geminiLanguage'),
+            });
             return;
         }
         if (action === 'GET_TEXT_SELECTION') {
@@ -139,7 +156,10 @@ export class MessageBridge {
         }
         if (action === 'GET_ACCOUNT_INDICES') {
             chrome.storage.local.get(['geminiAccountIndices'], (res) => {
-                this.frame.postMessage({ action: 'RESTORE_ACCOUNT_INDICES', payload: res.geminiAccountIndices || "0" });
+                this.frame.postMessage({
+                    action: 'RESTORE_ACCOUNT_INDICES',
+                    payload: res.geminiAccountIndices || '0',
+                });
             });
             return;
         }
@@ -149,65 +169,75 @@ export class MessageBridge {
                     action: 'RESTORE_CONTEXT_SETTINGS',
                     payload: {
                         mode: res.geminiContextMode || 'summary',
-                        recentTurns: res.geminiContextRecentTurns || DEFAULT_CONTEXT_RECENT_TURNS
-                    }
+                        recentTurns: res.geminiContextRecentTurns || DEFAULT_CONTEXT_RECENT_TURNS,
+                    },
                 });
             });
             return;
         }
         if (action === 'GET_CONNECTION_SETTINGS') {
-            chrome.storage.local.get([
-                'geminiProvider',
-                'geminiUseOfficialApi', 
-                'geminiOfficialBaseUrl',
-                'geminiApiKey', 
-                'geminiOfficialModel',
-                'geminiThinkingLevel',
-                'geminiOfficialWebSearch',
-                'geminiOpenaiBaseUrl',
-                'geminiOpenaiApiKey',
-                'geminiOpenaiModel',
-                'geminiOpenaiSelectedModel',
-                'geminiOpenaiThinkingLevel',
-                'geminiOpenaiUseResponsesApi',
-                'geminiOpenaiWebSearchMode',
-                'geminiOpenaiWebSearch',
-                'geminiMcpEnabled',
-                'geminiMcpTransport',
-                'geminiMcpServerUrl',
-                'geminiMcpServers',
-                'geminiMcpActiveServerId'
-            ], (res) => {
-                const openaiSettings = normalizeOpenAISettings(res);
-                const provider = res.geminiProvider || (res.geminiUseOfficialApi ? 'official' : 'web');
-                const selectedModel = getSelectedModelForProvider(res, provider);
-                this.frame.postMessage({ 
-                    action: 'RESTORE_CONNECTION_SETTINGS', 
-                    payload: { 
-                        provider,
-                        useOfficialApi: res.geminiUseOfficialApi === true, 
-                        selectedModel,
-                        openaiSelectedModel: res.geminiOpenaiSelectedModel || "",
-                        officialBaseUrl: res.geminiOfficialBaseUrl || "https://generativelanguage.googleapis.com/v1beta",
-                        apiKey: res.geminiApiKey || "",
-                        officialModel: res.geminiOfficialModel || "gemini-3-flash-preview, gemini-3-pro-preview",
-                        thinkingLevel: res.geminiThinkingLevel || "low",
-                        officialWebSearch: res.geminiOfficialWebSearch === true,
-                        openaiBaseUrl: res.geminiOpenaiBaseUrl || "",
-                        openaiApiKey: res.geminiOpenaiApiKey || "",
-                        openaiModel: res.geminiOpenaiModel || "",
-                        openaiThinkingLevel: res.geminiOpenaiThinkingLevel || "low",
-                        openaiUseResponsesApi: openaiSettings.useResponsesApi,
-                        openaiWebSearch: openaiSettings.webSearch,
-                        // MCP
-                        mcpEnabled: res.geminiMcpEnabled === true,
-                        mcpTransport: res.geminiMcpTransport || "sse",
-                        mcpServerUrl: res.geminiMcpServerUrl || "http://127.0.0.1:3006/sse",
-                        mcpServers: Array.isArray(res.geminiMcpServers) ? res.geminiMcpServers : null,
-                        mcpActiveServerId: res.geminiMcpActiveServerId || null
-                    } 
-                });
-            });
+            chrome.storage.local.get(
+                [
+                    'geminiProvider',
+                    'geminiUseOfficialApi',
+                    'geminiOfficialBaseUrl',
+                    'geminiApiKey',
+                    'geminiOfficialModel',
+                    'geminiThinkingLevel',
+                    'geminiOfficialWebSearch',
+                    'geminiOpenaiBaseUrl',
+                    'geminiOpenaiApiKey',
+                    'geminiOpenaiModel',
+                    'geminiOpenaiSelectedModel',
+                    'geminiOpenaiThinkingLevel',
+                    'geminiOpenaiUseResponsesApi',
+                    'geminiOpenaiWebSearchMode',
+                    'geminiOpenaiWebSearch',
+                    'geminiMcpEnabled',
+                    'geminiMcpTransport',
+                    'geminiMcpServerUrl',
+                    'geminiMcpServers',
+                    'geminiMcpActiveServerId',
+                ],
+                (res) => {
+                    const openaiSettings = normalizeOpenAISettings(res);
+                    const provider =
+                        res.geminiProvider || (res.geminiUseOfficialApi ? 'official' : 'web');
+                    const selectedModel = getSelectedModelForProvider(res, provider);
+                    this.frame.postMessage({
+                        action: 'RESTORE_CONNECTION_SETTINGS',
+                        payload: {
+                            provider,
+                            useOfficialApi: res.geminiUseOfficialApi === true,
+                            selectedModel,
+                            openaiSelectedModel: res.geminiOpenaiSelectedModel || '',
+                            officialBaseUrl:
+                                res.geminiOfficialBaseUrl ||
+                                'https://generativelanguage.googleapis.com/v1beta',
+                            apiKey: res.geminiApiKey || '',
+                            officialModel:
+                                res.geminiOfficialModel ||
+                                'gemini-3-flash-preview, gemini-3-pro-preview',
+                            thinkingLevel: res.geminiThinkingLevel || 'low',
+                            officialWebSearch: res.geminiOfficialWebSearch === true,
+                            openaiBaseUrl: res.geminiOpenaiBaseUrl || '',
+                            openaiApiKey: res.geminiOpenaiApiKey || '',
+                            openaiModel: res.geminiOpenaiModel || '',
+                            openaiThinkingLevel: res.geminiOpenaiThinkingLevel || 'low',
+                            openaiUseResponsesApi: openaiSettings.useResponsesApi,
+                            openaiWebSearch: openaiSettings.webSearch,
+                            // MCP
+                            mcpEnabled: res.geminiMcpEnabled === true,
+                            mcpTransport: res.geminiMcpTransport || 'sse',
+                            mcpServerUrl: res.geminiMcpServerUrl || 'http://127.0.0.1:3006/sse',
+                            mcpServers: Array.isArray(res.geminiMcpServers)
+                                ? res.geminiMcpServers
+                                : null,
+                            mcpActiveServerId: res.geminiMcpActiveServerId || null,
+                        },
+                    });
+                }
+            );
             return;
         }
 
@@ -222,7 +252,8 @@ export class MessageBridge {
         }
         if (action === 'SAVE_THEME') this.state.save('geminiTheme', payload);
         if (action === 'SAVE_LANGUAGE') this.state.save('geminiLanguage', payload);
-        if (action === 'SAVE_TEXT_SELECTION') this.state.save('geminiTextSelectionEnabled', payload);
+        if (action === 'SAVE_TEXT_SELECTION')
+            this.state.save('geminiTextSelectionEnabled', payload);
         if (action === 'SAVE_IMAGE_TOOLS') this.state.save('geminiImageToolsEnabled', payload);
         if (action === 'SAVE_SIDEBAR_BEHAVIOR') this.state.save('geminiSidebarBehavior', payload);
         if (action === 'SAVE_SIDE_PANEL_SCOPE') this.state.save('geminiSidePanelScope', payload);
@@ -245,29 +276,43 @@ export class MessageBridge {
         if (action === 'SAVE_CONTEXT_SETTINGS') {
             this.state.save('geminiContextMode', payload?.mode === 'recent' ? 'recent' : 'summary');
             const recentTurns = Number.parseInt(payload?.recentTurns, 10);
-            this.state.save('geminiContextRecentTurns', Number.isFinite(recentTurns) ? Math.min(50, Math.max(1, recentTurns)) : DEFAULT_CONTEXT_RECENT_TURNS);
+            this.state.save(
+                'geminiContextRecentTurns',
+                Number.isFinite(recentTurns)
+                    ? Math.min(50, Math.max(1, recentTurns))
+                    : DEFAULT_CONTEXT_RECENT_TURNS
+            );
         }
         if (action === 'SAVE_CONNECTION_SETTINGS') {
             this.state.save('geminiProvider', payload.provider);
             // Official
             this.state.save('geminiUseOfficialApi', payload.provider === 'official'); // Maintain legacy bool for now
-            this.state.save('geminiOfficialBaseUrl', payload.officialBaseUrl || "https://generativelanguage.googleapis.com/v1beta");
+            this.state.save(
+                'geminiOfficialBaseUrl',
+                payload.officialBaseUrl || 'https://generativelanguage.googleapis.com/v1beta'
+            );
             this.state.save('geminiApiKey', payload.apiKey);
-            this.state.save('geminiOfficialModel', payload.officialModel || "gemini-3-flash-preview, gemini-3-pro-preview");
+            this.state.save(
+                'geminiOfficialModel',
+                payload.officialModel || 'gemini-3-flash-preview, gemini-3-pro-preview'
+            );
             this.state.save('geminiThinkingLevel', payload.thinkingLevel);
             this.state.save('geminiOfficialWebSearch', payload.officialWebSearch === true);
             // OpenAI
             this.state.save('geminiOpenaiBaseUrl', payload.openaiBaseUrl);
             this.state.save('geminiOpenaiApiKey', payload.openaiApiKey);
             this.state.save('geminiOpenaiModel', payload.openaiModel);
-            this.state.save('geminiOpenaiThinkingLevel', payload.openaiThinkingLevel || "low");
+            this.state.save('geminiOpenaiThinkingLevel', payload.openaiThinkingLevel || 'low');
             this.state.save('geminiOpenaiUseResponsesApi', payload.openaiUseResponsesApi === true);
             this.state.save('geminiOpenaiWebSearch', payload.openaiWebSearch === true);
             // MCP
             this.state.save('geminiMcpEnabled', payload.mcpEnabled === true);
-            this.state.save('geminiMcpTransport', payload.mcpTransport || "sse");
-            this.state.save('geminiMcpServerUrl', payload.mcpServerUrl || "");
-            this.state.save('geminiMcpServers', Array.isArray(payload.mcpServers) ? payload.mcpServers : []);
+            this.state.save('geminiMcpTransport', payload.mcpTransport || 'sse');
+            this.state.save('geminiMcpServerUrl', payload.mcpServerUrl || '');
+            this.state.save(
+                'geminiMcpServers',
+                Array.isArray(payload.mcpServers) ? payload.mcpServers : []
+            );
             this.state.save('geminiMcpActiveServerId', payload.mcpActiveServerId || null);
         }
     }
@@ -279,7 +324,7 @@ export class MessageBridge {
             this.state.updateSessions(message.sessions);
             this.frame.postMessage({
                 action: 'RESTORE_SESSIONS',
-                payload: message.sessions
+                payload: message.sessions,
             });
             return;
         }
@@ -287,7 +332,7 @@ export class MessageBridge {
         // Forward all other background messages to sandbox (e.g. GEMINI_STREAM_UPDATE)
         this.frame.postMessage({
             action: 'BACKGROUND_MESSAGE',
-            payload: message
+            payload: message,
         });
     }
 
@@ -303,7 +348,7 @@ export class MessageBridge {
 
         return {
             ...payload,
-            sidePanelTabId: currentTabId
+            sidePanelTabId: currentTabId,
         };
     }
 

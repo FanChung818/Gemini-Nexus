@@ -20,7 +20,7 @@ function extractGroundingSources(groundingMetadata) {
 
         sources.push({
             title,
-            url: web.uri
+            url: web.uri,
         });
     });
 
@@ -41,20 +41,22 @@ function cloneJson(value) {
 }
 
 function hasNativePart(part) {
-    return isPlainObject(part)
-        && (part.text !== undefined
-            || isPlainObject(part.functionCall)
-            || isPlainObject(part.functionResponse)
-            || isPlainObject(part.inlineData)
-            || part.thought !== undefined
-            || part.thoughtSignature !== undefined);
+    return (
+        isPlainObject(part) &&
+        (part.text !== undefined ||
+            isPlainObject(part.functionCall) ||
+            isPlainObject(part.functionResponse) ||
+            isPlainObject(part.inlineData) ||
+            part.thought !== undefined ||
+            part.thoughtSignature !== undefined)
+    );
 }
 
 function cloneOfficialParts(parts) {
     if (!Array.isArray(parts)) return [];
     return parts
         .filter(hasNativePart)
-        .map(part => cloneJson(part))
+        .map((part) => cloneJson(part))
         .filter(Boolean);
 }
 
@@ -67,7 +69,7 @@ function normalizeFunctionCall(part, partIndex) {
         id: typeof functionCall.id === 'string' ? functionCall.id : null,
         name,
         args: isPlainObject(functionCall.args) ? cloneJson(functionCall.args) : {},
-        partIndex
+        partIndex,
     };
 }
 
@@ -86,10 +88,11 @@ function buildMessageContent(msg, targetModel) {
 
     if (nativeParts.length > 0) {
         return {
-            role: nativeContent?.role === 'model' || nativeContent?.role === 'user'
-                ? nativeContent.role
-                : fallbackRole,
-            parts: nativeParts
+            role:
+                nativeContent?.role === 'model' || nativeContent?.role === 'user'
+                    ? nativeContent.role
+                    : fallbackRole,
+            parts: nativeParts,
         };
     }
 
@@ -108,14 +111,14 @@ function buildMessageContent(msg, targetModel) {
 
         // Add images if present
         if (msg.image && Array.isArray(msg.image)) {
-            msg.image.forEach(img => {
+            msg.image.forEach((img) => {
                 // img is base64 string "data:image/png;base64,..."
                 const p = img.split(',');
                 if (p.length === 2) {
                     const mimeMatch = p[0].match(/:(.*?);/);
                     const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
                     parts.push({
-                        inlineData: { mimeType, data: p[1] }
+                        inlineData: { mimeType, data: p[1] },
                     });
                 }
             });
@@ -129,8 +132,8 @@ export function extractOfficialResponseData(candidate) {
     const modelParts = [];
     const functionCalls = [];
     const seenFunctionCallIds = new Set();
-    let text = "";
-    let thoughts = "";
+    let text = '';
+    let thoughts = '';
     let thoughtSignature = null;
 
     if (!candidate?.content || !Array.isArray(candidate.content.parts)) {
@@ -139,7 +142,7 @@ export function extractOfficialResponseData(candidate) {
             thoughts,
             thoughtSignature,
             officialContent: null,
-            functionCalls
+            functionCalls,
         };
     }
 
@@ -158,7 +161,9 @@ export function extractOfficialResponseData(candidate) {
 
         const functionCall = normalizeFunctionCall(part, partIndex);
         if (functionCall) {
-            const key = functionCall.id || `${partIndex}:${functionCall.name}:${JSON.stringify(functionCall.args)}`;
+            const key =
+                functionCall.id ||
+                `${partIndex}:${functionCall.name}:${JSON.stringify(functionCall.args)}`;
             if (!seenFunctionCallIds.has(key)) {
                 seenFunctionCallIds.add(key);
                 functionCalls.push(functionCall);
@@ -174,30 +179,41 @@ export function extractOfficialResponseData(candidate) {
         text,
         thoughts,
         thoughtSignature,
-        officialContent: modelParts.length > 0
-            ? { role: candidate.content.role || 'model', parts: modelParts }
-            : null,
-        functionCalls
+        officialContent:
+            modelParts.length > 0
+                ? { role: candidate.content.role || 'model', parts: modelParts }
+                : null,
+        functionCalls,
     };
 }
 
 /**
  * Sends a message using the Official Google Gemini API.
  */
-export async function sendOfficialMessage(prompt, systemInstruction, history, config, thinkingLevel, files, enableWebSearch, signal, onUpdate) {
+export async function sendOfficialMessage(
+    prompt,
+    systemInstruction,
+    history,
+    config,
+    thinkingLevel,
+    files,
+    enableWebSearch,
+    signal,
+    onUpdate
+) {
     let { baseUrl, apiKey, model: modelName, configuredModels } = config || {};
-    if (!apiKey) throw new Error("API Key is missing.");
-    if (!baseUrl) baseUrl = "https://generativelanguage.googleapis.com/v1beta";
-    
+    if (!apiKey) throw new Error('API Key is missing.');
+    if (!baseUrl) baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+
     // Dynamic Model Selection: Map UI values to API IDs
     let targetModel = modelName;
-    
+
     if (!targetModel) {
-        const configured = (configuredModels || "")
+        const configured = (configuredModels || '')
             .split(',')
-            .map(m => m.trim())
+            .map((m) => m.trim())
             .filter(Boolean);
-        targetModel = configured[0] || "gemini-3-flash-preview";
+        targetModel = configured[0] || 'gemini-3-flash-preview';
     }
 
     // Explicit Mapping logic
@@ -208,10 +224,10 @@ export async function sendOfficialMessage(prompt, systemInstruction, history, co
     } else if (targetModel === 'gemini-3-pro') {
         targetModel = 'gemini-3-pro-preview';
     }
-    
+
     console.debug(`[Gemini Official API] Requesting ${targetModel} (Original: ${modelName})...`);
 
-    const normalizedBaseUrl = baseUrl.replace(/\/$/, "");
+    const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
     const url = `${normalizedBaseUrl}/models/${targetModel}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
     // 1. Build Contents Array (History + Current Prompt)
@@ -219,7 +235,7 @@ export async function sendOfficialMessage(prompt, systemInstruction, history, co
 
     // Add History
     if (history && Array.isArray(history)) {
-        history.forEach(msg => {
+        history.forEach((msg) => {
             const content = buildMessageContent(msg, targetModel);
             if (content.parts.length > 0) {
                 contents.push(content);
@@ -233,16 +249,16 @@ export async function sendOfficialMessage(prompt, systemInstruction, history, co
     if (configuredCurrentParts.length === 0 && prompt) currentParts.push({ text: prompt });
 
     if (configuredCurrentParts.length === 0 && files && files.length > 0) {
-        files.forEach(f => {
-             const parts = f.base64.split(',');
-             const base64Data = parts[1];
-             const mime = f.type || 'image/png';
-             currentParts.push({
-                 inlineData: {
-                     mimeType: mime,
-                     data: base64Data
-                 }
-             });
+        files.forEach((f) => {
+            const parts = f.base64.split(',');
+            const base64Data = parts[1];
+            const mime = f.type || 'image/png';
+            currentParts.push({
+                inlineData: {
+                    mimeType: mime,
+                    data: base64Data,
+                },
+            });
         });
     }
 
@@ -253,8 +269,8 @@ export async function sendOfficialMessage(prompt, systemInstruction, history, co
     const payload = {
         contents: contents,
         generationConfig: {
-            temperature: 1.0 // Official recommendation: Lock to 1.0 to prevent reasoning degradation
-        }
+            temperature: 1.0, // Official recommendation: Lock to 1.0 to prevent reasoning degradation
+        },
     };
 
     if (enableWebSearch) {
@@ -266,14 +282,14 @@ export async function sendOfficialMessage(prompt, systemInstruction, history, co
     if (modelName === 'gemini-3-flash-thinking' || thinkingLevel) {
         payload.generationConfig.thinkingConfig = {
             includeThoughts: true, // Ensure thoughts are returned in response
-            thinkingLevel: thinkingLevel || "low" 
+            thinkingLevel: thinkingLevel || 'low',
         };
     }
 
     // Add System Instruction if present
     if (systemInstruction) {
         payload.systemInstruction = {
-            parts: [{ text: systemInstruction }]
+            parts: [{ text: systemInstruction }],
         };
     }
 
@@ -281,7 +297,7 @@ export async function sendOfficialMessage(prompt, systemInstruction, history, co
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-        signal
+        signal,
     });
 
     if (!response.ok) {
@@ -290,11 +306,11 @@ export async function sendOfficialMessage(prompt, systemInstruction, history, co
     }
 
     const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-    
-    let buffer = "";
-    let fullText = "";
-    let fullThoughts = "";
+    const decoder = new TextDecoder('utf-8');
+
+    let buffer = '';
+    let fullText = '';
+    let fullThoughts = '';
     let finalThoughtSignature = null;
     const modelParts = [];
     const functionCalls = [];
@@ -304,20 +320,21 @@ export async function sendOfficialMessage(prompt, systemInstruction, history, co
     while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
-        
+
         let lines = buffer.split('\n');
-        buffer = lines.pop(); 
-        
+        buffer = lines.pop();
+
         for (const line of lines) {
             const trimmed = line.trim();
             if (trimmed.startsWith('data: ')) {
                 const jsonStr = trimmed.substring(6);
                 try {
                     const data = JSON.parse(jsonStr);
-                    const candidate = data.candidates && data.candidates[0] ? data.candidates[0] : null;
+                    const candidate =
+                        data.candidates && data.candidates[0] ? data.candidates[0] : null;
 
                     if (candidate && candidate.groundingMetadata) {
                         extractGroundingSources(candidate.groundingMetadata).forEach((source) => {
@@ -337,7 +354,8 @@ export async function sendOfficialMessage(prompt, systemInstruction, history, co
                         }
                         if (parsed.text) fullText += parsed.text;
                         if (parsed.thoughts) fullThoughts += parsed.thoughts;
-                        if (parsed.thoughtSignature) finalThoughtSignature = parsed.thoughtSignature;
+                        if (parsed.thoughtSignature)
+                            finalThoughtSignature = parsed.thoughtSignature;
 
                         if (fullText || fullThoughts) {
                             onUpdate(fullText, fullThoughts);
@@ -351,22 +369,21 @@ export async function sendOfficialMessage(prompt, systemInstruction, history, co
     }
 
     const seenCallIds = new Set();
-    const dedupedFunctionCalls = functionCalls
-        .filter(call => {
-            if (!call?.id) return true;
-            if (seenCallIds.has(call.id)) return false;
-            seenCallIds.add(call.id);
-            return true;
-        });
+    const dedupedFunctionCalls = functionCalls.filter((call) => {
+        if (!call?.id) return true;
+        if (seenCallIds.has(call.id)) return false;
+        seenCallIds.add(call.id);
+        return true;
+    });
 
     return {
         text: fullText,
-        thoughts: fullThoughts || null, 
+        thoughts: fullThoughts || null,
         sources,
-        images: [], 
+        images: [],
         context: null, // Stateless
         thoughtSignature: finalThoughtSignature,
         officialContent: modelParts.length > 0 ? { role: 'model', parts: modelParts } : null,
-        functionCalls: dedupedFunctionCalls
+        functionCalls: dedupedFunctionCalls,
     };
 }

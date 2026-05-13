@@ -4,7 +4,7 @@ export const ViewerTemplate = `
         <div class="viewer-container" id="viewer-container">
             <img class="viewer-content" id="full-image" draggable="false" referrerpolicy="no-referrer">
         </div>
-        
+
         <div class="viewer-toolbar">
             <button id="viewer-zoom-out" data-i18n-title="zoomOut" title="Zoom Out (Scroll Down)">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>

@@ -1,9 +1,4 @@
-
-
-
-
-
-(function() {
+(function () {
     window.GeminiStyles = window.GeminiStyles || {};
     window.GeminiStyles.Widget = `
         /* Toolbar Styles */
@@ -84,7 +79,7 @@
         }
 
         /* --- Image AI Tools Menu --- */
-        
+
         .image-btn {
             position: absolute;
             z-index: 1000000;
@@ -100,12 +95,12 @@
             border: none;
             box-shadow: none;
         }
-        
+
         .image-btn.visible {
             opacity: 1;
             pointer-events: auto;
         }
-        
+
         /* The trigger button (AI Tools) */
         .ai-tool-trigger {
             display: flex;
@@ -182,7 +177,7 @@
         }
 
         .submenu-arrow {
-            width: 14px; 
+            width: 14px;
             height: 14px;
             opacity: 0.7;
             display: flex;
@@ -217,7 +212,7 @@
             width: 10px;
             background: transparent;
         }
-        
+
         .menu-item.has-submenu:hover .submenu {
             display: flex;
         }

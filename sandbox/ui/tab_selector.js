@@ -1,4 +1,3 @@
-
 // sandbox/ui/tab_selector.js
 import { t } from '../core/i18n.js';
 
@@ -59,30 +58,32 @@ export class TabSelectorController {
             return;
         }
 
-        tabs.forEach(tab => {
+        tabs.forEach((tab) => {
             // Is this tab the "Locked" one?
             const isLocked = tab.id === this.currentLockedId;
-            
+
             const item = document.createElement('div');
             // 'active' in CSS usually denotes selection, here we use it for locked state visibility
             item.className = `history-item ${isLocked ? 'active' : ''}`;
-            
+
             // Tab Icon/Favicon
             const icon = document.createElement('img');
-            icon.src = tab.favIconUrl || ''; 
+            icon.src = tab.favIconUrl || '';
             icon.style.width = '16px';
             icon.style.height = '16px';
             icon.style.marginRight = '8px';
             icon.style.borderRadius = '2px';
-            icon.onerror = () => { icon.style.display = 'none'; };
+            icon.onerror = () => {
+                icon.style.display = 'none';
+            };
 
             const titleSpan = document.createElement('span');
             titleSpan.className = 'history-title';
             titleSpan.textContent = tab.title || tab.url;
-            
+
             // Lock Button (Toggle State)
             const lockBtn = document.createElement('div');
-            
+
             // Icons
             const CLOSED_LOCK = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`;
             const OPEN_LOCK = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>`;
@@ -96,7 +97,7 @@ export class TabSelectorController {
                 lockBtn.title = t('lockTab');
                 lockBtn.style.color = 'var(--text-tertiary)';
             }
-            
+
             Object.assign(lockBtn.style, {
                 display: 'flex',
                 alignItems: 'center',
@@ -107,7 +108,7 @@ export class TabSelectorController {
                 marginLeft: '8px',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                flexShrink: '0'
+                flexShrink: '0',
             });
 
             lockBtn.onmouseenter = () => {
@@ -122,7 +123,7 @@ export class TabSelectorController {
             // 1. Lock Button Click: Only Lock/Unlock, NO Switch
             lockBtn.onclick = (e) => {
                 e.stopPropagation(); // Prevent bubbling to item click
-                
+
                 let nextActionId = tab.id;
                 if (isLocked) {
                     nextActionId = null; // Unlock
@@ -130,7 +131,7 @@ export class TabSelectorController {
                 } else {
                     this.updateTrigger(tab); // Lock
                 }
-                
+
                 // Pass false to indicate we do NOT want to switch visual tab
                 if (this.onSelect) this.onSelect(nextActionId, false);
                 this.close();
@@ -140,11 +141,11 @@ export class TabSelectorController {
             item.onclick = (e) => {
                 // If we click the row, we generally want to switch to that tab.
                 // We also ensure it becomes the locked target for control.
-                
+
                 if (!isLocked) {
                     this.updateTrigger(tab);
                 }
-                
+
                 // Pass true to switch tab
                 if (this.onSelect) this.onSelect(tab.id, true);
                 this.close();
@@ -160,10 +161,10 @@ export class TabSelectorController {
 
     updateTrigger(tab) {
         if (!this.triggerBtn) return;
-        
+
         // Remove existing content
         this.triggerBtn.innerHTML = '';
-        
+
         if (tab && tab.favIconUrl) {
             const img = document.createElement('img');
             img.src = tab.favIconUrl;
@@ -171,10 +172,12 @@ export class TabSelectorController {
             img.style.height = '20px';
             img.style.borderRadius = '2px';
             img.style.objectFit = 'contain';
-            
+
             // Fallback to default icon if image fails to load
-            img.onerror = () => { this.resetTrigger(); };
-            
+            img.onerror = () => {
+                this.resetTrigger();
+            };
+
             this.triggerBtn.appendChild(img);
             this.triggerBtn.title = `Locked: ${tab.title}`;
             // Optional: Add a small lock indicator overlay on the trigger button
@@ -190,7 +193,7 @@ export class TabSelectorController {
             <path d="M2 6h20v13a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z"/>
             <path d="M2 6l2.5-3.5A2 2 0 0 1 6.1 1h11.8a2 2 0 0 1 1.6 1.5L22 6"/>
         </svg>`;
-        this.triggerBtn.title = t('selectTabTooltip') || "Select a tab to control";
+        this.triggerBtn.title = t('selectTabTooltip') || 'Select a tab to control';
         this.triggerBtn.style.border = 'none';
     }
 }

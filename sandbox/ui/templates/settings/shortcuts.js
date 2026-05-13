@@ -1,4 +1,3 @@
-
 export const ShortcutsSettingsTemplate = `
 <div class="setting-group">
     <h4 data-i18n="keyboardShortcuts">Keyboard Shortcuts</h4>

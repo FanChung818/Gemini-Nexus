@@ -1,4 +1,4 @@
-(function() {
+(function () {
     try {
         const params = new URLSearchParams(window.location.search);
         const theme = params.get('theme');
@@ -15,8 +15,8 @@
             document.documentElement.lang = lang;
         } else if (!lang || lang === 'system') {
             if (navigator.language.startsWith('zh')) {
-                 document.documentElement.lang = 'zh';
+                document.documentElement.lang = 'zh';
             }
         }
-    } catch(e) {}
+    } catch (e) {}
 })();

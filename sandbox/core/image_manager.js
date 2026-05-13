@@ -1,4 +1,3 @@
-
 // sandbox/core/image_manager.js
 
 export class ImageManager {
@@ -8,9 +7,9 @@ export class ImageManager {
         // previewThumb and removeImgBtn are removed/deprecated in multi-file UI
         this.inputWrapper = elements.inputWrapper;
         this.inputFn = elements.inputFn;
-        
+
         this.onUrlDrop = callbacks.onUrlDrop;
-        
+
         this.files = []; // Array of { base64, type, name }
 
         this.initListeners();
@@ -21,7 +20,7 @@ export class ImageManager {
         this.imageInput.addEventListener('change', (e) => {
             const files = e.target.files;
             if (files && files.length > 0) {
-                Array.from(files).forEach(file => this.handleFile(file));
+                Array.from(files).forEach((file) => this.handleFile(file));
                 // Reset input so same file can be selected again
                 this.imageInput.value = '';
             }
@@ -53,8 +52,8 @@ export class ImageManager {
             if (!handledFiles && html) {
                 const doc = new DOMParser().parseFromString(html, 'text/html');
                 const images = doc.querySelectorAll('img');
-                
-                images.forEach(img => {
+
+                images.forEach((img) => {
                     const src = img.src;
                     if (!src) return;
 
@@ -90,13 +89,15 @@ export class ImageManager {
         let dragCounter = 0;
 
         dropZone.addEventListener('dragenter', (e) => {
-            e.preventDefault(); e.stopPropagation();
+            e.preventDefault();
+            e.stopPropagation();
             dragCounter++;
             this.inputWrapper.classList.add('dragging');
         });
 
         dropZone.addEventListener('dragleave', (e) => {
-            e.preventDefault(); e.stopPropagation();
+            e.preventDefault();
+            e.stopPropagation();
             dragCounter--;
             if (dragCounter === 0) {
                 this.inputWrapper.classList.remove('dragging');
@@ -104,11 +105,13 @@ export class ImageManager {
         });
 
         dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault(); e.stopPropagation(); 
+            e.preventDefault();
+            e.stopPropagation();
         });
 
         dropZone.addEventListener('drop', (e) => {
-            e.preventDefault(); e.stopPropagation();
+            e.preventDefault();
+            e.stopPropagation();
             dragCounter = 0;
             this.inputWrapper.classList.remove('dragging');
 
@@ -122,7 +125,7 @@ export class ImageManager {
 
             // 1. Files (System Drag)
             if (files && files.length > 0) {
-                Array.from(files).forEach(file => this.handleFile(file));
+                Array.from(files).forEach((file) => this.handleFile(file));
                 handledFiles = true;
             }
 
@@ -130,13 +133,14 @@ export class ImageManager {
             if (!handledFiles && html) {
                 const doc = new DOMParser().parseFromString(html, 'text/html');
                 const images = doc.querySelectorAll('img');
-                
-                images.forEach(img => {
+
+                images.forEach((img) => {
                     const src = img.src;
                     if (!src) return;
 
                     // Filter out likely spacers or tracking pixels
-                    if (img.width > 0 && img.width < 50 && img.height > 0 && img.height < 50) return;
+                    if (img.width > 0 && img.width < 50 && img.height > 0 && img.height < 50)
+                        return;
 
                     if (src.startsWith('data:')) {
                         const match = src.match(/^data:(.+);base64,(.+)$/);
@@ -160,10 +164,10 @@ export class ImageManager {
                 let skipText = false;
                 if (handledHtmlImages || handledFiles) {
                     if (text.match(/^https?:\/\//) || text.startsWith('data:')) {
-                        skipText = true; 
+                        skipText = true;
                     }
                 }
-                
+
                 if (!skipText) {
                     this._insertTextAtCursor(text);
                 }
@@ -178,10 +182,11 @@ export class ImageManager {
         if (input.selectionStart || input.selectionStart === 0) {
             const startPos = input.selectionStart;
             const endPos = input.selectionEnd;
-            input.value = input.value.substring(0, startPos)
-                + text
-                + input.value.substring(endPos, input.value.length);
-            
+            input.value =
+                input.value.substring(0, startPos) +
+                text +
+                input.value.substring(endPos, input.value.length);
+
             input.selectionStart = startPos + text.length;
             input.selectionEnd = startPos + text.length;
         } else {
@@ -212,7 +217,7 @@ export class ImageManager {
         this._render();
         this.inputFn.focus();
     }
-    
+
     removeFile(index) {
         this.files.splice(index, 1);
         this._render();
@@ -226,21 +231,21 @@ export class ImageManager {
     getFiles() {
         return [...this.files];
     }
-    
+
     _render() {
         this.imagePreview.innerHTML = '';
-        
+
         if (this.files.length === 0) {
             this.imagePreview.classList.remove('has-image');
             return;
         }
-        
+
         this.imagePreview.classList.add('has-image');
-        
+
         this.files.forEach((file, index) => {
             const item = document.createElement('div');
             item.className = 'preview-item';
-            
+
             // Remove Button
             const removeBtn = document.createElement('button');
             removeBtn.className = 'preview-remove-btn';
@@ -250,7 +255,7 @@ export class ImageManager {
                 this.removeFile(index);
             };
             item.appendChild(removeBtn);
-            
+
             // Content
             if (file.type && file.type.startsWith('image/')) {
                 const img = document.createElement('img');
@@ -265,7 +270,7 @@ export class ImageManager {
                 `;
                 item.appendChild(card);
             }
-            
+
             this.imagePreview.appendChild(item);
         });
     }

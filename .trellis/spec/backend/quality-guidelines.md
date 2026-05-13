@@ -120,7 +120,14 @@ sendOfficialMessage(request.text, systemInstruction, history, config, thinkingLe
 ```js
 const history = await resolveRequestHistory(request);
 const context = await prepareManagedContext(request, settings, history, signal, onStatus);
-sendOfficialMessage(request.text, context.systemInstruction, context.history, config, thinkingLevel, files);
+sendOfficialMessage(
+    request.text,
+    context.systemInstruction,
+    context.history,
+    config,
+    thinkingLevel,
+    files
+);
 ```
 
 ## Scenario: OpenAI Compatible Reasoning Effort Settings
@@ -175,7 +182,7 @@ const config = {
     baseUrl: settings.openaiBaseUrl,
     apiKey: settings.openaiApiKey,
     model: targetModel,
-    reasoningEffort: settings.thinkingLevel
+    reasoningEffort: settings.thinkingLevel,
 };
 ```
 
@@ -186,6 +193,6 @@ const config = {
     baseUrl: settings.openaiBaseUrl,
     apiKey: settings.openaiApiKey,
     model: targetModel,
-    reasoningEffort: settings.openaiThinkingLevel
+    reasoningEffort: settings.openaiThinkingLevel,
 };
 ```

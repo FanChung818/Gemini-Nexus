@@ -1,6 +1,5 @@
-
 // sidepanel/core/state.js
-import { DEFAULT_CONTEXT_RECENT_TURNS } from '../../shared/constants.js';
+import { DEFAULT_CONTEXT_RECENT_TURNS } from '../../shared/config/constants.js';
 
 const OPENAI_WEB_SEARCH_MODES = new Set(['off', 'responses', 'chat']);
 
@@ -22,13 +21,13 @@ function normalizeOpenAISettings(data) {
     if (!hasUseResponsesSetting && OPENAI_WEB_SEARCH_MODES.has(legacyMode)) {
         return {
             useResponsesApi: legacyMode === 'responses',
-            webSearch: legacyMode === 'responses' || legacyMode === 'chat'
+            webSearch: legacyMode === 'responses' || legacyMode === 'chat',
         };
     }
 
     return {
         useResponsesApi: data.geminiOpenaiUseResponsesApi === true,
-        webSearch: hasWebSearchSetting ? data.geminiOpenaiWebSearch === true : false
+        webSearch: hasWebSearchSetting ? data.geminiOpenaiWebSearch === true : false,
     };
 }
 
@@ -53,44 +52,47 @@ export class StateManager {
 
     init() {
         // Start fetching bulk data immediately
-        chrome.storage.local.get([
-            'geminiSessions', 
-            'pendingSessionId', 
-            'pendingMode', // Fetch pending mode (e.g. browser_control)
-            'geminiShortcuts',
-            'geminiModel',
-            'pendingImage',
-            'geminiSidebarBehavior',
-            'geminiSidePanelScope',
-            'geminiTextSelectionEnabled',
-            'geminiImageToolsEnabled',
-            'geminiAccountIndices',
-            'geminiApiKey',
-            'geminiUseOfficialApi',
-            'geminiOfficialBaseUrl',
-            'geminiOfficialModel',
-            'geminiThinkingLevel',
-            'geminiOfficialWebSearch',
-            'geminiProvider',
-            'geminiOpenaiBaseUrl',
-            'geminiOpenaiApiKey',
-            'geminiOpenaiModel',
-            'geminiOpenaiSelectedModel',
-            'geminiOpenaiThinkingLevel',
-            'geminiOpenaiUseResponsesApi',
-            'geminiOpenaiWebSearchMode',
-            'geminiOpenaiWebSearch',
-            'geminiContextMode',
-            'geminiContextRecentTurns',
-            'geminiMcpEnabled',
-            'geminiMcpTransport',
-            'geminiMcpServerUrl',
-            'geminiMcpServers',
-            'geminiMcpActiveServerId'
-        ], (result) => {
-            this.data = result;
-            this.trySendInitData();
-        });
+        chrome.storage.local.get(
+            [
+                'geminiSessions',
+                'pendingSessionId',
+                'pendingMode', // Fetch pending mode (e.g. browser_control)
+                'geminiShortcuts',
+                'geminiModel',
+                'pendingImage',
+                'geminiSidebarBehavior',
+                'geminiSidePanelScope',
+                'geminiTextSelectionEnabled',
+                'geminiImageToolsEnabled',
+                'geminiAccountIndices',
+                'geminiApiKey',
+                'geminiUseOfficialApi',
+                'geminiOfficialBaseUrl',
+                'geminiOfficialModel',
+                'geminiThinkingLevel',
+                'geminiOfficialWebSearch',
+                'geminiProvider',
+                'geminiOpenaiBaseUrl',
+                'geminiOpenaiApiKey',
+                'geminiOpenaiModel',
+                'geminiOpenaiSelectedModel',
+                'geminiOpenaiThinkingLevel',
+                'geminiOpenaiUseResponsesApi',
+                'geminiOpenaiWebSearchMode',
+                'geminiOpenaiWebSearch',
+                'geminiContextMode',
+                'geminiContextRecentTurns',
+                'geminiMcpEnabled',
+                'geminiMcpTransport',
+                'geminiMcpServerUrl',
+                'geminiMcpServers',
+                'geminiMcpActiveServerId',
+            ],
+            (result) => {
+                this.data = result;
+                this.trySendInitData();
+            }
+        );
 
         chrome.storage.session.get(['geminiSidePanelSessionBindings'], (result) => {
             this.sessionData = result;
@@ -110,7 +112,8 @@ export class StateManager {
             if (areaName !== 'session' || !changes.geminiSidePanelSessionBindings) return;
 
             this.sessionData = {
-                geminiSidePanelSessionBindings: changes.geminiSidePanelSessionBindings.newValue || {}
+                geminiSidePanelSessionBindings:
+                    changes.geminiSidePanelSessionBindings.newValue || {},
             };
             this.postCurrentTabContext();
         });
@@ -144,7 +147,7 @@ export class StateManager {
         // Safety Timeout: Force reveal if handshake fails
         setTimeout(() => {
             if (!this.uiIsReady) {
-                console.warn("UI_READY signal timeout, forcing skeleton removal");
+                console.warn('UI_READY signal timeout, forcing skeleton removal');
                 this.frame.reveal();
             }
         }, 1000);
@@ -158,7 +161,13 @@ export class StateManager {
     trySendInitData() {
         // Only proceed if we have data AND the UI has signaled readiness
         // (Or if we can detect the window exists, though UI_READY is safer for logic)
-        if ((!this.uiIsReady && !this.hasInitialized) || !this.data || this.sessionData === null || this.currentTabId === undefined) return;
+        if (
+            (!this.uiIsReady && !this.hasInitialized) ||
+            !this.data ||
+            this.sessionData === null ||
+            this.currentTabId === undefined
+        )
+            return;
 
         this.hasInitialized = true;
         this.frame.reveal();
@@ -168,65 +177,95 @@ export class StateManager {
 
         // --- Push Data ---
         const openaiSettings = normalizeOpenAISettings(this.data);
-        const provider = this.data.geminiProvider || (this.data.geminiUseOfficialApi ? 'official' : 'web');
+        const provider =
+            this.data.geminiProvider || (this.data.geminiUseOfficialApi ? 'official' : 'web');
         const selectedModel = getSelectedModelForProvider(this.data, provider);
-        
+
         // 1. Preferences
-        
+
         // Settings first to establish model list environment
-        this.frame.postMessage({ 
-            action: 'RESTORE_CONNECTION_SETTINGS', 
-            payload: { 
+        this.frame.postMessage({
+            action: 'RESTORE_CONNECTION_SETTINGS',
+            payload: {
                 provider,
                 useOfficialApi: this.data.geminiUseOfficialApi === true, // Legacy
                 selectedModel,
-                openaiSelectedModel: this.data.geminiOpenaiSelectedModel || "",
-                officialBaseUrl: this.data.geminiOfficialBaseUrl || "https://generativelanguage.googleapis.com/v1beta",
-                apiKey: this.data.geminiApiKey || "",
-                officialModel: this.data.geminiOfficialModel || "gemini-3-flash-preview, gemini-3-pro-preview",
-                thinkingLevel: this.data.geminiThinkingLevel || "low",
+                openaiSelectedModel: this.data.geminiOpenaiSelectedModel || '',
+                officialBaseUrl:
+                    this.data.geminiOfficialBaseUrl ||
+                    'https://generativelanguage.googleapis.com/v1beta',
+                apiKey: this.data.geminiApiKey || '',
+                officialModel:
+                    this.data.geminiOfficialModel || 'gemini-3-flash-preview, gemini-3-pro-preview',
+                thinkingLevel: this.data.geminiThinkingLevel || 'low',
                 officialWebSearch: this.data.geminiOfficialWebSearch === true,
-                openaiBaseUrl: this.data.geminiOpenaiBaseUrl || "",
-                openaiApiKey: this.data.geminiOpenaiApiKey || "",
-                openaiModel: this.data.geminiOpenaiModel || "",
-                openaiThinkingLevel: this.data.geminiOpenaiThinkingLevel || "low",
+                openaiBaseUrl: this.data.geminiOpenaiBaseUrl || '',
+                openaiApiKey: this.data.geminiOpenaiApiKey || '',
+                openaiModel: this.data.geminiOpenaiModel || '',
+                openaiThinkingLevel: this.data.geminiOpenaiThinkingLevel || 'low',
                 openaiUseResponsesApi: openaiSettings.useResponsesApi,
                 openaiWebSearch: openaiSettings.webSearch,
                 // MCP
                 mcpEnabled: this.data.geminiMcpEnabled === true,
-                mcpTransport: this.data.geminiMcpTransport || "sse",
-                mcpServerUrl: this.data.geminiMcpServerUrl || "http://127.0.0.1:3006/sse",
-                mcpServers: Array.isArray(this.data.geminiMcpServers) ? this.data.geminiMcpServers : null,
-                mcpActiveServerId: this.data.geminiMcpActiveServerId || null
-            } 
+                mcpTransport: this.data.geminiMcpTransport || 'sse',
+                mcpServerUrl: this.data.geminiMcpServerUrl || 'http://127.0.0.1:3006/sse',
+                mcpServers: Array.isArray(this.data.geminiMcpServers)
+                    ? this.data.geminiMcpServers
+                    : null,
+                mcpActiveServerId: this.data.geminiMcpActiveServerId || null,
+            },
         });
 
-        this.frame.postMessage({ action: 'RESTORE_SIDEBAR_BEHAVIOR', payload: this.data.geminiSidebarBehavior || 'auto' });
+        this.frame.postMessage({
+            action: 'RESTORE_SIDEBAR_BEHAVIOR',
+            payload: this.data.geminiSidebarBehavior || 'auto',
+        });
         this.frame.postMessage({
             action: 'RESTORE_CONTEXT_SETTINGS',
             payload: {
                 mode: this.data.geminiContextMode || 'summary',
-                recentTurns: this.data.geminiContextRecentTurns || DEFAULT_CONTEXT_RECENT_TURNS
-            }
+                recentTurns: this.data.geminiContextRecentTurns || DEFAULT_CONTEXT_RECENT_TURNS,
+            },
         });
-        this.frame.postMessage({ action: 'RESTORE_SIDE_PANEL_SCOPE', payload: this.data.geminiSidePanelScope || 'remembered_tabs' });
+        this.frame.postMessage({
+            action: 'RESTORE_SIDE_PANEL_SCOPE',
+            payload: this.data.geminiSidePanelScope || 'remembered_tabs',
+        });
         this.postCurrentTabContext();
-        this.frame.postMessage({ action: 'RESTORE_SESSIONS', payload: this.data.geminiSessions || [] });
-        this.frame.postMessage({ action: 'RESTORE_SHORTCUTS', payload: this.data.geminiShortcuts || null });
-        
+        this.frame.postMessage({
+            action: 'RESTORE_SESSIONS',
+            payload: this.data.geminiSessions || [],
+        });
+        this.frame.postMessage({
+            action: 'RESTORE_SHORTCUTS',
+            payload: this.data.geminiShortcuts || null,
+        });
+
         // Model restore should happen after connection settings to ensure the correct list is active
         this.frame.postMessage({ action: 'RESTORE_MODEL', payload: selectedModel });
-        
-        this.frame.postMessage({ action: 'RESTORE_TEXT_SELECTION', payload: this.data.geminiTextSelectionEnabled !== false });
-        this.frame.postMessage({ action: 'RESTORE_IMAGE_TOOLS', payload: this.data.geminiImageToolsEnabled !== false });
-        this.frame.postMessage({ action: 'RESTORE_ACCOUNT_INDICES', payload: this.data.geminiAccountIndices || "0" });
-        this.frame.postMessage({ action: 'RESTORE_APP_VERSION', payload: `v${chrome.runtime.getManifest().version}` });
+
+        this.frame.postMessage({
+            action: 'RESTORE_TEXT_SELECTION',
+            payload: this.data.geminiTextSelectionEnabled !== false,
+        });
+        this.frame.postMessage({
+            action: 'RESTORE_IMAGE_TOOLS',
+            payload: this.data.geminiImageToolsEnabled !== false,
+        });
+        this.frame.postMessage({
+            action: 'RESTORE_ACCOUNT_INDICES',
+            payload: this.data.geminiAccountIndices || '0',
+        });
+        this.frame.postMessage({
+            action: 'RESTORE_APP_VERSION',
+            payload: `v${chrome.runtime.getManifest().version}`,
+        });
 
         // 2. Pending Actions (Session Switch)
         if (this.data.pendingSessionId) {
             this.frame.postMessage({
                 action: 'BACKGROUND_MESSAGE',
-                payload: { action: 'SWITCH_SESSION', sessionId: this.data.pendingSessionId }
+                payload: { action: 'SWITCH_SESSION', sessionId: this.data.pendingSessionId },
             });
             chrome.storage.local.remove('pendingSessionId');
             delete this.data.pendingSessionId;
@@ -236,7 +275,7 @@ export class StateManager {
         if (this.data.pendingImage) {
             this.frame.postMessage({
                 action: 'BACKGROUND_MESSAGE',
-                payload: this.data.pendingImage
+                payload: this.data.pendingImage,
             });
             chrome.storage.local.remove('pendingImage');
             delete this.data.pendingImage;
@@ -246,7 +285,7 @@ export class StateManager {
         if (this.data.pendingMode === 'browser_control') {
             this.frame.postMessage({
                 action: 'BACKGROUND_MESSAGE',
-                payload: { action: 'ACTIVATE_BROWSER_CONTROL' }
+                payload: { action: 'ACTIVATE_BROWSER_CONTROL' },
             });
             chrome.storage.local.remove('pendingMode');
             delete this.data.pendingMode;
@@ -255,7 +294,7 @@ export class StateManager {
         // 5. LocalStorage Sync (Theme/Lang)
         const cachedTheme = localStorage.getItem('geminiTheme') || 'system';
         const cachedLang = localStorage.getItem('geminiLanguage') || 'system';
-        
+
         this.frame.postMessage({ action: 'RESTORE_LANGUAGE', payload: cachedLang });
         this.frame.postMessage({ action: 'RESTORE_THEME', payload: cachedTheme });
     }
@@ -271,7 +310,7 @@ export class StateManager {
     save(key, value) {
         // Update local cache
         if (this.data) this.data[key] = value;
-        
+
         // Update Chrome Storage
         const update = {};
         update[key] = value;
@@ -287,7 +326,7 @@ export class StateManager {
         // For localStorage items, read directly
         if (key === 'geminiTheme') return localStorage.getItem('geminiTheme') || 'system';
         if (key === 'geminiLanguage') return localStorage.getItem('geminiLanguage') || 'system';
-        
+
         // For Async items, try memory cache first, else async fetch (handled by caller typically)
         if (this.data && this.data[key] !== undefined) return this.data[key];
         return null;
@@ -310,14 +349,16 @@ export class StateManager {
         if (!this.frame.getWindow()) return;
 
         const sessionBindings = this.getSessionBindings();
-        const boundSessionId = this.currentTabId ? sessionBindings[this.currentTabId] || null : null;
+        const boundSessionId = this.currentTabId
+            ? sessionBindings[this.currentTabId] || null
+            : null;
 
         this.frame.postMessage({
             action: 'RESTORE_SIDE_PANEL_TAB_CONTEXT',
             payload: {
                 tabId: this.currentTabId,
-                sessionId: boundSessionId
-            }
+                sessionId: boundSessionId,
+            },
         });
     }
 

@@ -1,14 +1,10 @@
-
-
-
-
 // content/toolbar/view/utils.js
-(function() {
+(function () {
     /**
      * Shared Utility for Positioning Elements
      */
     window.GeminiViewUtils = {
-        positionElement: function(el, rect, isLargerWindow, isPinned, mousePoint) {
+        positionElement: function (el, rect, isLargerWindow, isPinned, mousePoint) {
             // Do not reposition if pinned and already visible
             if (isPinned && el.classList.contains('visible')) return;
 
@@ -23,7 +19,7 @@
 
             // Fallback for hidden elements (estimate dimensions)
             if (width === 0 || height === 0) {
-                width = isLargerWindow ? 400 : 220; 
+                width = isLargerWindow ? 400 : 220;
                 height = isLargerWindow ? 300 : 40;
             }
 
@@ -47,7 +43,7 @@
             }
 
             // --- Calculate Visual Position (Top-Left corner of Element) ---
-            
+
             // Default Preference: Bottom-Right of Cursor
             let visualLeft = anchorX + offset;
             let visualTop = anchorY + offset;
@@ -69,7 +65,7 @@
             if (visualTop + height > vh - padding) {
                 // Flip to Top of Cursor
                 visualTop = anchorY - height - offset;
-                
+
                 // Update arrow classes for Small Toolbar
                 if (!isLargerWindow) {
                     el.classList.remove('placed-bottom');
@@ -89,7 +85,7 @@
             }
 
             // --- Apply Coordinates ---
-            
+
             if (!isLargerWindow) {
                 // Small Toolbar: CSS has transform: translateY(10px) (no horizontal transform)
                 // So style.left is exact position.
@@ -102,7 +98,7 @@
             }
         },
 
-        resizeSelect: function(select) {
+        resizeSelect: function (select) {
             if (!select) return;
             const span = document.createElement('span');
             span.style.visibility = 'hidden';
@@ -112,15 +108,15 @@
             span.style.fontFamily = window.getComputedStyle(select).fontFamily;
             span.style.whiteSpace = 'nowrap';
             span.textContent = select.options[select.selectedIndex].text;
-            
+
             if (select.parentNode) {
                 select.parentNode.appendChild(span);
                 const width = span.getBoundingClientRect().width;
                 select.parentNode.removeChild(span);
-                
+
                 // Add padding (12px * 2 = 24px) + increased buffer (10px) = 34px
                 select.style.width = `${width + 34}px`;
             }
-        }
+        },
     };
 })();

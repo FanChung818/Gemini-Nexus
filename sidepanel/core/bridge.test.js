@@ -8,7 +8,7 @@ function createFrame() {
     return {
         getWindow: vi.fn(() => sandboxWindow),
         isWindow: vi.fn((source) => source === sandboxWindow),
-        postMessage: vi.fn()
+        postMessage: vi.fn(),
     };
 }
 
@@ -18,7 +18,7 @@ function createState() {
         getCurrentTabId: vi.fn(() => null),
         markUiReady: vi.fn(),
         save: vi.fn(),
-        updateSessions: vi.fn()
+        updateSessions: vi.fn(),
     };
 }
 
@@ -28,21 +28,21 @@ describe('MessageBridge model persistence', () => {
         globalThis.chrome = {
             runtime: {
                 onMessage: { addListener: vi.fn() },
-                sendMessage: vi.fn(() => Promise.resolve())
+                sendMessage: vi.fn(() => Promise.resolve()),
             },
             storage: {
                 local: {
                     get: vi.fn(),
-                    set: vi.fn()
+                    set: vi.fn(),
                 },
                 session: {
                     get: vi.fn(),
-                    set: vi.fn()
-                }
+                    set: vi.fn(),
+                },
             },
             tabs: {
-                create: vi.fn()
-            }
+                create: vi.fn(),
+            },
         };
     });
 
@@ -57,9 +57,9 @@ describe('MessageBridge model persistence', () => {
                 action: 'SAVE_MODEL',
                 payload: {
                     provider: 'openai',
-                    model: 'gpt-5'
-                }
-            }
+                    model: 'gpt-5',
+                },
+            },
         });
 
         expect(state.save).toHaveBeenCalledWith('geminiOpenaiSelectedModel', 'gpt-5');
@@ -75,8 +75,8 @@ describe('MessageBridge model persistence', () => {
             source: frame.getWindow(),
             data: {
                 action: 'SAVE_MODEL',
-                payload: 'gemini-3-flash'
-            }
+                payload: 'gemini-3-flash',
+            },
         });
 
         expect(state.save).toHaveBeenCalledWith('geminiModel', 'gemini-3-flash');

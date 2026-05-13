@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-    parseToolCommand,
-    splitToolCallFromText
-} from './tool_call_text.js';
+import { parseToolCommand, splitToolCallFromText } from './tool_call_text.js';
 
 const adjacentToolCalls = `{
   "tool": "fill",
@@ -37,8 +34,9 @@ describe('tool call text utilities', () => {
     it('strips adjacent malformed fenced tool calls before final prose', () => {
         expect(splitToolCallFromText(adjacentToolCalls)).toEqual({
             displayText: '对于六位纯数字的 .xyz 域名，价格通常很便宜。',
-            toolCallText: '{\n  "tool": "fill",\n  "args": {\n    "uid": "1_43",\n    "value": "808168\\n606168"\n  }\n}',
-            hasToolCall: true
+            toolCallText:
+                '{\n  "tool": "fill",\n  "args": {\n    "uid": "1_43",\n    "value": "808168\\n606168"\n  }\n}',
+            hasToolCall: true,
         });
     });
 
@@ -54,7 +52,7 @@ describe('tool call text utilities', () => {
         expect(splitToolCallFromText(text)).toEqual({
             displayText: 'I will use the page.',
             toolCallText: '{"tool":"take_snapshot","args":{}}',
-            hasToolCall: true
+            hasToolCall: true,
         });
     });
 
@@ -64,7 +62,7 @@ describe('tool call text utilities', () => {
         expect(splitToolCallFromText(text)).toEqual({
             displayText: text,
             toolCallText: '',
-            hasToolCall: false
+            hasToolCall: false,
         });
     });
 
@@ -72,19 +70,21 @@ describe('tool call text utilities', () => {
         expect(splitToolCallFromText('```json', { allowPartial: true })).toEqual({
             displayText: '',
             toolCallText: '```json',
-            hasToolCall: true
+            hasToolCall: true,
         });
 
         expect(splitToolCallFromText('```json\n{', { allowPartial: true })).toEqual({
             displayText: '',
             toolCallText: '{',
-            hasToolCall: true
+            hasToolCall: true,
         });
 
-        expect(splitToolCallFromText('```json\n{\n  "tool": "fill"', { allowPartial: true })).toEqual({
+        expect(
+            splitToolCallFromText('```json\n{\n  "tool": "fill"', { allowPartial: true })
+        ).toEqual({
             displayText: '',
             toolCallText: '{\n  "tool": "fill"',
-            hasToolCall: true
+            hasToolCall: true,
         });
     });
 
@@ -94,7 +94,7 @@ describe('tool call text utilities', () => {
         expect(splitToolCallFromText(text, { allowPartial: true })).toEqual({
             displayText: text,
             toolCallText: '',
-            hasToolCall: false
+            hasToolCall: false,
         });
     });
 
@@ -104,7 +104,7 @@ describe('tool call text utilities', () => {
         expect(splitToolCallFromText(longJsonPrefix, { allowPartial: true })).toEqual({
             displayText: longJsonPrefix,
             toolCallText: '',
-            hasToolCall: false
+            hasToolCall: false,
         });
     });
 
@@ -113,31 +113,39 @@ describe('tool call text utilities', () => {
 
         expect(splitToolCallFromText(partialToolCall, { allowPartial: true })).toEqual({
             displayText: '',
-            toolCallText: '{\n  "tool": "fill",\n  "args": {\n    "value": "' + '1'.repeat(180) + '"',
-            hasToolCall: true
+            toolCallText:
+                '{\n  "tool": "fill",\n  "args": {\n    "value": "' + '1'.repeat(180) + '"',
+            hasToolCall: true,
         });
     });
 
     it('preserves prose while hiding a trailing streaming tool-call prefix', () => {
-        expect(splitToolCallFromText('I will click now.\n```json\n{', { allowPartial: true })).toEqual({
+        expect(
+            splitToolCallFromText('I will click now.\n```json\n{', { allowPartial: true })
+        ).toEqual({
             displayText: 'I will click now.',
             toolCallText: '{',
-            hasToolCall: true
+            hasToolCall: true,
         });
     });
 
     it('preserves prose before a trailing partial fenced tool call', () => {
-        expect(splitToolCallFromText('好的，我先检查一下配置状态。\n```json\n{"tool":"get_config_info","args":{}}', { allowPartial: true })).toEqual({
+        expect(
+            splitToolCallFromText(
+                '好的，我先检查一下配置状态。\n```json\n{"tool":"get_config_info","args":{}}',
+                { allowPartial: true }
+            )
+        ).toEqual({
             displayText: '好的，我先检查一下配置状态。',
             toolCallText: '{"tool":"get_config_info","args":{}}',
-            hasToolCall: true
+            hasToolCall: true,
         });
     });
 
     it('parses fenced tool commands without swallowing adjacent blocks', () => {
         expect(parseToolCommand(adjacentToolCalls)).toEqual({
             name: 'click',
-            args: { uid: '1_44' }
+            args: { uid: '1_44' },
         });
     });
 });

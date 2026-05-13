@@ -1,82 +1,13 @@
-
 // sandbox/ui/settings/sections/connection.js
-import { sendToBackground } from '../../../../shared/messaging.js';
-
-const OPENAI_WEB_SEARCH_MODES = new Set(['off', 'responses', 'chat']);
-
-function normalizeMcpHeaders(headers) {
-    if (!headers || typeof headers !== 'object' || Array.isArray(headers)) return {};
-
-    const result = {};
-    for (const [name, value] of Object.entries(headers)) {
-        const key = String(name || '').trim();
-        if (!key || value === undefined || value === null) continue;
-
-        const text = String(value).trim();
-        if (!text) continue;
-        result[key] = text;
-    }
-    return result;
-}
-
-function formatMcpHeaders(headers) {
-    const normalized = normalizeMcpHeaders(headers);
-    if (Object.keys(normalized).length === 0) return '';
-    return JSON.stringify(normalized, null, 2);
-}
-
-function parseMcpHeadersText(text) {
-    const raw = (text || '').trim();
-    if (!raw) return {};
-
-    let parsed;
-    try {
-        parsed = JSON.parse(raw);
-    } catch {
-        throw new Error('Request headers must be valid JSON.');
-    }
-
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        throw new Error('Request headers must be a JSON object.');
-    }
-
-    return normalizeMcpHeaders(parsed);
-}
-
-function normalizeOpenAISettings(data) {
-    const hasUseResponsesSetting = typeof data.openaiUseResponsesApi === 'boolean';
-    const hasWebSearchSetting = typeof data.openaiWebSearch === 'boolean';
-
-    if (!hasUseResponsesSetting && OPENAI_WEB_SEARCH_MODES.has(data.openaiWebSearchMode)) {
-        return {
-            useResponsesApi: data.openaiWebSearchMode === 'responses',
-            webSearch: data.openaiWebSearchMode === 'responses' || data.openaiWebSearchMode === 'chat'
-        };
-    }
-
-    return {
-        useResponsesApi: data.openaiUseResponsesApi === true,
-        webSearch: hasWebSearchSetting ? data.openaiWebSearch === true : false
-    };
-}
-
-function inferMcpTransport(transport, url) {
-    const normalized = (transport || 'sse').toLowerCase();
-    if (normalized === 'streamablehttp') return 'streamable-http';
-    if (normalized === 'websocket') return 'ws';
-
-    if (normalized === 'sse' && typeof url === 'string') {
-        try {
-            const parsed = new URL(url.trim());
-            const path = parsed.pathname.replace(/\/+$/, '').toLowerCase();
-            if (parsed.protocol.startsWith('http') && !path.endsWith('/sse')) {
-                return 'streamable-http';
-            }
-        } catch {}
-    }
-
-    return normalized;
-}
+import { sendToBackground } from '../../../../shared/messaging/index.js';
+import {
+    formatMcpHeaders,
+    inferMcpTransport,
+    normalizeMcpHeaders,
+    normalizeOpenAISettings,
+    parseMcpHeadersText,
+} from './connection_utils.js';
+import { renderMcpToolsUI } from './mcp_tools_view.js';
 
 export class ConnectionSection {
     constructor() {
@@ -102,7 +33,7 @@ export class ConnectionSection {
             headers: {},
             enabled: true,
             toolMode: 'all', // 'all' | 'selected'
-            enabledTools: [] // only used when toolMode === 'selected'
+            enabledTools: [], // only used when toolMode === 'selected'
         };
     }
 
@@ -118,7 +49,7 @@ export class ConnectionSection {
         this.elements = {
             providerSelect: get('provider-select'),
             apiKeyContainer: get('api-key-container'),
-            
+
             // Official Fields
             officialFields: get('official-fields'),
             officialBaseUrl: get('official-base-url'),
@@ -126,7 +57,7 @@ export class ConnectionSection {
             officialModel: get('official-model'),
             thinkingLevelSelect: get('thinking-level-select'),
             officialWebSearchEnabled: get('official-web-search-enabled'),
-            
+
             // OpenAI Fields
             openaiFields: get('openai-fields'),
             openaiBaseUrl: get('openai-base-url'),
@@ -188,7 +119,7 @@ export class ConnectionSection {
             mcpRefreshTools,
             mcpEnableAllTools,
             mcpDisableAllTools,
-            mcpToolSearch
+            mcpToolSearch,
         } = this.elements;
 
         if (mcpServerSelect) {
@@ -219,7 +150,7 @@ export class ConnectionSection {
                 const id = this.mcpActiveServerId;
                 if (!id) return;
 
-                this.mcpServers = this.mcpServers.filter(s => s.id !== id);
+                this.mcpServers = this.mcpServers.filter((s) => s.id !== id);
 
                 if (this.mcpServers.length === 0) {
                     const server = this._getDefaultServer();
@@ -245,7 +176,7 @@ export class ConnectionSection {
         if (mcpTransport) {
             mcpTransport.addEventListener('change', () => {
                 const server = this._getActiveServer();
-                const prevTransport = server ? (server.transport || 'sse') : 'sse';
+                const prevTransport = server ? server.transport || 'sse' : 'sse';
                 const nextTransport = mcpTransport.value || 'sse';
 
                 // Update placeholder to match transport.
@@ -290,9 +221,10 @@ export class ConnectionSection {
                 sendToBackground({
                     action: 'MCP_LIST_TOOLS',
                     serverId: server.id,
+                    requestKey: this._serverKey(server),
                     transport: inferMcpTransport(server.transport, server.url),
                     url: server.url || '',
-                    headers: normalizeMcpHeaders(server.headers)
+                    headers: normalizeMcpHeaders(server.headers),
                 });
             });
         }
@@ -304,7 +236,7 @@ export class ConnectionSection {
                 const cached = this._getCachedTools(server);
                 if (!cached || cached.length === 0) return;
                 server.toolMode = 'selected';
-                server.enabledTools = cached.map(t => t.name).filter(Boolean);
+                server.enabledTools = cached.map((t) => t.name).filter(Boolean);
                 this._loadActiveServerIntoForm();
                 this._renderToolsUI();
             });
@@ -333,17 +265,27 @@ export class ConnectionSection {
                     serverId: server.id,
                     transport: inferMcpTransport(server.transport, server.url),
                     url: server.url || '',
-                    headers: normalizeMcpHeaders(server.headers)
+                    headers: normalizeMcpHeaders(server.headers),
                 });
             });
         }
     }
 
     setData(data) {
-        const { 
-            providerSelect, officialBaseUrl, apiKeyInput, officialModel, thinkingLevelSelect, officialWebSearchEnabled,
-            openaiBaseUrl, openaiApiKey, openaiModel, openaiThinkingLevelSelect, openaiUseResponsesApi, openaiWebSearch,
-            mcpEnabled
+        const {
+            providerSelect,
+            officialBaseUrl,
+            apiKeyInput,
+            officialModel,
+            thinkingLevelSelect,
+            officialWebSearchEnabled,
+            openaiBaseUrl,
+            openaiApiKey,
+            openaiModel,
+            openaiThinkingLevelSelect,
+            openaiUseResponsesApi,
+            openaiWebSearch,
+            mcpEnabled,
         } = this.elements;
 
         // Provider
@@ -351,19 +293,25 @@ export class ConnectionSection {
             providerSelect.value = data.provider || 'web';
             this.updateVisibility(data.provider || 'web');
         }
-        
+
         // Official
-        if (officialBaseUrl) officialBaseUrl.value = data.officialBaseUrl || "https://generativelanguage.googleapis.com/v1beta";
-        if (apiKeyInput) apiKeyInput.value = data.apiKey || "";
-        if (officialModel) officialModel.value = data.officialModel || "gemini-3-flash-preview, gemini-3-pro-preview";
-        if (thinkingLevelSelect) thinkingLevelSelect.value = data.thinkingLevel || "low";
-        if (officialWebSearchEnabled) officialWebSearchEnabled.checked = data.officialWebSearch === true;
-        
+        if (officialBaseUrl)
+            officialBaseUrl.value =
+                data.officialBaseUrl || 'https://generativelanguage.googleapis.com/v1beta';
+        if (apiKeyInput) apiKeyInput.value = data.apiKey || '';
+        if (officialModel)
+            officialModel.value =
+                data.officialModel || 'gemini-3-flash-preview, gemini-3-pro-preview';
+        if (thinkingLevelSelect) thinkingLevelSelect.value = data.thinkingLevel || 'low';
+        if (officialWebSearchEnabled)
+            officialWebSearchEnabled.checked = data.officialWebSearch === true;
+
         // OpenAI
-        if (openaiBaseUrl) openaiBaseUrl.value = data.openaiBaseUrl || "";
-        if (openaiApiKey) openaiApiKey.value = data.openaiApiKey || "";
-        if (openaiModel) openaiModel.value = data.openaiModel || "";
-        if (openaiThinkingLevelSelect) openaiThinkingLevelSelect.value = data.openaiThinkingLevel || "low";
+        if (openaiBaseUrl) openaiBaseUrl.value = data.openaiBaseUrl || '';
+        if (openaiApiKey) openaiApiKey.value = data.openaiApiKey || '';
+        if (openaiModel) openaiModel.value = data.openaiModel || '';
+        if (openaiThinkingLevelSelect)
+            openaiThinkingLevelSelect.value = data.openaiThinkingLevel || 'low';
         const openaiSettings = normalizeOpenAISettings(data);
         if (openaiUseResponsesApi) openaiUseResponsesApi.checked = openaiSettings.useResponsesApi;
         if (openaiWebSearch) openaiWebSearch.checked = openaiSettings.webSearch;
@@ -379,7 +327,7 @@ export class ConnectionSection {
         const activeId = typeof data.mcpActiveServerId === 'string' ? data.mcpActiveServerId : null;
 
         if (servers && servers.length > 0) {
-            this.mcpServers = servers.map(s => ({
+            this.mcpServers = servers.map((s) => ({
                 id: s.id || this._makeServerId(),
                 name: s.name || '',
                 transport: s.transport || 'sse',
@@ -387,13 +335,16 @@ export class ConnectionSection {
                 headers: normalizeMcpHeaders(s.headers),
                 enabled: s.enabled !== false,
                 toolMode: s.toolMode === 'selected' ? 'selected' : 'all',
-                enabledTools: Array.isArray(s.enabledTools) ? s.enabledTools : []
+                enabledTools: Array.isArray(s.enabledTools) ? s.enabledTools : [],
             }));
-            this.mcpActiveServerId = activeId && this.mcpServers.some(s => s.id === activeId) ? activeId : this.mcpServers[0].id;
+            this.mcpActiveServerId =
+                activeId && this.mcpServers.some((s) => s.id === activeId)
+                    ? activeId
+                    : this.mcpServers[0].id;
         } else {
             // Legacy single server fields
-            const legacyUrl = data.mcpServerUrl || "";
-            const legacyTransport = data.mcpTransport || "sse";
+            const legacyUrl = data.mcpServerUrl || '';
+            const legacyTransport = data.mcpTransport || 'sse';
             const server = this._getDefaultServer();
             server.transport = legacyTransport;
             server.url = legacyUrl || server.url;
@@ -410,30 +361,50 @@ export class ConnectionSection {
 
     getData() {
         const {
-            providerSelect, officialBaseUrl, apiKeyInput, officialModel, thinkingLevelSelect, officialWebSearchEnabled,
-            openaiBaseUrl, openaiApiKey, openaiModel, openaiThinkingLevelSelect, openaiUseResponsesApi, openaiWebSearch,
-            mcpEnabled
+            providerSelect,
+            officialBaseUrl,
+            apiKeyInput,
+            officialModel,
+            thinkingLevelSelect,
+            officialWebSearchEnabled,
+            openaiBaseUrl,
+            openaiApiKey,
+            openaiModel,
+            openaiThinkingLevelSelect,
+            openaiUseResponsesApi,
+            openaiWebSearch,
+            mcpEnabled,
         } = this.elements;
 
         this._saveCurrentServerEdits();
         const servers = Array.isArray(this.mcpServers) ? this.mcpServers : [];
         // Get the first enabled server for legacy compatibility
-        const firstEnabled = servers.find(s => s.enabled !== false && s.url && s.url.trim());
+        const firstEnabled = servers.find((s) => s.enabled !== false && s.url && s.url.trim());
 
         return {
             provider: providerSelect ? providerSelect.value : 'web',
             // Official
-            officialBaseUrl: officialBaseUrl ? officialBaseUrl.value.trim() : "https://generativelanguage.googleapis.com/v1beta",
-            apiKey: apiKeyInput ? apiKeyInput.value.trim() : "",
-            officialModel: officialModel ? officialModel.value.trim() : "gemini-3-flash-preview, gemini-3-pro-preview",
-            thinkingLevel: thinkingLevelSelect ? thinkingLevelSelect.value : "low",
-            officialWebSearch: officialWebSearchEnabled ? officialWebSearchEnabled.checked === true : false,
+            officialBaseUrl: officialBaseUrl
+                ? officialBaseUrl.value.trim()
+                : 'https://generativelanguage.googleapis.com/v1beta',
+            apiKey: apiKeyInput ? apiKeyInput.value.trim() : '',
+            officialModel: officialModel
+                ? officialModel.value.trim()
+                : 'gemini-3-flash-preview, gemini-3-pro-preview',
+            thinkingLevel: thinkingLevelSelect ? thinkingLevelSelect.value : 'low',
+            officialWebSearch: officialWebSearchEnabled
+                ? officialWebSearchEnabled.checked === true
+                : false,
             // OpenAI
-            openaiBaseUrl: openaiBaseUrl ? openaiBaseUrl.value.trim() : "",
-            openaiApiKey: openaiApiKey ? openaiApiKey.value.trim() : "",
-            openaiModel: openaiModel ? openaiModel.value.trim() : "",
-            openaiThinkingLevel: openaiThinkingLevelSelect ? openaiThinkingLevelSelect.value : "low",
-            openaiUseResponsesApi: openaiUseResponsesApi ? openaiUseResponsesApi.checked === true : false,
+            openaiBaseUrl: openaiBaseUrl ? openaiBaseUrl.value.trim() : '',
+            openaiApiKey: openaiApiKey ? openaiApiKey.value.trim() : '',
+            openaiModel: openaiModel ? openaiModel.value.trim() : '',
+            openaiThinkingLevel: openaiThinkingLevelSelect
+                ? openaiThinkingLevelSelect.value
+                : 'low',
+            openaiUseResponsesApi: openaiUseResponsesApi
+                ? openaiUseResponsesApi.checked === true
+                : false,
             openaiWebSearch: openaiWebSearch ? openaiWebSearch.checked === true : false,
 
             // MCP - Multi-server mode: all enabled servers will be used
@@ -443,8 +414,8 @@ export class ConnectionSection {
             mcpActiveServerId: this.mcpActiveServerId || (servers[0] ? servers[0].id : null),
 
             // Legacy fields for single-server backward compatibility
-            mcpTransport: firstEnabled ? (firstEnabled.transport || 'sse') : 'sse',
-            mcpServerUrl: firstEnabled ? (firstEnabled.url || '') : ''
+            mcpTransport: firstEnabled ? firstEnabled.transport || 'sse' : 'sse',
+            mcpServerUrl: firstEnabled ? firstEnabled.url || '' : '',
         };
     }
 
@@ -475,7 +446,7 @@ export class ConnectionSection {
     _getActiveServer() {
         if (!this.mcpServers || this.mcpServers.length === 0) return null;
         const activeId = this.mcpActiveServerId;
-        const match = activeId ? this.mcpServers.find(s => s.id === activeId) : null;
+        const match = activeId ? this.mcpServers.find((s) => s.id === activeId) : null;
         return match || this.mcpServers[0];
     }
 
@@ -486,7 +457,7 @@ export class ConnectionSection {
             mcpServerUrl,
             mcpHeaders,
             mcpServerEnabled,
-            mcpToolMode
+            mcpToolMode,
         } = this.elements;
 
         const server = this._getActiveServer();
@@ -496,7 +467,8 @@ export class ConnectionSection {
 
         if (mcpServerName) server.name = mcpServerName.value || '';
         if (mcpServerUrl) server.url = (mcpServerUrl.value || '').trim();
-        if (mcpTransport) server.transport = inferMcpTransport(mcpTransport.value || 'sse', server.url);
+        if (mcpTransport)
+            server.transport = inferMcpTransport(mcpTransport.value || 'sse', server.url);
         if (mcpHeaders) {
             try {
                 server.headers = parseMcpHeadersText(mcpHeaders.value);
@@ -525,7 +497,7 @@ export class ConnectionSection {
             mcpServerUrl,
             mcpHeaders,
             mcpServerEnabled,
-            mcpToolMode
+            mcpToolMode,
         } = this.elements;
 
         const server = this._getActiveServer();
@@ -537,7 +509,8 @@ export class ConnectionSection {
         server.transport = transport;
         if (mcpTransport) mcpTransport.value = transport;
         if (mcpServerUrl) mcpServerUrl.value = server.url || '';
-        if (mcpServerUrl) mcpServerUrl.placeholder = this._getDefaultUrlForTransport(server.transport || 'sse');
+        if (mcpServerUrl)
+            mcpServerUrl.placeholder = this._getDefaultUrlForTransport(server.transport || 'sse');
         if (mcpHeaders) mcpHeaders.value = formatMcpHeaders(server.headers);
         if (mcpServerEnabled) mcpServerEnabled.checked = server.enabled !== false;
         if (mcpToolMode) mcpToolMode.value = server.toolMode === 'selected' ? 'selected' : 'all';
@@ -558,7 +531,7 @@ export class ConnectionSection {
             opt.value = server.id;
 
             const name = (server.name || '').trim();
-            const label = name || (server.url || 'MCP Server');
+            const label = name || server.url || 'MCP Server';
             // Show enabled status with checkmark or cross
             const status = server.enabled === false ? '✗' : '✓';
             opt.textContent = `${status} ${label}`;
@@ -581,7 +554,7 @@ export class ConnectionSection {
         const headers = normalizeMcpHeaders(server.headers);
         const headersKey = Object.keys(headers)
             .sort((a, b) => a.localeCompare(b))
-            .map(key => `${key}:${headers[key]}`)
+            .map((key) => `${key}:${headers[key]}`)
             .join('\n');
         return `${transport}:${url}:${headersKey}`;
     }
@@ -593,14 +566,13 @@ export class ConnectionSection {
         return Array.isArray(entry.tools) ? entry.tools : null;
     }
 
-    setMcpToolsList(serverId, transport, url, tools) {
+    setMcpToolsList(serverId, transport, url, tools, requestKey = null) {
         const id = serverId || (this._getActiveServer() ? this._getActiveServer().id : null);
         if (!id) return;
-        const server = this.mcpServers.find(s => s && s.id === id);
 
         this.mcpToolsCache.set(id, {
-            key: server ? this._serverKey(server) : `${(transport || 'sse').toLowerCase()}:${(url || '').trim()}:`,
-            tools: Array.isArray(tools) ? tools : []
+            key: requestKey || `${(transport || 'sse').toLowerCase()}:${(url || '').trim()}:`,
+            tools: Array.isArray(tools) ? tools : [],
         });
 
         this.setMcpTestStatus('');
@@ -613,217 +585,15 @@ export class ConnectionSection {
         if (!server || !mcpToolList || !mcpToolsSummary) return;
 
         const cached = this._getCachedTools(server) || [];
-        const toolMode = server.toolMode === 'selected' ? 'selected' : 'all';
-
-        // Summary
-        const enabledSet = new Set(Array.isArray(server.enabledTools) ? server.enabledTools : []);
-        const total = cached.length;
-        const enabledCount = toolMode === 'all' ? total : enabledSet.size;
-        const modeLabel = toolMode === 'all' ? 'all' : 'selected';
-
-        if (!server.url || !server.url.trim()) {
-            mcpToolsSummary.textContent = 'Set Server URL to manage tools.';
-        } else if (total === 0) {
-            mcpToolsSummary.textContent = toolMode === 'all'
-                ? 'All tools will be exposed. Click "Refresh Tools" to preview the tool list.'
-                : 'No tool list loaded. Click "Refresh Tools" to load tools, then select which to expose.';
-        } else {
-            mcpToolsSummary.textContent = toolMode === 'all'
-                ? `Mode: ${modeLabel}. Tools exposed: ${enabledCount}/${total}.`
-                : `Mode: ${modeLabel}. Tools exposed: ${enabledCount}/${total}.`;
-        }
-
-        // Tool list
-        mcpToolList.innerHTML = '';
-
-        if (toolMode === 'all') {
-            const div = document.createElement('div');
-            div.style.opacity = '0.85';
-            div.style.fontSize = '12px';
-            div.textContent = 'Switch to "Selected tools only" to choose which tools the model can use.';
-            mcpToolList.appendChild(div);
-            return;
-        }
-
-        if (cached.length === 0) {
-            const div = document.createElement('div');
-            div.style.opacity = '0.85';
-            div.style.fontSize = '12px';
-            div.textContent = 'No tools loaded yet.';
-            mcpToolList.appendChild(div);
-            return;
-        }
-
-        const search = mcpToolSearch ? (mcpToolSearch.value || '').trim().toLowerCase() : '';
-        const filtered = search
-            ? cached.filter(t => (t.name || '').toLowerCase().includes(search) || (t.description || '').toLowerCase().includes(search))
-            : cached;
-
-        // Group tools by "server.tool" prefix (like MCP-SuperAssistant).
-        const groups = new Map(); // groupName -> tools[]
-        const ungroupedKey = '(other)';
-
-        for (const tool of filtered) {
-            const toolName = tool.name || '';
-            if (!toolName) continue;
-            const dot = toolName.indexOf('.');
-            const group = dot > 0 ? toolName.slice(0, dot) : ungroupedKey;
-            if (!groups.has(group)) groups.set(group, []);
-            groups.get(group).push(tool);
-        }
-
-        const sortedGroupNames = Array.from(groups.keys()).sort((a, b) => {
-            if (a === ungroupedKey) return 1;
-            if (b === ungroupedKey) return -1;
-            return a.localeCompare(b);
+        renderMcpToolsUI({
+            server,
+            tools: cached,
+            search: mcpToolSearch ? mcpToolSearch.value || '' : '',
+            summaryElement: mcpToolsSummary,
+            listElement: mcpToolList,
+            uiState: this._getToolsUiState(server.id),
+            onToolsChange: () => this._renderToolsUI(),
         });
-
-        const uiState = this._getToolsUiState(server.id);
-
-        const container = document.createElement('div');
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.gap = '10px';
-
-        const renderToolRow = (tool) => {
-            const toolName = tool.name || '';
-            const dot = toolName.indexOf('.');
-            const displayName = dot > 0 ? toolName.slice(dot + 1) : toolName;
-
-            const row = document.createElement('label');
-            row.style.display = 'flex';
-            row.style.alignItems = 'flex-start';
-            row.style.gap = '8px';
-            row.style.cursor = 'pointer';
-
-            const cb = document.createElement('input');
-            cb.type = 'checkbox';
-            cb.checked = enabledSet.has(toolName);
-            cb.addEventListener('change', () => {
-                if (cb.checked) enabledSet.add(toolName);
-                else enabledSet.delete(toolName);
-                server.enabledTools = Array.from(enabledSet);
-                // Avoid full rerender for single toggles? For correctness, rerender to keep group counts accurate.
-                this._renderToolsUI();
-            });
-
-            const text = document.createElement('div');
-            text.style.display = 'flex';
-            text.style.flexDirection = 'column';
-            text.style.gap = '2px';
-
-            const nameEl = document.createElement('div');
-            nameEl.style.fontSize = '12px';
-            nameEl.style.fontWeight = '500';
-            nameEl.textContent = displayName;
-
-            const fullEl = document.createElement('div');
-            fullEl.style.fontSize = '11px';
-            fullEl.style.opacity = '0.7';
-            fullEl.textContent = toolName;
-
-            const descEl = document.createElement('div');
-            descEl.style.fontSize = '11px';
-            descEl.style.opacity = '0.85';
-            descEl.textContent = tool.description || '';
-
-            text.appendChild(nameEl);
-            text.appendChild(fullEl);
-            if (tool.description) text.appendChild(descEl);
-
-            row.appendChild(cb);
-            row.appendChild(text);
-            return row;
-        };
-
-        const renderGroup = (groupName, tools) => {
-            tools.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
-            // Group header counts
-            const toolNames = tools.map(t => t.name).filter(Boolean);
-            const enabledCountInGroup = toolNames.filter(n => enabledSet.has(n)).length;
-            const totalInGroup = toolNames.length;
-
-            const details = document.createElement('details');
-            details.open = uiState.openGroups.has(groupName);
-            details.addEventListener('toggle', () => {
-                if (details.open) uiState.openGroups.add(groupName);
-                else uiState.openGroups.delete(groupName);
-            });
-
-            const summary = document.createElement('summary');
-            summary.style.cursor = 'pointer';
-            summary.style.userSelect = 'none';
-            summary.style.display = 'flex';
-            summary.style.alignItems = 'center';
-            summary.style.justifyContent = 'space-between';
-            summary.style.gap = '10px';
-            summary.style.padding = '6px 8px';
-            summary.style.background = 'rgba(0,0,0,0.04)';
-            summary.style.borderRadius = '8px';
-            summary.style.listStyle = 'none';
-
-            // Left: checkbox + group name
-            const left = document.createElement('div');
-            left.style.display = 'flex';
-            left.style.alignItems = 'center';
-            left.style.gap = '8px';
-
-            const groupCb = document.createElement('input');
-            groupCb.type = 'checkbox';
-            groupCb.checked = totalInGroup > 0 && enabledCountInGroup === totalInGroup;
-            groupCb.indeterminate = enabledCountInGroup > 0 && enabledCountInGroup < totalInGroup;
-            groupCb.addEventListener('click', (e) => {
-                // Prevent toggling <details> when clicking checkbox
-                e.stopPropagation();
-            });
-            groupCb.addEventListener('change', () => {
-                if (groupCb.checked) {
-                    for (const n of toolNames) enabledSet.add(n);
-                } else {
-                    for (const n of toolNames) enabledSet.delete(n);
-                }
-                server.enabledTools = Array.from(enabledSet);
-                this._renderToolsUI();
-            });
-
-            const groupTitle = document.createElement('div');
-            groupTitle.style.fontSize = '12px';
-            groupTitle.style.fontWeight = '600';
-            groupTitle.textContent = groupName === ungroupedKey ? 'Other tools' : groupName;
-
-            left.appendChild(groupCb);
-            left.appendChild(groupTitle);
-
-            // Right: counts
-            const right = document.createElement('div');
-            right.style.fontSize = '12px';
-            right.style.opacity = '0.85';
-            right.textContent = `${enabledCountInGroup}/${totalInGroup}`;
-
-            summary.appendChild(left);
-            summary.appendChild(right);
-
-            const list = document.createElement('div');
-            list.style.display = 'flex';
-            list.style.flexDirection = 'column';
-            list.style.gap = '6px';
-            list.style.padding = '8px 2px 2px 2px';
-
-            for (const tool of tools) {
-                list.appendChild(renderToolRow(tool));
-            }
-
-            details.appendChild(summary);
-            details.appendChild(list);
-            return details;
-        };
-
-        for (const groupName of sortedGroupNames) {
-            container.appendChild(renderGroup(groupName, groups.get(groupName)));
-        }
-
-        mcpToolList.appendChild(container);
     }
 
     _getToolsUiState(serverId) {

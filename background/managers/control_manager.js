@@ -1,4 +1,3 @@
-
 // background/managers/control_manager.js
 import { BrowserConnection } from '../control/connection.js';
 import { SnapshotManager } from '../control/snapshot.js';
@@ -39,16 +38,19 @@ export class BrowserControlManager {
     setTargetTab(tabId) {
         this.lockedTabId = tabId;
         console.log(`[ControlManager] Target tab locked to: ${tabId}`);
-        
+
         if (tabId) {
             // Fetch tab info to broadcast state immediately
-            chrome.tabs.get(tabId).then(tab => {
-                this._broadcastLockState(tab);
-            }).catch(() => {
-                // Tab might have closed or invalid ID
-                this.lockedTabId = null;
-                this._broadcastLockState(null);
-            });
+            chrome.tabs
+                .get(tabId)
+                .then((tab) => {
+                    this._broadcastLockState(tab);
+                })
+                .catch(() => {
+                    // Tab might have closed or invalid ID
+                    this.lockedTabId = null;
+                    this._broadcastLockState(null);
+                });
         } else {
             this._broadcastLockState(null);
         }
@@ -59,17 +61,21 @@ export class BrowserControlManager {
     }
 
     _broadcastLockState(tab) {
-        chrome.runtime.sendMessage({
-            action: "TAB_LOCKED",
-            tabId: this.ownerSidePanelTabId,
-            tab: tab ? {
-                id: tab.id,
-                title: tab.title,
-                favIconUrl: tab.favIconUrl,
-                url: tab.url,
-                active: tab.active
-            } : null
-        }).catch(() => {});
+        chrome.runtime
+            .sendMessage({
+                action: 'TAB_LOCKED',
+                tabId: this.ownerSidePanelTabId,
+                tab: tab
+                    ? {
+                          id: tab.id,
+                          title: tab.title,
+                          favIconUrl: tab.favIconUrl,
+                          url: tab.url,
+                          active: tab.active,
+                      }
+                    : null,
+            })
+            .catch(() => {});
     }
 
     getTargetTabId() {
@@ -91,7 +97,7 @@ export class BrowserControlManager {
                 this.setTargetTab(tab.id);
             }
         }
-        
+
         // Force attachment which shows the "Started debugging" bar
         return await this.ensureConnection();
     }
@@ -110,13 +116,13 @@ export class BrowserControlManager {
 
     async ensureConnection() {
         let tabId = this.lockedTabId;
-        
+
         if (tabId) {
             // Verify if locked tab still exists
             try {
                 await chrome.tabs.get(tabId);
             } catch (e) {
-                console.warn("[ControlManager] Locked tab not found, clearing lock.", e);
+                console.warn('[ControlManager] Locked tab not found, clearing lock.', e);
                 this.lockedTabId = null;
                 tabId = null;
             }
@@ -127,28 +133,31 @@ export class BrowserControlManager {
             if (!tab) return false;
             tabId = tab.id;
         }
-        
+
         // Perform quick check on URL before attaching
         let tabObj;
         try {
             tabObj = await chrome.tabs.get(tabId);
-        } catch(e) { return false; }
+        } catch (e) {
+            return false;
+        }
 
         // Robust check for restricted URLs to avoid "Debugger attach failed" warnings
         // Check both url and pendingUrl (for mid-navigation states)
-        const urlRaw = tabObj.url || tabObj.pendingUrl || "";
-        
+        const urlRaw = tabObj.url || tabObj.pendingUrl || '';
+
         // If no URL is returned (e.g. system page without permissions), skip
         if (!urlRaw) return false;
 
         const url = urlRaw.toLowerCase();
-        const isRestricted = url.startsWith('chrome://') || 
-                             url.startsWith('edge://') || 
-                             url.startsWith('about:') || 
-                             url.startsWith('chrome-extension://') ||
-                             url.startsWith('https://chromewebstore.google.com') ||
-                             url.startsWith('https://chrome.google.com/webstore') ||
-                             url.startsWith('view-source:');
+        const isRestricted =
+            url.startsWith('chrome://') ||
+            url.startsWith('edge://') ||
+            url.startsWith('about:') ||
+            url.startsWith('chrome-extension://') ||
+            url.startsWith('https://chromewebstore.google.com') ||
+            url.startsWith('https://chrome.google.com/webstore') ||
+            url.startsWith('view-source:');
 
         if (isRestricted) {
             // Fail silently for restricted pages to avoid log noise
@@ -161,9 +170,9 @@ export class BrowserControlManager {
 
     async getSnapshot() {
         if (!this.connection.attached) {
-             const success = await this.ensureConnection();
-             // Check connection.attached explicitly.
-             if (!success || !this.connection.attached) return null;
+            const success = await this.ensureConnection();
+            // Check connection.attached explicitly.
+            if (!success || !this.connection.attached) return null;
         }
         return await this.snapshotManager.takeSnapshot();
     }
@@ -174,10 +183,10 @@ export class BrowserControlManager {
         try {
             const { name, args } = toolCall;
             const success = await this.ensureConnection();
-            
+
             // Check attached status as well to be safe
             if (!success || !this.connection.attached) {
-                return "Error: No active tab found, restricted URL, or debugger disconnected.";
+                return 'Error: No active tab found, restricted URL, or debugger disconnected.';
             }
 
             console.log(`[MCP] Running tool: ${name}`, args);
@@ -189,7 +198,6 @@ export class BrowserControlManager {
 
             // Handle metadata objects returned by tools (e.g. NavigationActions)
             if (result && typeof result === 'object') {
-                
                 // 1. Process State Updates
                 if (result._meta && result._meta.switchTabId) {
                     this.setTargetTab(result._meta.switchTabId);
@@ -204,7 +212,6 @@ export class BrowserControlManager {
             }
 
             return finalOutput;
-
         } catch (e) {
             console.error(`[MCP] Tool execution error:`, e);
             return `Error executing ${toolCall.name}: ${e.message}`;

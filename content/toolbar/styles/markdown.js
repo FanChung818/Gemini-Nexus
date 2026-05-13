@@ -1,5 +1,4 @@
-
-(function() {
+(function () {
     window.GeminiStyles = window.GeminiStyles || {};
     window.GeminiStyles.Markdown = `
         /* Result Area */
@@ -13,7 +12,7 @@
             padding-right: 4px; /* Space for scrollbar */
             /* No bottom padding needed with separate footer */
         }
-        
+
         .result-area::-webkit-scrollbar { width: 6px; }
         .result-area::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 3px; }
         .result-area::-webkit-scrollbar-thumb:hover { background: #d0d0d0; }
@@ -22,7 +21,7 @@
 
         .markdown-body p { margin: 0 0 12px 0; }
         .markdown-body p:last-child { margin-bottom: 0; }
-        
+
         .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin: 16px 0 8px 0; color: #1f1f1f; font-weight: 600; }
         .markdown-body h1 { font-size: 20px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
         .markdown-body h2 { font-size: 18px; }
@@ -166,7 +165,7 @@
             object-fit: contain; /* Full image visible */
             background: #f0f4f9;
         }
-        
+
         .generated-image.loading {
             opacity: 0.7;
             min-height: 150px;

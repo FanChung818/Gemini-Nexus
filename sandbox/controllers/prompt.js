@@ -1,7 +1,6 @@
-
 // sandbox/controllers/prompt.js
 import { appendMessage } from '../render/message.js';
-import { sendToBackground, saveSessionsToStorage } from '../../shared/messaging.js';
+import { sendToBackground, saveSessionsToStorage } from '../../shared/messaging/index.js';
 import { t } from '../core/i18n.js';
 
 export class PromptController {
@@ -20,25 +19,29 @@ export class PromptController {
         // Multi-server MCP: collect all enabled servers
         let mcpServers = [];
         if (conn && Array.isArray(conn.mcpServers) && conn.mcpServers.length > 0) {
-            mcpServers = conn.mcpServers.filter(s => s && s.enabled !== false && s.url && s.url.trim());
+            mcpServers = conn.mcpServers.filter(
+                (s) => s && s.enabled !== false && s.url && s.url.trim()
+            );
         } else if (conn && (conn.mcpServerUrl || conn.mcpTransport)) {
             // Legacy single-server fallback
-            mcpServers = [{
-                id: '_legacy_',
-                name: '',
-                transport: conn.mcpTransport || 'sse',
-                url: conn.mcpServerUrl || '',
-                enabled: true,
-                toolMode: 'all',
-                enabledTools: []
-            }];
+            mcpServers = [
+                {
+                    id: '_legacy_',
+                    name: '',
+                    transport: conn.mcpTransport || 'sse',
+                    url: conn.mcpServerUrl || '',
+                    enabled: true,
+                    toolMode: 'all',
+                    enabledTools: [],
+                },
+            ];
         }
 
         const enableMcpTools = conn.mcpEnabled === true && mcpServers.length > 0;
         const firstServer = mcpServers[0] || null;
 
         return {
-            action: "SEND_PROMPT",
+            action: 'SEND_PROMPT',
             text,
             files,
             model: selectedModel,
@@ -46,18 +49,21 @@ export class PromptController {
             enableBrowserControl: this.app.browserControlActive,
             enableMcpTools,
             mcpServers,
-            mcpTransport: firstServer ? (firstServer.transport || "sse") : "sse",
-            mcpServerUrl: firstServer ? (firstServer.url || "") : "",
+            mcpTransport: firstServer ? firstServer.transport || 'sse' : 'sse',
+            mcpServerUrl: firstServer ? firstServer.url || '' : '',
             mcpServerId: firstServer ? firstServer.id : null,
             mcpToolMode: firstServer && firstServer.toolMode ? firstServer.toolMode : 'all',
-            mcpEnabledTools: firstServer && Array.isArray(firstServer.enabledTools) ? firstServer.enabledTools : [],
+            mcpEnabledTools:
+                firstServer && Array.isArray(firstServer.enabledTools)
+                    ? firstServer.enabledTools
+                    : [],
             sessionId,
-            ...extra
+            ...extra,
         };
     }
 
     getConnectionData() {
-        return (this.ui && this.ui.settings && this.ui.settings.connectionData)
+        return this.ui && this.ui.settings && this.ui.settings.connectionData
             ? this.ui.settings.connectionData
             : {};
     }
@@ -76,7 +82,7 @@ export class PromptController {
         if (!this.canEditHistory()) return {};
 
         return {
-            onEdit: (nextText) => this.resendFromMessage(messageIndex, nextText)
+            onEdit: (nextText) => this.resendFromMessage(messageIndex, nextText),
         };
     }
 
@@ -100,7 +106,7 @@ export class PromptController {
             return {
                 base64,
                 type,
-                name: `edited-message-${index + 1}.${ext}`
+                name: `edited-message-${index + 1}.${ext}`,
             };
         });
     }
@@ -124,40 +130,45 @@ export class PromptController {
         // Update Title if needed
         if (session.messages.length === 0) {
             const titleUpdate = this.sessionManager.updateTitle(currentId, text || t('imageSent'));
-            if(titleUpdate) this.app.sessionFlow.refreshHistoryUI();
+            if (titleUpdate) this.app.sessionFlow.refreshHistoryUI();
         }
 
         // Render User Message
-        const displayAttachments = files.map(f => f.base64);
-        
+        const displayAttachments = files.map((f) => f.base64);
+
         const messageIndex = session.messages.length;
 
         appendMessage(
-            this.ui.historyDiv, 
-            text, 
-            'user', 
+            this.ui.historyDiv,
+            text,
+            'user',
             displayAttachments.length > 0 ? displayAttachments : null,
             null,
             null,
             this.getMessageEditOptions(messageIndex)
         );
-        
-        this.sessionManager.addMessage(currentId, 'user', text, displayAttachments.length > 0 ? displayAttachments : null);
-        
+
+        this.sessionManager.addMessage(
+            currentId,
+            'user',
+            text,
+            displayAttachments.length > 0 ? displayAttachments : null
+        );
+
         saveSessionsToStorage(this.sessionManager.getPersistableSessions());
         this.app.sessionFlow.switchToSession(currentId);
 
         if (session.context) {
-             sendToBackground({
-                action: "SET_CONTEXT",
+            sendToBackground({
+                action: 'SET_CONTEXT',
                 context: session.context,
-                model: this.app.getSelectedModel()
+                model: this.app.getSelectedModel(),
             });
         }
 
         this.ui.resetInput();
         this.imageManager.clearFile();
-        
+
         this.setGeneratingState(true, currentId);
 
         sendToBackground(this.buildRequestPayload(text, files, currentId));
@@ -168,7 +179,7 @@ export class PromptController {
         if (!this.canEditHistory()) {
             this.ui.updateStatus(t('editNotSupportedForWeb'));
             setTimeout(() => {
-                if (!this.app.isGenerating) this.ui.updateStatus("");
+                if (!this.app.isGenerating) this.ui.updateStatus('');
             }, 3000);
             return false;
         }
@@ -184,7 +195,11 @@ export class PromptController {
             return false;
         }
 
-        const editResult = this.sessionManager.editUserMessageAndTruncate(currentId, messageIndex, nextText);
+        const editResult = this.sessionManager.editUserMessageAndTruncate(
+            currentId,
+            messageIndex,
+            nextText
+        );
         if (!editResult) return false;
 
         saveSessionsToStorage(this.sessionManager.getPersistableSessions());
@@ -196,22 +211,24 @@ export class PromptController {
         this.ui.resetInput();
         this.setGeneratingState(true, currentId);
 
-        sendToBackground(this.buildRequestPayload(nextText, files, currentId, {
-            historyOverride: editResult.previousMessages,
-            sessionSnapshot: editResult.session
-        }));
+        sendToBackground(
+            this.buildRequestPayload(nextText, files, currentId, {
+                historyOverride: editResult.previousMessages,
+                sessionSnapshot: editResult.session,
+            })
+        );
 
         return true;
     }
 
     cancel() {
         if (!this.app.isGenerating) return;
-        
+
         this.cancellationTimestamp = Date.now();
-        
-        sendToBackground({ action: "CANCEL_PROMPT" });
+
+        sendToBackground({ action: 'CANCEL_PROMPT' });
         this.app.messageHandler.clearActiveStream();
-        
+
         this.app.isGenerating = false;
         this.app.generatingSessionId = null;
         this.ui.setLoading(false);
@@ -220,6 +237,6 @@ export class PromptController {
     }
 
     isCancellationRecent() {
-        return (Date.now() - this.cancellationTimestamp) < 2000; // 2s window
+        return Date.now() - this.cancellationTimestamp < 2000; // 2s window
     }
 }

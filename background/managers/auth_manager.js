@@ -1,4 +1,3 @@
-
 // background/managers/auth_manager.js
 import { fetchRequestParams } from '../../services/auth.js';
 
@@ -13,28 +12,28 @@ export class AuthManager {
 
     async ensureInitialized() {
         if (this.isInitialized) return;
-        
+
         try {
             const stored = await chrome.storage.local.get([
-                'geminiContext', 
-                'geminiModel', 
-                'geminiAccountIndices', 
-                'geminiAccountPointer'
+                'geminiContext',
+                'geminiModel',
+                'geminiAccountIndices',
+                'geminiAccountPointer',
             ]);
-            
+
             if (stored.geminiContext) {
                 this.currentContext = stored.geminiContext;
             }
             if (stored.geminiModel) {
                 this.lastModel = stored.geminiModel;
             }
-            
+
             // Load indices
             if (stored.geminiAccountIndices) {
                 this.accountIndices = stored.geminiAccountIndices
                     .split(',')
-                    .map(s => s.trim())
-                    .filter(s => s !== "");
+                    .map((s) => s.trim())
+                    .filter((s) => s !== '');
             }
             // Load last pointer
             if (typeof stored.geminiAccountPointer === 'number') {
@@ -43,7 +42,7 @@ export class AuthManager {
 
             this.isInitialized = true;
         } catch (e) {
-            console.error("Failed to restore auth session:", e);
+            console.error('Failed to restore auth session:', e);
         }
     }
 
@@ -56,15 +55,17 @@ export class AuthManager {
         if (stored.geminiAccountIndices) {
             this.accountIndices = stored.geminiAccountIndices
                 .split(',')
-                .map(s => s.trim())
-                .filter(s => s !== "");
+                .map((s) => s.trim())
+                .filter((s) => s !== '');
         }
         if (this.accountIndices.length === 0) this.accountIndices = ['0'];
 
         this.currentAccountPointer = (this.currentAccountPointer + 1) % this.accountIndices.length;
         await chrome.storage.local.set({ geminiAccountPointer: this.currentAccountPointer });
-        
-        console.log(`[Gemini Nexus] Rotated to account index: ${this.accountIndices[this.currentAccountPointer]}`);
+
+        console.log(
+            `[Gemini Nexus] Rotated to account index: ${this.accountIndices[this.currentAccountPointer]}`
+        );
         return this.accountIndices[this.currentAccountPointer];
     }
 
@@ -82,7 +83,7 @@ export class AuthManager {
                 atValue: params.atValue,
                 blValue: params.blValue,
                 authUser: params.authUserIndex || targetIndex,
-                contextIds: ['', '', '']
+                contextIds: ['', '', ''],
             };
             return this.currentContext;
         } catch (e) {
@@ -105,10 +106,10 @@ export class AuthManager {
     async updateContext(newContext, model) {
         this.currentContext = newContext;
         this.lastModel = model;
-        
-        await chrome.storage.local.set({ 
+
+        await chrome.storage.local.set({
             geminiContext: this.currentContext,
-            geminiModel: this.lastModel 
+            geminiModel: this.lastModel,
         });
     }
 
@@ -117,7 +118,7 @@ export class AuthManager {
         this.lastModel = null;
         // Do not remove geminiModel to preserve user preference in UI
         await chrome.storage.local.remove(['geminiContext']);
-        
+
         // Rotate to spread load on reset
         if (this.accountIndices.length > 1) {
             await this.rotateAccount();

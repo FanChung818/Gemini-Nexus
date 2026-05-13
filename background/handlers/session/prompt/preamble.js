@@ -1,4 +1,3 @@
-
 // background/handlers/session/prompt/preamble.js
 
 export const BROWSER_CONTROL_PREAMBLE = `[System: Browser Control Enabled]
@@ -6,7 +5,7 @@ You are a browser automation assistant.
 Your goal is to complete the user's request by interacting with the browser page.
 
 **BACKGROUND MODE AWARENESS:**
-Operations may be throttled by the browser in background tabs. 
+Operations may be throttled by the browser in background tabs.
 - Rely on 'take_snapshot' for state verification rather than visual feedback.
 - Use 'wait_for' generously to handle slower execution.
 - 'select_page' no longer brings the tab to the foreground.

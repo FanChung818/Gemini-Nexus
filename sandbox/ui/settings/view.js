@@ -1,4 +1,3 @@
-
 // sandbox/ui/settings/view.js
 import { ConnectionSection } from './sections/connection.js';
 import { GeneralSection } from './sections/general.js';
@@ -10,26 +9,26 @@ export class SettingsView {
     constructor(callbacks) {
         this.callbacks = callbacks || {};
         this.elements = {};
-        
+
         // Initialize Sections
         this.connection = new ConnectionSection();
-        
+
         this.general = new GeneralSection({
             onTextSelectionChange: (val) => this.fire('onTextSelectionChange', val),
             onImageToolsChange: (val) => this.fire('onImageToolsChange', val),
             onSidebarBehaviorChange: (val) => this.fire('onSidebarBehaviorChange', val),
-            onSidePanelScopeChange: (val) => this.fire('onSidePanelScopeChange', val)
+            onSidePanelScopeChange: (val) => this.fire('onSidePanelScopeChange', val),
         });
-        
+
         this.appearance = new AppearanceSection({
             onThemeChange: (val) => this.fire('onThemeChange', val),
-            onLanguageChange: (val) => this.fire('onLanguageChange', val)
+            onLanguageChange: (val) => this.fire('onLanguageChange', val),
         });
-        
+
         this.shortcuts = new ShortcutsSection();
-        
+
         this.about = new AboutSection({
-            onDownloadLogs: () => this.fire('onDownloadLogs')
+            onDownloadLogs: () => this.fire('onDownloadLogs'),
         });
 
         this.queryElements();
@@ -38,12 +37,12 @@ export class SettingsView {
 
     queryElements() {
         const get = (id) => document.getElementById(id);
-        
+
         this.elements = {
             modal: get('settings-modal'),
             btnClose: get('close-settings'),
             btnSave: get('save-shortcuts'),
-            btnReset: get('reset-shortcuts')
+            btnReset: get('reset-shortcuts'),
         };
     }
 
@@ -74,7 +73,7 @@ export class SettingsView {
         const shortcutsData = this.shortcuts.getData();
         const connectionData = this.connection.getData();
         const generalData = this.general.getData();
-        
+
         const data = {
             shortcuts: shortcutsData,
             connection: connectionData,
@@ -84,9 +83,9 @@ export class SettingsView {
             sidebarBehavior: generalData.sidebarBehavior,
             sidePanelScope: generalData.sidePanelScope,
             contextMode: generalData.contextMode,
-            contextRecentTurns: generalData.contextRecentTurns
+            contextRecentTurns: generalData.contextRecentTurns,
         };
-        
+
         this.fire('onSave', data);
         this.close();
     }
@@ -123,7 +122,7 @@ export class SettingsView {
     setLanguageValue(lang) {
         this.appearance.setLanguage(lang);
     }
-    
+
     applyVisualTheme(theme) {
         this.appearance.applyVisualTheme(theme);
     }
@@ -132,7 +131,7 @@ export class SettingsView {
     setToggles(textSelection, imageTools) {
         this.general.setToggles(textSelection, imageTools);
     }
-    
+
     setSidebarBehavior(behavior) {
         this.general.setSidebarBehavior(behavior);
     }

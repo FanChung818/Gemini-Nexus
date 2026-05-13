@@ -1,5 +1,4 @@
-
-(function() {
+(function () {
     window.GeminiStyles = window.GeminiStyles || {};
     window.GeminiStyles.PanelHeader = `
         /* --- Standard Header Styles --- */
@@ -14,10 +13,10 @@
             background: #fff;
             flex-shrink: 0;
         }
-        
+
         @media (max-width: 600px) {
             .ask-header {
-                cursor: default; 
+                cursor: default;
             }
         }
 

@@ -1,4 +1,3 @@
-
 // background/handlers/session/context_handler.js
 
 export class ContextHandler {
@@ -7,14 +6,14 @@ export class ContextHandler {
     }
 
     handleSetContext(request, sendResponse) {
-        this.sessionManager.setContext(request.context, request.model)
-            .then(() => sendResponse({status: "context_updated"}));
+        this.sessionManager
+            .setContext(request.context, request.model)
+            .then(() => sendResponse({ status: 'context_updated' }));
         return true;
     }
 
     handleResetContext(request, sendResponse) {
-        this.sessionManager.resetContext()
-            .then(() => sendResponse({status: "reset"}));
+        this.sessionManager.resetContext().then(() => sendResponse({ status: 'reset' }));
         return true;
     }
 }

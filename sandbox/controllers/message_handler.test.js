@@ -11,20 +11,20 @@ vi.mock('../render/message.js', () => ({
         addImages: vi.fn(),
         addSources: vi.fn(),
         finalize: vi.fn(),
-        update: vi.fn()
-    }))
+        update: vi.fn(),
+    })),
 }));
 
-vi.mock('../../shared/crop_utils.js', () => ({
-    cropImage: vi.fn()
+vi.mock('../../shared/dom/crop_utils.js', () => ({
+    cropImage: vi.fn(),
 }));
 
 vi.mock('../core/i18n.js', () => ({
-    t: (key) => key
+    t: (key) => key,
 }));
 
-vi.mock('../../shared/watermark_remover.js', () => ({
-    WatermarkRemover: vi.fn()
+vi.mock('../../shared/media/watermark_remover.js', () => ({
+    WatermarkRemover: vi.fn(),
 }));
 
 function createMessageHandlerHarness() {
@@ -36,9 +36,9 @@ function createMessageHandlerHarness() {
             timestamp: 100,
             messages: [
                 { role: 'user', text: 'Hello' },
-                { role: 'ai', text: 'Persisted reply' }
-            ]
-        }
+                { role: 'ai', text: 'Persisted reply' },
+            ],
+        },
     ]);
     sessionManager.setCurrentId('session-1');
 
@@ -47,18 +47,18 @@ function createMessageHandlerHarness() {
         historyDiv: document.createElement('div'),
         followStreamingContent: vi.fn(),
         scrollToBottom: vi.fn(),
-        setLoading: vi.fn()
+        setLoading: vi.fn(),
     };
 
     const app = {
         isGenerating: true,
         generatingSessionId: 'session-1',
         prompt: {
-            isCancellationRecent: vi.fn(() => false)
+            isCancellationRecent: vi.fn(() => false),
         },
         sessionFlow: {
-            refreshHistoryUI: vi.fn()
-        }
+            refreshHistoryUI: vi.fn(),
+        },
     };
 
     const handler = new MessageHandler(sessionManager, ui, {}, app);
@@ -80,12 +80,16 @@ describe('MessageHandler.handleGeminiReply', () => {
             text: 'Persisted reply',
             thoughts: 'Done thinking',
             thoughtsDurationSeconds: 2,
-            context: ['conversation', 'response', 'choice']
+            context: ['conversation', 'response', 'choice'],
         });
 
         expect(ui.setLoading).toHaveBeenCalledWith(false);
         expect(app.sessionFlow.refreshHistoryUI).toHaveBeenCalled();
-        expect(sessionManager.getCurrentSession().context).toEqual(['conversation', 'response', 'choice']);
+        expect(sessionManager.getCurrentSession().context).toEqual([
+            'conversation',
+            'response',
+            'choice',
+        ]);
         expect(appendMessage).toHaveBeenCalledWith(
             ui.historyDiv,
             'Persisted reply',
@@ -95,7 +99,7 @@ describe('MessageHandler.handleGeminiReply', () => {
             undefined,
             {
                 isFinal: true,
-                thoughtsDurationSeconds: 2
+                thoughtsDurationSeconds: 2,
             }
         );
     });
@@ -112,10 +116,14 @@ describe('MessageHandler.handleGeminiReply', () => {
             text: 'Persisted reply',
             thoughts: 'Done thinking',
             thoughtsDurationSeconds: 2,
-            context: ['conversation', 'response', 'choice']
+            context: ['conversation', 'response', 'choice'],
         });
 
-        expect(sessionManager.getCurrentSession().context).toEqual(['conversation', 'response', 'choice']);
+        expect(sessionManager.getCurrentSession().context).toEqual([
+            'conversation',
+            'response',
+            'choice',
+        ]);
         expect(appendMessage).not.toHaveBeenCalled();
     });
 
@@ -126,7 +134,7 @@ describe('MessageHandler.handleGeminiReply', () => {
             action: 'GEMINI_REPLY',
             sessionId: 'other-session',
             status: 'success',
-            text: 'Wrong reply'
+            text: 'Wrong reply',
         });
 
         expect(appendMessage).not.toHaveBeenCalled();
@@ -164,7 +172,7 @@ describe('MessageHandler.handleStreamUpdate', () => {
         handler.handleStreamUpdate({
             action: 'GEMINI_STREAM_UPDATE',
             sessionId: 'session-1',
-            text: streamedText
+            text: streamedText,
         });
 
         const controller = appendMessage.mock.results[0].value;
@@ -181,25 +189,21 @@ describe('MessageHandler.handleStreamUpdate', () => {
         handler.handleStreamUpdate({
             action: 'GEMINI_STREAM_UPDATE',
             sessionId: 'session-1',
-            text: '```json\n{'
+            text: '```json\n{',
         });
 
         const controller = appendMessage.mock.results[0].value;
-        expect(controller.update).toHaveBeenLastCalledWith(
-            '',
-            undefined,
-            { isStreaming: true }
-        );
+        expect(controller.update).toHaveBeenLastCalledWith('', undefined, { isStreaming: true });
     });
 
-    it('finalizes intermediate tool-call text without a copy button', () => {
+    it('finalizes intermediate tool-call text without a copy button and keeps thoughts', () => {
         const { handler } = createMessageHandlerHarness();
 
         handler.handleStreamUpdate({
             action: 'GEMINI_STREAM_UPDATE',
             sessionId: 'session-1',
             text: '好的，我先检查一下配置状态。\n```json\n{"tool":"get_config_info","args":{}}',
-            thoughts: '需要先调用配置工具。'
+            thoughts: '需要先调用配置工具。',
         });
 
         const controller = appendMessage.mock.results[0].value;
@@ -208,12 +212,12 @@ describe('MessageHandler.handleStreamUpdate', () => {
             sessionId: 'session-1',
             toolName: 'get_config_info',
             status: 'running',
-            toolCallText: '{"tool":"get_config_info","args":{}}'
+            toolCallText: '{"tool":"get_config_info","args":{}}',
         });
 
         expect(controller.finalize).toHaveBeenCalledWith(
             '好的，我先检查一下配置状态。',
-            undefined,
+            '需要先调用配置工具。',
             { suppressCopy: true }
         );
     });

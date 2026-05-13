@@ -1,4 +1,3 @@
-
 // content/toolbar/actions.js
 
 class ToolbarActions {
@@ -18,7 +17,7 @@ class ToolbarActions {
      * @param {string} mode - 'ocr' | 'translate' | 'snip' | 'analyze' | 'upscale' | 'expand' | 'remove_text' | 'remove_bg' | 'remove_watermark'
      * @param {string} model - Model Name
      */
-    async handleImagePrompt(imgBase64, rect, mode, model = "gemini-2.5-flash") {
+    async handleImagePrompt(imgBase64, rect, mode, model = 'gemini-2.5-flash') {
         const t = this.t;
         let title, prompt, loadingMsg, inputVal;
 
@@ -85,17 +84,23 @@ class ToolbarActions {
         this.ui.setInputValue(inputVal);
 
         const msg = {
-            action: "QUICK_ASK_IMAGE",
+            action: 'QUICK_ASK_IMAGE',
             url: imgBase64,
             text: prompt,
-            model: model
+            model: model,
         };
-        
+
         this.lastRequest = msg;
         chrome.runtime.sendMessage(msg);
     }
 
-    async handleQuickAction(actionType, selection, rect, model = "gemini-2.5-flash", mousePoint = null) {
+    async handleQuickAction(
+        actionType,
+        selection,
+        rect,
+        model = 'gemini-2.5-flash',
+        mousePoint = null
+    ) {
         const t = this.t;
         let prompt, title, inputPlaceholder, loadingMsg;
 
@@ -120,11 +125,11 @@ class ToolbarActions {
             inputPlaceholder = t.inputs.explain;
             loadingMsg = t.loading.explain;
         } else {
-             // Fallback
-             prompt = selection;
-             title = "AI";
-             inputPlaceholder = "";
-             loadingMsg = t.loading.analyze;
+            // Fallback
+            prompt = selection;
+            title = 'AI';
+            inputPlaceholder = '';
+            loadingMsg = t.loading.analyze;
         }
 
         this.ui.hide();
@@ -134,63 +139,63 @@ class ToolbarActions {
         this.ui.setInputValue(inputPlaceholder);
 
         const msg = {
-            action: "QUICK_ASK",
+            action: 'QUICK_ASK',
             text: prompt,
-            model: model
+            model: model,
         };
 
         this.lastRequest = msg;
         chrome.runtime.sendMessage(msg);
     }
 
-    handleSubmitAsk(question, context, sessionId = null, model = "gemini-2.5-flash") {
+    handleSubmitAsk(question, context, sessionId = null, model = 'gemini-2.5-flash') {
         this.ui.showLoading();
-        
+
         let prompt = question;
         let includePageContext = false;
 
-        if (context === "__PAGE_CONTEXT_FORCE__") {
+        if (context === '__PAGE_CONTEXT_FORCE__') {
             includePageContext = true;
-            context = null; 
+            context = null;
         }
 
         if (context) {
             prompt = `Context:\n${context}\n\nQuestion: ${question}`;
         }
-        
+
         const msg = {
-            action: "QUICK_ASK",
+            action: 'QUICK_ASK',
             text: prompt,
             model: model,
             sessionId: sessionId,
-            includePageContext: includePageContext
+            includePageContext: includePageContext,
         };
-        
+
         this.lastRequest = msg;
         chrome.runtime.sendMessage(msg);
     }
-    
+
     handleRetry() {
         if (!this.lastRequest) return;
-        
+
         const currentModel = this.ui.getSelectedModel();
         if (currentModel) {
             this.lastRequest.model = currentModel;
         }
-        
+
         const loadingMsg = this.t.loading.regenerate;
         this.ui.showLoading(loadingMsg);
         chrome.runtime.sendMessage(this.lastRequest);
     }
 
     handleCancel() {
-        chrome.runtime.sendMessage({ action: "CANCEL_PROMPT" });
+        chrome.runtime.sendMessage({ action: 'CANCEL_PROMPT' });
     }
 
     handleContinueChat(sessionId) {
-        chrome.runtime.sendMessage({ 
-            action: "OPEN_SIDE_PANEL",
-            sessionId: sessionId
+        chrome.runtime.sendMessage({
+            action: 'OPEN_SIDE_PANEL',
+            sessionId: sessionId,
         });
     }
 }

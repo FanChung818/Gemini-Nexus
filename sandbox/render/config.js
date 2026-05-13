@@ -1,22 +1,21 @@
-
 // sandbox/render/config.js
 
 export function configureMarkdown() {
     if (typeof marked === 'undefined') return;
 
     const renderer = new marked.Renderer();
-    
+
     // Helper to escape HTML safely (used when syntax highlighting fails or for plaintext)
     const escapeHtml = (text) => {
         return text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     };
 
-    renderer.code = function(codeOrToken, language) {
+    renderer.code = function (codeOrToken, language) {
         let code = codeOrToken;
         let lang = language;
 
@@ -30,9 +29,10 @@ export function configureMarkdown() {
             return '';
         }
 
-        const validLang = (lang && typeof hljs !== 'undefined' && hljs.getLanguage(lang)) ? lang : 'plaintext';
+        const validLang =
+            lang && typeof hljs !== 'undefined' && hljs.getLanguage(lang) ? lang : 'plaintext';
         let highlighted;
-        
+
         if (typeof hljs !== 'undefined' && validLang !== 'plaintext') {
             try {
                 highlighted = hljs.highlight(code, { language: validLang }).value;
@@ -58,10 +58,10 @@ export function configureMarkdown() {
 </div>`;
     };
 
-    const options = { 
-        breaks: true, 
+    const options = {
+        breaks: true,
         gfm: true,
-        renderer: renderer
+        renderer: renderer,
     };
 
     // Use marked.use() if available (v5+), otherwise fallback to setOptions (deprecated)

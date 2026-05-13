@@ -1,12 +1,11 @@
-
 // content/toolbar/view/window.js
-(function() {
+(function () {
     const Utils = window.GeminiViewUtils;
     const ICONS = window.GeminiToolbarIcons;
 
     // Simple helper
     const isZh = navigator.language.startsWith('zh');
-    const DEFAULT_TITLE = isZh ? "询问" : "Ask";
+    const DEFAULT_TITLE = isZh ? '询问' : 'Ask';
 
     /**
      * Sub-controller for the Ask Window
@@ -29,7 +28,7 @@
             const stored = await chrome.storage.local.get('gemini_nexus_window_size');
             if (stored.gemini_nexus_window_size) {
                 let { w, h } = stored.gemini_nexus_window_size;
-                const maxW = window.innerWidth * 0.95; 
+                const maxW = window.innerWidth * 0.95;
                 const maxH = window.innerHeight * 0.95;
                 if (w > maxW) w = maxW;
                 if (h > maxH) h = maxH;
@@ -38,15 +37,21 @@
             }
 
             if (resetDrag) {
-                 resetDrag();
-                 this.undockWindow();
+                resetDrag();
+                this.undockWindow();
             }
 
             if (!this.isPinned || !this.elements.askWindow.classList.contains('visible')) {
-                 if (resetDrag) resetDrag();
-                 Utils.positionElement(this.elements.askWindow, rect, true, this.isPinned, mousePoint);
+                if (resetDrag) resetDrag();
+                Utils.positionElement(
+                    this.elements.askWindow,
+                    rect,
+                    true,
+                    this.isPinned,
+                    mousePoint
+                );
             }
-            
+
             // Reset Content
             this.elements.windowTitle.textContent = title || DEFAULT_TITLE;
             if (contextText) {
@@ -55,10 +60,10 @@
             } else {
                 this.elements.contextPreview.classList.add('hidden');
             }
-            
+
             this.elements.askInput.value = '';
             this.elements.resultText.innerHTML = '';
-            
+
             // Hide Footer initially
             if (this.elements.windowFooter) this.elements.windowFooter.classList.add('hidden');
 
@@ -72,13 +77,13 @@
 
         showLoading(msg) {
             if (!this.elements.askWindow) return;
-            
+
             if (msg) {
                 this.elements.resultText.innerHTML = `<div style="color: #888; font-style: italic; margin-top: 10px;">${msg}</div>`;
             } else {
                 this.elements.resultText.innerHTML = '';
             }
-            
+
             // Show Footer with Stop button
             if (this.elements.windowFooter) this.elements.windowFooter.classList.remove('hidden');
             if (this.elements.footerStop) this.elements.footerStop.classList.remove('hidden');
@@ -87,19 +92,20 @@
 
         showResult(htmlContent, title, isStreaming = false) {
             if (!this.elements.askWindow) return;
-            
+
             if (title) this.elements.windowTitle.textContent = title;
-            
+
             const resultArea = this.elements.resultArea;
             let shouldScrollBottom = false;
-            
+
             // Only auto-scroll to bottom during streaming
             if (resultArea && isStreaming) {
                 const threshold = 50;
-                const distanceToBottom = resultArea.scrollHeight - resultArea.scrollTop - resultArea.clientHeight;
+                const distanceToBottom =
+                    resultArea.scrollHeight - resultArea.scrollTop - resultArea.clientHeight;
                 shouldScrollBottom = distanceToBottom <= threshold;
             }
-            
+
             // Content is now always HTML rendered via Bridge (using marked/katex/highlight.js)
             this.elements.resultText.innerHTML = htmlContent;
 
@@ -127,23 +133,25 @@
 
         updateStreamingState(isStreaming) {
             if (!this.elements.askWindow) return;
-            
+
             if (isStreaming) {
                 if (this.elements.footerStop) this.elements.footerStop.classList.remove('hidden');
-                if (this.elements.footerActions) this.elements.footerActions.classList.add('hidden');
+                if (this.elements.footerActions)
+                    this.elements.footerActions.classList.add('hidden');
             } else {
                 if (this.elements.footerStop) this.elements.footerStop.classList.add('hidden');
-                if (this.elements.footerActions) this.elements.footerActions.classList.remove('hidden');
+                if (this.elements.footerActions)
+                    this.elements.footerActions.classList.remove('hidden');
                 // Reset Copy Icon
                 if (this.elements.buttons.copy) this.elements.buttons.copy.innerHTML = ICONS.COPY;
             }
         }
 
         showError(text) {
-             if (!this.elements.askWindow) return;
-             
-             // Render Error UI with Retry hint
-             this.elements.resultText.innerHTML = `
+            if (!this.elements.askWindow) return;
+
+            // Render Error UI with Retry hint
+            this.elements.resultText.innerHTML = `
                 <div style="padding: 12px 0; color: #d93025;">
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-weight: 600;">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
@@ -155,12 +163,12 @@
                 </div>
              `;
 
-             // Show Footer with Actions (Retry is in footer-left)
-             if (this.elements.windowFooter) this.elements.windowFooter.classList.remove('hidden');
-             if (this.elements.footerStop) this.elements.footerStop.classList.add('hidden');
-             if (this.elements.footerActions) this.elements.footerActions.classList.remove('hidden');
+            // Show Footer with Actions (Retry is in footer-left)
+            if (this.elements.windowFooter) this.elements.windowFooter.classList.remove('hidden');
+            if (this.elements.footerStop) this.elements.footerStop.classList.add('hidden');
+            if (this.elements.footerActions) this.elements.footerActions.classList.remove('hidden');
         }
-        
+
         toggleCopyIcon(success) {
             if (!this.elements.buttons.copy) return;
             this.elements.buttons.copy.innerHTML = success ? ICONS.CHECK : ICONS.COPY;
@@ -198,11 +206,11 @@
         }
 
         isVisible() {
-            return (this.elements.askWindow && this.elements.askWindow.classList.contains('visible'));
+            return this.elements.askWindow && this.elements.askWindow.classList.contains('visible');
         }
 
         isHost(target) {
-            return (this.elements.askWindow && this.elements.askWindow.contains(target));
+            return this.elements.askWindow && this.elements.askWindow.contains(target);
         }
     }
 

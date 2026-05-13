@@ -1,9 +1,7 @@
-
 // background/control/actions/observation/script.js
 import { BaseActionHandler } from '../base.js';
 
 export class ScriptActions extends BaseActionHandler {
-
     /**
      * Evaluates a script in the browser context.
      * Supports passing arguments (including DOM elements via UIDs).
@@ -32,10 +30,11 @@ export class ScriptActions extends BaseActionHandler {
 
             // 2. Script Wrapping logic
             let functionDeclaration = script.trim();
-            
+
             // Heuristic to detect if it's already a function definition
-            const isFunction = /^(async\s+)?function\b/.test(functionDeclaration) || 
-                               /^\(?[\w\s,]*\)?\s*=>/.test(functionDeclaration);
+            const isFunction =
+                /^(async\s+)?function\b/.test(functionDeclaration) ||
+                /^\(?[\w\s,]*\)?\s*=>/.test(functionDeclaration);
 
             if (!isFunction) {
                 // If it looks like a code block with an explicit return, wrap as statements
@@ -48,13 +47,13 @@ export class ScriptActions extends BaseActionHandler {
             }
 
             // 3. Execution via CDP
-            const res = await this.cmd("Runtime.callFunctionOn", {
+            const res = await this.cmd('Runtime.callFunctionOn', {
                 functionDeclaration: functionDeclaration,
                 arguments: callArguments,
                 executionContextId: undefined, // Default context
                 returnByValue: true, // Return JSON result
-                awaitPromise: true,  // Support async
-                userGesture: true
+                awaitPromise: true, // Support async
+                userGesture: true,
             });
 
             // 4. Result Handling
@@ -64,8 +63,8 @@ export class ScriptActions extends BaseActionHandler {
             }
 
             if (res.result) {
-                if (res.result.type === 'undefined') return "undefined";
-                
+                if (res.result.type === 'undefined') return 'undefined';
+
                 // Return structured JSON for objects, string for primitives
                 const val = res.result.value;
                 if (typeof val === 'object' && val !== null) {
@@ -73,8 +72,8 @@ export class ScriptActions extends BaseActionHandler {
                 }
                 return String(val);
             }
-            
-            return "undefined";
+
+            return 'undefined';
         } catch (e) {
             return `Error evaluating script: ${e.message}`;
         }
@@ -83,7 +82,7 @@ export class ScriptActions extends BaseActionHandler {
     async waitFor({ text, timeout = 5000 }) {
         try {
             // Poll for text presence in the DOM
-            const res = await this.cmd("Runtime.evaluate", {
+            const res = await this.cmd('Runtime.evaluate', {
                 expression: `
                     (async () => {
                         const start = Date.now();
@@ -98,9 +97,9 @@ export class ScriptActions extends BaseActionHandler {
                     })()
                 `,
                 awaitPromise: true,
-                returnByValue: true
+                returnByValue: true,
             });
-            
+
             if (res.result && res.result.value === true) {
                 return `Found text "${text}".`;
             } else {

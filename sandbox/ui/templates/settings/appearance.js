@@ -1,4 +1,3 @@
-
 export const AppearanceSettingsTemplate = `
 <div class="setting-group">
     <h4 data-i18n="appearance">Appearance</h4>

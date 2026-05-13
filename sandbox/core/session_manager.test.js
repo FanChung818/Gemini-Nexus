@@ -20,13 +20,13 @@ describe('SessionManager draft and persistence state', () => {
             id: 'blank',
             title: 'New Chat',
             timestamp: 200,
-            messages: []
+            messages: [],
         };
         const realSession = {
             id: 'real',
             title: 'Hello',
             timestamp: 100,
-            messages: [{ role: 'user', text: 'Hello' }]
+            messages: [{ role: 'user', text: 'Hello' }],
         };
 
         manager.currentSessionId = blankSession.id;
@@ -45,8 +45,8 @@ describe('SessionManager draft and persistence state', () => {
                 id: 'real',
                 title: 'Hello',
                 timestamp: 100,
-                messages: [{ role: 'user', text: 'Hello' }]
-            }
+                messages: [{ role: 'user', text: 'Hello' }],
+            },
         ]);
         manager.setCurrentId('real');
 

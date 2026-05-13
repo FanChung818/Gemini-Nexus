@@ -1,7 +1,7 @@
 // background/managers/session/context_manager.js
 import { sendOfficialMessage } from '../../../services/providers/official.js';
 import { sendOpenAIMessage } from '../../../services/providers/openai_compatible.js';
-import { DEFAULT_CONTEXT_RECENT_TURNS } from '../../../shared/constants.js';
+import { DEFAULT_CONTEXT_RECENT_TURNS } from '../../../shared/config/constants.js';
 import { getSessionContextSummary, updateSessionContextSummary } from '../history_manager.js';
 
 const DEFAULT_CONTEXT_MODE = 'summary';
@@ -36,27 +36,39 @@ function normalizeRecentTurns(value) {
 }
 
 function isHiddenCompressedMessage(message) {
-    return typeof message?.text === 'string'
-        && message.text.startsWith(HIDDEN_COMPRESSED_MESSAGE_PREFIX);
+    return (
+        typeof message?.text === 'string' &&
+        message.text.startsWith(HIDDEN_COMPRESSED_MESSAGE_PREFIX)
+    );
 }
 
 function isToolOutputMessage(message) {
-    return message?.kind === 'tool-output'
-        || (typeof message?.text === 'string' && message.text.startsWith('[Tool Output:'));
+    return (
+        message?.kind === 'tool-output' ||
+        (typeof message?.text === 'string' && message.text.startsWith('[Tool Output:'))
+    );
 }
 
 function isOfficialFunctionResponseMessage(message) {
-    return message?.role === 'user'
-        && message?.officialContent?.role === 'user'
-        && Array.isArray(message.officialContent.parts)
-        && message.officialContent.parts.some(part => part?.functionResponse);
+    return (
+        message?.role === 'user' &&
+        message?.officialContent?.role === 'user' &&
+        Array.isArray(message.officialContent.parts) &&
+        message.officialContent.parts.some((part) => part?.functionResponse)
+    );
+}
+
+function hasOfficialFunctionResponseParts(parts) {
+    return Array.isArray(parts) && parts.some((part) => part?.functionResponse);
 }
 
 function isConversationUserTurn(message) {
-    return message?.role === 'user'
-        && !isToolOutputMessage(message)
-        && !isHiddenCompressedMessage(message)
-        && !isOfficialFunctionResponseMessage(message);
+    return (
+        message?.role === 'user' &&
+        !isToolOutputMessage(message) &&
+        !isHiddenCompressedMessage(message) &&
+        !isOfficialFunctionResponseMessage(message)
+    );
 }
 
 function getRecentCutoff(messages, recentTurns) {
@@ -77,7 +89,10 @@ function getRecentCutoff(messages, recentTurns) {
 
 function countUserTurns(messages) {
     if (!Array.isArray(messages)) return 0;
-    return messages.reduce((count, message) => isConversationUserTurn(message) ? count + 1 : count, 0);
+    return messages.reduce(
+        (count, message) => (isConversationUserTurn(message) ? count + 1 : count),
+        0
+    );
 }
 
 function hasRecentTurnThreshold(messages, recentTurns) {
@@ -91,7 +106,9 @@ function getSummaryBoundary(summary, historyLength) {
 }
 
 function compactText(text) {
-    const value = String(text || '').replace(/\s+/g, ' ').trim();
+    const value = String(text || '')
+        .replace(/\s+/g, ' ')
+        .trim();
     if (value.length <= MAX_SUMMARY_MESSAGE_CHARS) return value;
     return `${value.slice(0, MAX_SUMMARY_MESSAGE_CHARS)}...`;
 }
@@ -141,7 +158,7 @@ function buildHiddenCompressedMessage(text) {
     const value = normalizeCompressedMessageText(text);
     return {
         role: HIDDEN_COMPRESSED_MESSAGE_ROLE,
-        text: `${HIDDEN_COMPRESSED_MESSAGE_PREFIX}${value}`
+        text: `${HIDDEN_COMPRESSED_MESSAGE_PREFIX}${value}`,
     };
 }
 
@@ -163,7 +180,7 @@ async function generateCompressedMessage(compressionPrompt, settings, signal) {
                 baseUrl: settings.officialBaseUrl,
                 apiKey: settings.apiKey,
                 model: settings.summaryModel || settings.officialModel?.split(',')?.[0]?.trim(),
-                configuredModels: settings.officialModel
+                configuredModels: settings.officialModel,
             },
             null,
             [],
@@ -182,8 +199,11 @@ async function generateCompressedMessage(compressionPrompt, settings, signal) {
             {
                 baseUrl: settings.openaiBaseUrl,
                 apiKey: settings.openaiApiKey,
-                model: settings.summaryModel || settings.openaiModel?.split(',')?.[0]?.trim() || settings.openaiModel,
-                reasoningEffort: settings.openaiThinkingLevel
+                model:
+                    settings.summaryModel ||
+                    settings.openaiModel?.split(',')?.[0]?.trim() ||
+                    settings.openaiModel,
+                reasoningEffort: settings.openaiThinkingLevel,
             },
             [],
             signal,
@@ -195,14 +215,22 @@ async function generateCompressedMessage(compressionPrompt, settings, signal) {
     return '';
 }
 
-async function resolveCompressedMessage(sessionId, messagesToCompress, sourceMessageCount, settings, signal, onStatus, existingSummary = null) {
-    const existing = existingSummary || await getSessionContextSummary(sessionId);
+async function resolveCompressedMessage(
+    sessionId,
+    messagesToCompress,
+    sourceMessageCount,
+    settings,
+    signal,
+    onStatus,
+    existingSummary = null
+) {
+    const existing = existingSummary || (await getSessionContextSummary(sessionId));
     if (existing?.text && existing.sourceMessageCount === sourceMessageCount) {
         const normalizedText = normalizeCompressedMessageText(existing.text);
         if (sessionId && normalizedText !== existing.text) {
             await updateSessionContextSummary(sessionId, {
                 ...existing,
-                text: normalizedText
+                text: normalizedText,
             });
         }
         return normalizedText;
@@ -214,13 +242,15 @@ async function resolveCompressedMessage(sessionId, messagesToCompress, sourceMes
 
     const compressionPrompt = buildCompressionPrompt(messagesToCompress);
     onStatus?.('compressing', {
-        recentTurns: normalizeRecentTurns(settings.contextRecentTurns)
+        recentTurns: normalizeRecentTurns(settings.contextRecentTurns),
     });
 
-    const text = normalizeCompressedMessageText(await generateCompressedMessage(compressionPrompt, settings, signal));
+    const text = normalizeCompressedMessageText(
+        await generateCompressedMessage(compressionPrompt, settings, signal)
+    );
     if (!text) {
         onStatus?.('compression_failed', {
-            recentTurns: normalizeRecentTurns(settings.contextRecentTurns)
+            recentTurns: normalizeRecentTurns(settings.contextRecentTurns),
         });
         throw new Error('Compression returned an empty response.');
     }
@@ -229,12 +259,12 @@ async function resolveCompressedMessage(sessionId, messagesToCompress, sourceMes
         await updateSessionContextSummary(sessionId, {
             text,
             sourceMessageCount,
-            updatedAt: Date.now()
+            updatedAt: Date.now(),
         });
     }
 
     onStatus?.('compressed', {
-        recentTurns: normalizeRecentTurns(settings.contextRecentTurns)
+        recentTurns: normalizeRecentTurns(settings.contextRecentTurns),
     });
 
     return text;
@@ -245,7 +275,17 @@ export async function prepareManagedContext(request, settings, history, signal, 
     if (settings.provider === 'web' || sourceHistory.length === 0) {
         return {
             history: sourceHistory,
-            systemInstruction: request.systemInstruction || ''
+            systemInstruction: request.systemInstruction || '',
+        };
+    }
+
+    if (
+        settings.provider === 'official' &&
+        hasOfficialFunctionResponseParts(request.officialUserParts)
+    ) {
+        return {
+            history: sourceHistory,
+            systemInstruction: request.systemInstruction || '',
         };
     }
 
@@ -257,7 +297,7 @@ export async function prepareManagedContext(request, settings, history, signal, 
         const recentHistory = cutoff > 0 ? sourceHistory.slice(cutoff) : sourceHistory;
         return {
             history: recentHistory,
-            systemInstruction: request.systemInstruction || ''
+            systemInstruction: request.systemInstruction || '',
         };
     }
 
@@ -271,27 +311,38 @@ export async function prepareManagedContext(request, settings, history, signal, 
         if (!hasRecentTurnThreshold(tailHistory, recentTurns)) {
             return {
                 history: [hiddenHistory, ...tailHistory],
-                systemInstruction: request.systemInstruction || ''
+                systemInstruction: request.systemInstruction || '',
             };
         }
 
         try {
-            const compressedText = await resolveCompressedMessage(request.sessionId, [hiddenHistory, ...tailHistory], sourceHistory.length, {
-                ...settings,
-                summaryModel: request.model
-            }, signal, onStatus, existingSummary);
+            const compressedText = await resolveCompressedMessage(
+                request.sessionId,
+                [hiddenHistory, ...tailHistory],
+                sourceHistory.length,
+                {
+                    ...settings,
+                    summaryModel: request.model,
+                },
+                signal,
+                onStatus,
+                existingSummary
+            );
             return {
                 history: [buildHiddenCompressedMessage(compressedText)],
-                systemInstruction: request.systemInstruction || ''
+                systemInstruction: request.systemInstruction || '',
             };
         } catch (error) {
-            console.warn('[Gemini Nexus] Failed to compress hidden history and tail, falling back to existing hidden history and unsummarized tail:', error);
+            console.warn(
+                '[Gemini Nexus] Failed to compress hidden history and tail, falling back to existing hidden history and unsummarized tail:',
+                error
+            );
             onStatus?.('compression_failed', {
-                recentTurns
+                recentTurns,
             });
             return {
                 history: [hiddenHistory, ...tailHistory],
-                systemInstruction: request.systemInstruction || ''
+                systemInstruction: request.systemInstruction || '',
             };
         }
     }
@@ -299,29 +350,39 @@ export async function prepareManagedContext(request, settings, history, signal, 
     if (!hasRecentTurnThreshold(sourceHistory, recentTurns)) {
         return {
             history: sourceHistory,
-            systemInstruction: request.systemInstruction || ''
+            systemInstruction: request.systemInstruction || '',
         };
     }
 
     try {
-        const compressedText = await resolveCompressedMessage(request.sessionId, sourceHistory, sourceHistory.length, {
-            ...settings,
-            summaryModel: request.model
-        }, signal, onStatus);
+        const compressedText = await resolveCompressedMessage(
+            request.sessionId,
+            sourceHistory,
+            sourceHistory.length,
+            {
+                ...settings,
+                summaryModel: request.model,
+            },
+            signal,
+            onStatus
+        );
         return {
             history: [buildHiddenCompressedMessage(compressedText)],
-            systemInstruction: request.systemInstruction || ''
+            systemInstruction: request.systemInstruction || '',
         };
     } catch (error) {
-        console.warn('[Gemini Nexus] Failed to compress history, falling back to recent turns:', error);
+        console.warn(
+            '[Gemini Nexus] Failed to compress history, falling back to recent turns:',
+            error
+        );
         onStatus?.('compression_failed', {
-            recentTurns
+            recentTurns,
         });
         const cutoff = getRecentCutoff(sourceHistory, recentTurns);
         const recentHistory = cutoff > 0 ? sourceHistory.slice(cutoff) : sourceHistory;
         return {
             history: recentHistory,
-            systemInstruction: request.systemInstruction || ''
+            systemInstruction: request.systemInstruction || '',
         };
     }
 }

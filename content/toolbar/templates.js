@@ -1,6 +1,5 @@
-
 // content/toolbar/templates.js
-(function() {
+(function () {
     const ICONS = window.GeminiToolbarIcons || {};
     const t = window.GeminiToolbarStrings || {};
     // Combine modular styles (loaded previously)
@@ -35,11 +34,11 @@
                 <div class="menu-item" id="btn-image-extract">
                     ${ICONS.SCAN_TEXT} <span>${t.extractText}</span>
                 </div>
-                
+
                 <div class="menu-item has-submenu">
                     ${ICONS.TOOLS} <span>${t.imageTools}</span>
                     <div class="submenu-arrow">${ICONS.CHEVRON_RIGHT}</div>
-                    
+
                     <div class="submenu">
                         <div class="menu-item" id="btn-image-remove-bg">${ICONS.REMOVE_BG} <span>${t.removeBg}</span></div>
                         <div class="menu-item" id="btn-image-remove-text">${ICONS.REMOVE_TEXT} <span>${t.removeText}</span></div>
@@ -66,14 +65,14 @@
                     <button class="icon-btn" id="btn-header-close" title="${t.close}">${ICONS.CLOSE}</button>
                 </div>
             </div>
-            
+
             <div class="window-body">
                 <div class="input-container">
                     <input type="text" id="ask-input" placeholder="${t.askPlaceholder}" autocomplete="off">
                 </div>
-                
+
                 <div class="context-preview hidden" id="context-preview"></div>
-                
+
                 <div class="result-area" id="result-area">
                     <div class="markdown-body" id="result-text"></div>
                 </div>
@@ -120,6 +119,6 @@
             ${toolbarHTML}
             ${imageMenuHTML}
             ${windowHTML}
-        `
+        `,
     };
 })();

@@ -1,4 +1,3 @@
-
 // sandbox/ui/settings/sections/about.js
 
 export class AboutSection {
@@ -16,7 +15,7 @@ export class AboutSection {
             aboutGroup: get('about-settings-group'),
             starEl: get('star-count'),
             currentVersionEl: get('app-current-version'),
-            updateStatusEl: get('app-update-status')
+            updateStatusEl: get('app-update-status'),
         };
     }
 
@@ -37,34 +36,37 @@ export class AboutSection {
 
             event.preventDefault();
             event.stopPropagation();
-            window.parent.postMessage({
-                action: 'OPEN_EXTERNAL_URL',
-                payload: { url: href }
-            }, '*');
+            window.parent.postMessage(
+                {
+                    action: 'OPEN_EXTERNAL_URL',
+                    payload: { url: href },
+                },
+                '*'
+            );
         });
     }
 
     displayStars(count) {
         const { starEl } = this.elements;
         if (!starEl) return;
-        
+
         if (count) {
-            const formatted = count > 999 ? (count/1000).toFixed(1) + 'k' : count;
+            const formatted = count > 999 ? (count / 1000).toFixed(1) + 'k' : count;
             starEl.textContent = `★ ${formatted}`;
             starEl.style.display = 'inline-flex';
-            starEl.dataset.fetched = "true";
+            starEl.dataset.fetched = 'true';
         } else {
             starEl.style.display = 'none';
         }
     }
 
     hasFetchedStars() {
-        return this.elements.starEl && this.elements.starEl.dataset.fetched === "true";
+        return this.elements.starEl && this.elements.starEl.dataset.fetched === 'true';
     }
 
     setCurrentVersion(version) {
         if (this.elements.currentVersionEl) {
-            this.elements.currentVersionEl.textContent = version || "";
+            this.elements.currentVersionEl.textContent = version || '';
         }
     }
 
@@ -80,7 +82,7 @@ export class AboutSection {
             updateStatusEl.innerHTML = `<a href="https://github.com/Maomaoxion/gemini-nexus/releases" target="_blank" style="color: #d93025; text-decoration: none; border-bottom: 1px dashed;">Update available: ${latest}</a>`;
         } else {
             updateStatusEl.textContent = `(Latest: ${latest})`;
-            updateStatusEl.style.color = "var(--text-tertiary)";
+            updateStatusEl.style.color = 'var(--text-tertiary)';
         }
     }
 }

@@ -3,28 +3,28 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionManager } from '../core/session_manager.js';
 import { AppController } from './app_controller.js';
-import { saveSessionsToStorage } from '../../shared/messaging.js';
+import { saveSessionsToStorage } from '../../shared/messaging/index.js';
 
 vi.mock('../render/message.js', () => ({
     appendContextCompressionNotice: vi.fn(),
-    appendMessage: vi.fn()
+    appendMessage: vi.fn(),
 }));
 
-vi.mock('../../shared/crop_utils.js', () => ({
-    cropImage: vi.fn()
+vi.mock('../../shared/dom/crop_utils.js', () => ({
+    cropImage: vi.fn(),
 }));
 
-vi.mock('../../shared/messaging.js', () => ({
+vi.mock('../../shared/messaging/index.js', () => ({
     saveSessionsToStorage: vi.fn(),
-    sendToBackground: vi.fn()
+    sendToBackground: vi.fn(),
 }));
 
 vi.mock('../core/i18n.js', () => ({
-    t: (key) => key
+    t: (key) => key,
 }));
 
-vi.mock('../../shared/watermark_remover.js', () => ({
-    WatermarkRemover: vi.fn()
+vi.mock('../../shared/media/watermark_remover.js', () => ({
+    WatermarkRemover: vi.fn(),
 }));
 
 function createUi() {
@@ -44,11 +44,11 @@ function createUi() {
             updateContextSettings: vi.fn(),
             updateConnectionSettings: vi.fn(),
             updateSidebarBehavior: vi.fn(),
-            updateSidePanelScope: vi.fn()
+            updateSidePanelScope: vi.fn(),
         },
         toggleTabSwitcher: vi.fn(),
         updateModelList: vi.fn(),
-        updateStatus: vi.fn()
+        updateStatus: vi.fn(),
     };
 }
 
@@ -64,8 +64,8 @@ function restoreEvent(payload) {
     return {
         data: {
             action: 'RESTORE_SESSIONS',
-            payload
-        }
+            payload,
+        },
     };
 }
 
@@ -76,7 +76,7 @@ function realSession(overrides = {}) {
         timestamp: 100,
         messages: [{ role: 'user', text: 'Hello' }],
         context: null,
-        ...overrides
+        ...overrides,
     };
 }
 
@@ -96,13 +96,16 @@ describe('AppController session restore behavior', () => {
 
         expect(sessionManager.currentSessionId).toBe('real');
         expect(app.boundSessionId).toBe('real');
-        expect(window.parent.postMessage).toHaveBeenCalledWith({
-            action: 'SAVE_SIDE_PANEL_SESSION_BINDING',
-            payload: {
-                tabId: 123,
-                sessionId: 'real'
-            }
-        }, '*');
+        expect(window.parent.postMessage).toHaveBeenCalledWith(
+            {
+                action: 'SAVE_SIDE_PANEL_SESSION_BINDING',
+                payload: {
+                    tabId: 123,
+                    sessionId: 'real',
+                },
+            },
+            '*'
+        );
         expect(ui.clearChatHistory).toHaveBeenCalled();
     });
 
@@ -112,26 +115,33 @@ describe('AppController session restore behavior', () => {
         app.boundSessionId = 'blank';
         app.sidePanelScope = 'remembered_tabs';
 
-        await app.handleIncomingMessage(restoreEvent([
-            {
-                id: 'blank',
-                title: 'New Chat',
-                timestamp: 200,
-                messages: []
-            },
-            realSession()
-        ]));
+        await app.handleIncomingMessage(
+            restoreEvent([
+                {
+                    id: 'blank',
+                    title: 'New Chat',
+                    timestamp: 200,
+                    messages: [],
+                },
+                realSession(),
+            ])
+        );
 
         expect(sessionManager.currentSessionId).toBeNull();
         expect(sessionManager.sessions).toEqual([expect.objectContaining({ id: 'real' })]);
-        expect(saveSessionsToStorage).toHaveBeenCalledWith([expect.objectContaining({ id: 'real' })]);
-        expect(window.parent.postMessage).toHaveBeenCalledWith({
-            action: 'SAVE_SIDE_PANEL_SESSION_BINDING',
-            payload: {
-                tabId: 123,
-                sessionId: null
-            }
-        }, '*');
+        expect(saveSessionsToStorage).toHaveBeenCalledWith([
+            expect.objectContaining({ id: 'real' }),
+        ]);
+        expect(window.parent.postMessage).toHaveBeenCalledWith(
+            {
+                action: 'SAVE_SIDE_PANEL_SESSION_BINDING',
+                payload: {
+                    tabId: 123,
+                    sessionId: null,
+                },
+            },
+            '*'
+        );
         expect(ui.clearChatHistory).toHaveBeenCalled();
     });
 
@@ -147,9 +157,9 @@ describe('AppController session restore behavior', () => {
                 action: 'RESTORE_SIDE_PANEL_TAB_CONTEXT',
                 payload: {
                     tabId: 123,
-                    sessionId: 'real'
-                }
-            }
+                    sessionId: 'real',
+                },
+            },
         });
 
         expect(app.currentTabId).toBe(123);
@@ -163,19 +173,24 @@ describe('AppController session restore behavior', () => {
         sessionManager.setSessions([realSession()]);
         sessionManager.setCurrentId('real');
 
-        await app.handleIncomingMessage(restoreEvent([
-            realSession({
-                messages: [
-                    { role: 'user', text: 'Hello' },
-                    { role: 'ai', text: 'Hi there' }
-                ]
-            })
-        ]));
+        await app.handleIncomingMessage(
+            restoreEvent([
+                realSession({
+                    messages: [
+                        { role: 'user', text: 'Hello' },
+                        { role: 'ai', text: 'Hi there' },
+                    ],
+                }),
+            ])
+        );
 
         expect(sessionManager.currentSessionId).toBe('real');
         expect(ui.clearChatHistory).toHaveBeenCalled();
         expect(ui.getChatScrollState).toHaveBeenCalled();
-        expect(ui.restoreChatScrollState).toHaveBeenCalledWith({ scrollTop: 120, isNearBottom: false });
+        expect(ui.restoreChatScrollState).toHaveBeenCalledWith({
+            scrollTop: 120,
+            isNearBottom: false,
+        });
         expect(ui.scrollToBottom).not.toHaveBeenCalled();
         expect(markRendered).toHaveBeenCalledWith('real', 2);
     });
@@ -186,12 +201,15 @@ describe('AppController session restore behavior', () => {
 
         app.handleModelChange('gpt-5');
 
-        expect(window.parent.postMessage).toHaveBeenCalledWith({
-            action: 'SAVE_MODEL',
-            payload: {
-                provider: 'openai',
-                model: 'gpt-5'
-            }
-        }, '*');
+        expect(window.parent.postMessage).toHaveBeenCalledWith(
+            {
+                action: 'SAVE_MODEL',
+                payload: {
+                    provider: 'openai',
+                    model: 'gpt-5',
+                },
+            },
+            '*'
+        );
     });
 });

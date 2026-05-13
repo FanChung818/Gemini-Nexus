@@ -16,9 +16,7 @@ function buildLine({ text = 'Hello', thoughts = null, extraCandidateParts = [] }
     payload[1] = ['conversation-1', 'response-1'];
     payload[4] = [candidate];
 
-    return `)]}'${JSON.stringify([
-        ['wrb.fr', null, JSON.stringify(payload)]
-    ])}`;
+    return `)]}'${JSON.stringify([['wrb.fr', null, JSON.stringify(payload)]])}`;
 }
 
 describe('parseGeminiLine', () => {
@@ -31,9 +29,9 @@ describe('parseGeminiLine', () => {
                     'http://lh3.googleusercontent.com/generated-image',
                     '//example.invalid/not-google',
                     '//ggpht.com/generated-image-2',
-                    'https://googleusercontent.com/image_generation_content/0'
-                ]
-            ]
+                    'https://googleusercontent.com/image_generation_content/0',
+                ],
+            ],
         });
 
         expect(parseGeminiLine(line)).toEqual({
@@ -42,14 +40,14 @@ describe('parseGeminiLine', () => {
             images: [
                 {
                     url: 'https://lh3.googleusercontent.com/generated-image',
-                    alt: 'Generated Image'
+                    alt: 'Generated Image',
                 },
                 {
                     url: 'https://ggpht.com/generated-image-2',
-                    alt: 'Generated Image'
-                }
+                    alt: 'Generated Image',
+                },
             ],
-            ids: ['conversation-1', 'response-1', 'choice-1']
+            ids: ['conversation-1', 'response-1', 'choice-1'],
         });
     });
 

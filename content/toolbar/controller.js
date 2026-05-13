@@ -1,25 +1,26 @@
-
 // content/toolbar/controller.js
 
-(function() {
+(function () {
     class ToolbarController {
         constructor() {
             // Dependencies
             this.ui = new window.GeminiToolbarUI();
             this.actions = new window.GeminiToolbarActions(this.ui);
-            
+
             // Sub-Modules
             this.imageDetector = new window.GeminiImageDetector({
                 onShow: (rect) => this.ui.showImageButton(rect),
-                onHide: () => this.ui.hideImageButton()
+                onHide: () => this.ui.hideImageButton(),
             });
 
             this.streamHandler = new window.GeminiStreamHandler(this.ui, {
-                onSessionId: (id) => { this.lastSessionId = id; }
+                onSessionId: (id) => {
+                    this.lastSessionId = id;
+                },
             });
 
             this.inputManager = new window.GeminiInputManager();
-            
+
             // Initialize Dispatcher with reference to this controller
             this.dispatcher = new window.GeminiToolbarDispatcher(this);
 
@@ -27,12 +28,12 @@
             this.selectionObserver = new window.GeminiSelectionObserver({
                 onSelection: this.handleSelection.bind(this),
                 onClear: this.handleSelectionClear.bind(this),
-                onClick: this.handleClick.bind(this)
+                onClick: this.handleClick.bind(this),
             });
 
             // State
             this.visible = false;
-            this.currentSelection = "";
+            this.currentSelection = '';
             this.lastRect = null;
             this.lastMousePoint = null;
             this.lastSessionId = null;
@@ -41,7 +42,7 @@
 
             // Bind Action Handler
             this.handleAction = this.handleAction.bind(this);
-            
+
             this.init();
         }
 
@@ -57,17 +58,24 @@
                     } else {
                         this.imageDetector.scheduleHide();
                     }
-                }
+                },
             });
 
             // Sync Settings (Model & Provider) with Global State
             this.syncSettings();
-            
+
             // Listen for global setting changes to keep toolbar in sync
             chrome.storage.onChanged.addListener((changes, area) => {
                 if (area === 'local') {
-                    const keys = ['geminiModel', 'geminiProvider', 'geminiUseOfficialApi', 'geminiOfficialModel', 'geminiOpenaiModel', 'geminiOpenaiSelectedModel'];
-                    if (keys.some(k => changes[k])) {
+                    const keys = [
+                        'geminiModel',
+                        'geminiProvider',
+                        'geminiUseOfficialApi',
+                        'geminiOfficialModel',
+                        'geminiOpenaiModel',
+                        'geminiOpenaiSelectedModel',
+                    ];
+                    if (keys.some((k) => changes[k])) {
                         this.syncSettings();
                     }
                 }
@@ -77,32 +85,33 @@
             this.imageDetector.init();
             this.streamHandler.init();
         }
-        
+
         async syncSettings() {
             const result = await chrome.storage.local.get([
-                'geminiModel', 
-                'geminiProvider', 
-                'geminiUseOfficialApi', 
+                'geminiModel',
+                'geminiProvider',
+                'geminiUseOfficialApi',
                 'geminiOfficialModel',
                 'geminiOpenaiModel',
-                'geminiOpenaiSelectedModel'
+                'geminiOpenaiSelectedModel',
             ]);
-            
+
             const settings = {
                 provider: result.geminiProvider,
                 useOfficialApi: result.geminiUseOfficialApi,
                 officialModel: result.geminiOfficialModel,
-                openaiModel: result.geminiOpenaiModel
+                openaiModel: result.geminiOpenaiModel,
             };
-            
+
             // Update UI options and selection
             const provider = settings.provider || (settings.useOfficialApi ? 'official' : 'web');
-            const selectedModel = provider === 'openai'
-                ? (result.geminiOpenaiSelectedModel || result.geminiModel)
-                : result.geminiModel;
+            const selectedModel =
+                provider === 'openai'
+                    ? result.geminiOpenaiSelectedModel || result.geminiModel
+                    : result.geminiModel;
             this.ui.updateModelList(settings, selectedModel);
         }
-        
+
         setSelectionEnabled(enabled) {
             this.isSelectionEnabled = enabled;
             if (!enabled) {
@@ -126,7 +135,7 @@
                 this.showGlobalInput(true); // 带网页上下文打开
             } else {
                 // 需要截图的操作模式：ocr, snip, screenshot_translate
-                chrome.runtime.sendMessage({ action: "INITIATE_CAPTURE" });
+                chrome.runtime.sendMessage({ action: 'INITIATE_CAPTURE' });
             }
         }
 
@@ -142,7 +151,7 @@
                 right: window.innerWidth / 2 + 200,
                 bottom: 200,
                 width: 400,
-                height: 100
+                height: 100,
             };
 
             const model = this.ui.getSelectedModel();
@@ -152,8 +161,8 @@
             if (window.GeminiImageCropper && request.area) {
                 try {
                     finalImage = await window.GeminiImageCropper.crop(request.image, request.area);
-                } catch(e) {
-                    console.error("Crop failed in content script", e);
+                } catch (e) {
+                    console.error('Crop failed in content script', e);
                 }
             }
 
@@ -164,23 +173,26 @@
             } else if (this.currentMode === 'snip') {
                 this.actions.handleImagePrompt(finalImage, rect, 'snip', model);
             }
-            
+
             this.currentMode = 'ask'; // 重置模式
             this.visible = true; // Ensure logic knows window is visible
         }
 
         handleGeneratedImageResult(request) {
             if (request.base64 && this.ui) {
-                 // Delegate to the bridge in UI Manager to process image (remove watermark)
-                 // This reuses the logic loaded in the sandbox iframe
-                 this.ui.processImage(request.base64).then(cleaned => {
-                     // Pass cleaned image to UI
-                     this.ui.handleGeneratedImageResult({ ...request, base64: cleaned });
-                 }).catch(e => {
-                     // Fallback to original on error
-                     this.ui.handleGeneratedImageResult(request);
-                 });
-                 return;
+                // Delegate to the bridge in UI Manager to process image (remove watermark)
+                // This reuses the logic loaded in the sandbox iframe
+                this.ui
+                    .processImage(request.base64)
+                    .then((cleaned) => {
+                        // Pass cleaned image to UI
+                        this.ui.handleGeneratedImageResult({ ...request, base64: cleaned });
+                    })
+                    .catch((e) => {
+                        // Fallback to original on error
+                        this.ui.handleGeneratedImageResult(request);
+                    });
+                return;
             }
             this.ui.handleGeneratedImageResult(request);
         }
@@ -190,7 +202,7 @@
         handleClick(e) {
             // If clicking inside our toolbar/window, do nothing
             if (this.ui.isHost(e.target)) return;
-            
+
             // If pinned OR docked, do not hide the window on outside click
             if (this.ui.isPinned || this.ui.isDocked) {
                 // Only hide the small selection toolbar if clicking outside
@@ -205,7 +217,7 @@
 
         handleSelection(data) {
             if (!this.isSelectionEnabled) return;
-            
+
             const { text, rect, mousePoint } = data;
             this.currentSelection = text;
             this.lastRect = rect;
@@ -224,7 +236,7 @@
         handleSelectionClear() {
             // Only hide if we aren't currently interacting with the Ask Window
             if (!this.ui.isWindowVisible()) {
-                this.currentSelection = "";
+                this.currentSelection = '';
                 this.inputManager.reset();
                 this.hide();
             }
@@ -235,11 +247,11 @@
         handleModelChange(model) {
             const provider = this.ui.getProvider ? this.ui.getProvider() : 'web';
             if (provider === 'openai') {
-                chrome.storage.local.set({ 'geminiOpenaiSelectedModel': model });
+                chrome.storage.local.set({ geminiOpenaiSelectedModel: model });
                 return;
             }
 
-            chrome.storage.local.set({ 'geminiModel': model });
+            chrome.storage.local.set({ geminiModel: model });
         }
 
         handleAction(actionType, data) {
@@ -273,32 +285,36 @@
             const height = 100;
 
             const left = (viewportW - width) / 2;
-            const top = (viewportH / 2) - 200;
+            const top = viewportH / 2 - 200;
 
             const rect = {
-                left: left, top: top, right: left + width, bottom: top + height,
-                width: width, height: height
+                left: left,
+                top: top,
+                right: left + width,
+                bottom: top + height,
+                width: width,
+                height: height,
             };
 
-            this.ui.hide(); 
+            this.ui.hide();
             const isZh = navigator.language.startsWith('zh');
-            
+
             // 如果带网页上下文，修改标题
-            let title = isZh ? "询问" : "Ask Gemini";
+            let title = isZh ? '询问' : 'Ask Gemini';
             if (withPageContext) {
-                title = isZh ? "与当前网页对话" : "Chat with Page";
+                title = isZh ? '与当前网页对话' : 'Chat with Page';
             }
 
             this.ui.showAskWindow(rect, null, title);
 
-            this.ui.setInputValue("");
-            this.currentSelection = ""; 
-            this.lastSessionId = null; 
+            this.ui.setInputValue('');
+            this.currentSelection = '';
+            this.lastSessionId = null;
             this.visible = true;
 
             // 如果指定了网页上下文模式，在后续发送时包含上下文
             if (withPageContext) {
-                this.currentSelection = "__PAGE_CONTEXT_FORCE__";
+                this.currentSelection = '__PAGE_CONTEXT_FORCE__';
             }
         }
     }

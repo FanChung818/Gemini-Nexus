@@ -1,7 +1,6 @@
-
 // content/toolbar/stream.js
 
-(function() {
+(function () {
     class GeminiStreamHandler {
         constructor(uiController, callbacks) {
             this.ui = uiController;
@@ -14,16 +13,16 @@
         }
 
         handleStreamMessage(request, sender, sendResponse) {
-            if (request.action === "GEMINI_STREAM_UPDATE") {
+            if (request.action === 'GEMINI_STREAM_UPDATE') {
                 if (this.ui.isVisible()) {
                     // Update result in real-time, passing isStreaming = true
                     this.ui.showResult(request.text, null, true);
                 }
             }
-            
-            if (request.action === "GEMINI_STREAM_DONE") {
+
+            if (request.action === 'GEMINI_STREAM_DONE') {
                 const result = request.result;
-                
+
                 if (request.sessionId) {
                     if (this.callbacks.onSessionId) {
                         this.callbacks.onSessionId(request.sessionId);

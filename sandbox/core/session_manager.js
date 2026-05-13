@@ -1,6 +1,5 @@
-
 // sandbox/core/session_manager.js
-import { generateUUID } from '../../shared/utils.js';
+import { generateUUID } from '../../shared/utils/index.js';
 
 export class SessionManager {
     constructor() {
@@ -12,10 +11,10 @@ export class SessionManager {
         const newId = generateUUID();
         const newSession = {
             id: newId,
-            title: "New Chat",
+            title: 'New Chat',
             timestamp: Date.now(),
             messages: [],
-            context: null // Gemini context IDs
+            context: null, // Gemini context IDs
         };
         this.sessions.unshift(newSession); // Add to top
         this.currentSessionId = newId;
@@ -47,7 +46,7 @@ export class SessionManager {
 
     getSessionById(id) {
         if (!id) return null;
-        return this.sessions.find(s => s.id === id) || null;
+        return this.sessions.find((s) => s.id === id) || null;
     }
 
     getPersistableSessions() {
@@ -56,7 +55,7 @@ export class SessionManager {
 
     filterPersistableSessions(sessions) {
         if (!Array.isArray(sessions)) return [];
-        return sessions.filter(session => !this.isDiscardableBlankSession(session));
+        return sessions.filter((session) => !this.isDiscardableBlankSession(session));
     }
 
     isDiscardableBlankSession(session) {
@@ -66,9 +65,9 @@ export class SessionManager {
     }
 
     deleteSession(id) {
-        this.sessions = this.sessions.filter(s => s.id !== id);
+        this.sessions = this.sessions.filter((s) => s.id !== id);
         // If deleted current session, return true to signal a switch is needed
-        const wasCurrent = (this.currentSessionId === id);
+        const wasCurrent = this.currentSessionId === id;
         if (wasCurrent) {
             this.currentSessionId = this.sessions.length > 0 ? this.sessions[0].id : null;
         }
@@ -76,12 +75,12 @@ export class SessionManager {
     }
 
     updateTitle(id, text) {
-        const session = this.sessions.find(s => s.id === id);
+        const session = this.sessions.find((s) => s.id === id);
         if (session) {
             // Clean text (remove newlines) for display
-            const cleanText = (text || "").replace(/[\r\n]+/g, " ").trim();
+            const cleanText = (text || '').replace(/[\r\n]+/g, ' ').trim();
             if (cleanText) {
-                session.title = cleanText.substring(0, 30) + (cleanText.length > 30 ? "..." : "");
+                session.title = cleanText.substring(0, 30) + (cleanText.length > 30 ? '...' : '');
                 return true;
             }
         }
@@ -89,18 +88,18 @@ export class SessionManager {
     }
 
     addMessage(id, role, text, attachment = null, thoughts = null) {
-        const session = this.sessions.find(s => s.id === id);
+        const session = this.sessions.find((s) => s.id === id);
         if (session) {
             const msg = { role, text };
-            
+
             if (thoughts) {
                 msg.thoughts = thoughts;
             }
-            
+
             // Handle attachments based on role
             if (role === 'user' && typeof attachment === 'string') {
                 // Backward compatibility: user attachment is usually a single base64 string
-                msg.image = attachment; 
+                msg.image = attachment;
             } else if (role === 'user' && Array.isArray(attachment) && attachment.length > 0) {
                 msg.image = attachment;
             } else if (role === 'ai' && Array.isArray(attachment) && attachment.length > 0) {
@@ -116,7 +115,7 @@ export class SessionManager {
     }
 
     editUserMessageAndTruncate(id, messageIndex, text) {
-        const session = this.sessions.find(s => s.id === id);
+        const session = this.sessions.find((s) => s.id === id);
         if (!session || !Array.isArray(session.messages)) return null;
 
         const target = session.messages[messageIndex];
@@ -125,13 +124,10 @@ export class SessionManager {
         const previousMessages = session.messages.slice(0, messageIndex);
         const editedMessage = {
             ...target,
-            text
+            text,
         };
 
-        session.messages = [
-            ...previousMessages,
-            editedMessage
-        ];
+        session.messages = [...previousMessages, editedMessage];
         session.context = null;
         session.contextSummary = null;
         session.timestamp = Date.now();
@@ -143,12 +139,12 @@ export class SessionManager {
         return {
             session,
             message: editedMessage,
-            previousMessages
+            previousMessages,
         };
     }
 
     updateContext(id, context) {
-        const session = this.sessions.find(s => s.id === id);
+        const session = this.sessions.find((s) => s.id === id);
         if (session) {
             session.context = context;
         }

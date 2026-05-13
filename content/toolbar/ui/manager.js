@@ -1,5 +1,4 @@
-
-(function() {
+(function () {
     // Dependencies
     const DOMBuilder = window.GeminiToolbarDOM;
     const View = window.GeminiToolbarView;
@@ -9,10 +8,10 @@
     const Renderer = window.GeminiUIRenderer;
     const ActionsDelegate = window.GeminiToolbarUIActions;
     const CodeCopyHandler = window.GeminiCodeCopyHandler;
-    
+
     // Localization helper
     const isZh = navigator.language.startsWith('zh');
-    const DEFAULT_TITLE = isZh ? "询问" : "Ask";
+    const DEFAULT_TITLE = isZh ? '询问' : 'Ask';
 
     /**
      * Main UI Manager
@@ -29,7 +28,7 @@
             this.callbacks = {};
             this.isBuilt = false;
             this.provider = 'web';
-            
+
             // Sub-Managers
             this.grammarManager = null;
             this.bridge = null; // Renderer Bridge
@@ -44,22 +43,22 @@
 
         build() {
             if (this.isBuilt) return;
-            
+
             // Delegate DOM creation
             const { host, shadow } = this.domBuilder.create();
             this.host = host;
             this.shadow = shadow;
-            
+
             // Initialize Sub-components
             this.view = new View(this.shadow);
             this.grammarManager = new GrammarManager(this.view);
-            
+
             // Initialize Renderer Bridge (for background markdown rendering & image processing)
             this.bridge = new window.GeminiRendererBridge(this.host);
 
             // Initialize Renderer Logic
             this.renderer = new Renderer(this.view, this.bridge);
-            
+
             // Init Actions Delegate
             this.actionsDelegate = new ActionsDelegate(this);
 
@@ -68,11 +67,11 @@
 
             // Init Drag Controller with Docking Logic
             this.dragController = new DragController(
-                this.view.elements.askWindow, 
+                this.view.elements.askWindow,
                 this.view.elements.askHeader,
                 {
                     onSnap: (side, top) => this.view.dockWindow(side, top),
-                    onUndock: () => this.view.undockWindow()
+                    onUndock: () => this.view.undockWindow(),
                 }
             );
 
@@ -86,19 +85,19 @@
             );
 
             this.events = new Events(this);
-            
+
             // Bind Events
             this.events.bind(this.view.elements, this.view.elements.askWindow);
-            
+
             this.isBuilt = true;
         }
 
         // --- Delegate Accessors ---
-        
+
         get actions() {
             return this.actionsDelegate;
         }
-        
+
         get codeCopy() {
             return this.codeCopyHandler;
         }
@@ -118,7 +117,7 @@
         }
 
         saveWindowDimensions(w, h) {
-            chrome.storage.local.set({ 'gemini_nexus_window_size': { w, h } });
+            chrome.storage.local.set({ gemini_nexus_window_size: { w, h } });
         }
 
         fireCallback(type, ...args) {
@@ -156,7 +155,13 @@
         }
 
         showAskWindow(rect, contextText, title = DEFAULT_TITLE, mousePoint = null) {
-            return this.view.showAskWindow(rect, contextText, title, () => this.dragController.reset(), mousePoint);
+            return this.view.showAskWindow(
+                rect,
+                contextText,
+                title,
+                () => this.dragController.reset(),
+                mousePoint
+            );
         }
 
         showLoading(msg) {
@@ -174,7 +179,7 @@
             if (this.renderer) {
                 await this.renderer.show(text, title, isStreaming, images);
             }
-            
+
             // Update Grammar UI state
             if (this.grammarManager) {
                 this.grammarManager.updateResultActions(isStreaming);
@@ -186,7 +191,7 @@
                 this.renderer.handleGeneratedImageResult(request);
             }
         }
-        
+
         async processImage(base64) {
             if (this.bridge) {
                 return this.bridge.processImage(base64);
@@ -195,7 +200,7 @@
         }
 
         showError(text) {
-             this.view.showError(text);
+            this.view.showError(text);
         }
 
         hideAskWindow() {
@@ -210,7 +215,7 @@
         // --- Model Selection ---
 
         getSelectedModel() {
-            return this.view ? this.view.getSelectedModel() : "gemini-2.5-flash";
+            return this.view ? this.view.getSelectedModel() : 'gemini-2.5-flash';
         }
 
         getProvider() {
@@ -227,28 +232,34 @@
             const provider = settings.provider || (settings.useOfficialApi ? 'official' : 'web');
             this.provider = provider;
             let opts = [];
-            
+
             if (provider === 'official') {
-                const rawModels = settings.officialModel || "";
-                const models = rawModels.split(',').map(m => m.trim()).filter(m => m);
+                const rawModels = settings.officialModel || '';
+                const models = rawModels
+                    .split(',')
+                    .map((m) => m.trim())
+                    .filter((m) => m);
                 if (models.length === 0) {
                     opts = [{ val: 'gemini-3-flash-preview', txt: 'gemini-3-flash-preview' }];
                 } else {
-                    opts = models.map(m => ({ val: m, txt: m }));
+                    opts = models.map((m) => ({ val: m, txt: m }));
                 }
             } else if (provider === 'openai') {
-                const rawModels = settings.openaiModel || "";
-                const models = rawModels.split(',').map(m => m.trim()).filter(m => m);
+                const rawModels = settings.openaiModel || '';
+                const models = rawModels
+                    .split(',')
+                    .map((m) => m.trim())
+                    .filter((m) => m);
                 if (models.length === 0) {
                     opts = [{ val: 'openai_custom', txt: 'Custom Model' }];
                 } else {
-                    opts = models.map(m => ({ val: m, txt: m }));
+                    opts = models.map((m) => ({ val: m, txt: m }));
                 }
             } else {
                 opts = [
                     { val: 'gemini-3-flash', txt: 'Fast' },
                     { val: 'gemini-3-flash-thinking', txt: 'Thinking' },
-                    { val: 'gemini-3-pro', txt: '3 Pro' }
+                    { val: 'gemini-3-pro', txt: '3 Pro' },
                 ];
             }
 
@@ -276,7 +287,9 @@
         }
 
         getSourceInfo() {
-            return this.grammarManager ? this.grammarManager.getSourceInfo() : { element: null, range: null };
+            return this.grammarManager
+                ? this.grammarManager.getSourceInfo()
+                : { element: null, range: null };
         }
 
         showGrammarButton(show) {
@@ -288,10 +301,10 @@
         // --- Utils ---
 
         showCopySelectionFeedback(success) {
-             this.view.toggleCopySelectionIcon(success);
-             setTimeout(() => {
-                 this.view.toggleCopySelectionIcon(null); 
-             }, 2000);
+            this.view.toggleCopySelectionIcon(success);
+            setTimeout(() => {
+                this.view.toggleCopySelectionIcon(null);
+            }, 2000);
         }
 
         isVisible() {
@@ -311,5 +324,4 @@
     }
 
     window.GeminiToolbarUI = ToolbarUI;
-
 })();

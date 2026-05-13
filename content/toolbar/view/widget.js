@@ -1,6 +1,5 @@
-
 // content/toolbar/view/widget.js
-(function() {
+(function () {
     const Utils = window.GeminiViewUtils;
 
     /**
@@ -26,11 +25,11 @@
             if (!this.elements.imageBtn) return;
             const scrollX = window.scrollX || window.pageXOffset;
             const scrollY = window.scrollY || window.pageYOffset;
-            
+
             // Position: Top-Left of image (with 10px padding)
-            const left = rect.left + scrollX + 10; 
-            const top = rect.top + scrollY + 10; 
-            
+            const left = rect.left + scrollX + 10;
+            const top = rect.top + scrollY + 10;
+
             Object.assign(this.elements.imageBtn.style, { left: `${left}px`, top: `${top}px` });
             this.elements.imageBtn.classList.add('visible');
         }
@@ -40,7 +39,7 @@
         }
 
         isToolbarVisible() {
-            return (this.elements.toolbar && this.elements.toolbar.classList.contains('visible'));
+            return this.elements.toolbar && this.elements.toolbar.classList.contains('visible');
         }
 
         toggleCopySelectionIcon(success) {

@@ -4,19 +4,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionManager } from '../core/session_manager.js';
 import { PromptController } from './prompt.js';
 import { appendMessage } from '../render/message.js';
-import { saveSessionsToStorage, sendToBackground } from '../../shared/messaging.js';
+import { saveSessionsToStorage, sendToBackground } from '../../shared/messaging/index.js';
 
 vi.mock('../render/message.js', () => ({
-    appendMessage: vi.fn()
+    appendMessage: vi.fn(),
 }));
 
-vi.mock('../../shared/messaging.js', () => ({
+vi.mock('../../shared/messaging/index.js', () => ({
     saveSessionsToStorage: vi.fn(),
-    sendToBackground: vi.fn()
+    sendToBackground: vi.fn(),
 }));
 
 vi.mock('../core/i18n.js', () => ({
-    t: (key) => key
+    t: (key) => key,
 }));
 
 function createPromptHarness({ text = 'Hello', files = [] } = {}) {
@@ -28,12 +28,12 @@ function createPromptHarness({ text = 'Hello', files = [] } = {}) {
         inputFn: { value: text },
         settings: { connectionData: { provider: 'official' } },
         resetInput: vi.fn(),
-        setLoading: vi.fn()
+        setLoading: vi.fn(),
     };
 
     const imageManager = {
         getFiles: vi.fn(() => files),
-        clearFile: vi.fn()
+        clearFile: vi.fn(),
     };
 
     const app = {
@@ -44,8 +44,8 @@ function createPromptHarness({ text = 'Hello', files = [] } = {}) {
         getSelectedModel: vi.fn(() => 'gemini-test'),
         sessionFlow: {
             refreshHistoryUI: vi.fn(),
-            switchToSession: vi.fn()
-        }
+            switchToSession: vi.fn(),
+        },
     };
 
     const controller = new PromptController(sessionManager, ui, imageManager, app);
@@ -80,11 +80,13 @@ describe('PromptController.send', () => {
         expect(app.sessionFlow.switchToSession).toHaveBeenCalledWith(session.id);
         expect(app.isGenerating).toBe(true);
         expect(app.generatingSessionId).toBe(session.id);
-        expect(sendToBackground).toHaveBeenLastCalledWith(expect.objectContaining({
-            action: 'SEND_PROMPT',
-            text: 'Hello',
-            sessionId: session.id
-        }));
+        expect(sendToBackground).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                action: 'SEND_PROMPT',
+                text: 'Hello',
+                sessionId: session.id,
+            })
+        );
     });
 
     it('does not create a session for an empty draft send', async () => {

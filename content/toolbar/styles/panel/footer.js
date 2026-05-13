@@ -1,8 +1,8 @@
-(function() {
+(function () {
     window.GeminiStyles = window.GeminiStyles || {};
     window.GeminiStyles.PanelFooter = `
         /* --- Footer Styles --- */
-        
+
         .window-footer {
             flex-shrink: 0;
             background: #fff;
@@ -13,7 +13,7 @@
             justify-content: center; /* Centered by default for Stop button */
             box-sizing: border-box;
         }
-        
+
         .window-footer.hidden { display: none; }
 
         .footer-actions {
@@ -22,7 +22,7 @@
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .footer-actions.hidden { display: none; }
 
         .footer-left, .footer-right {
@@ -47,7 +47,7 @@
             background: #f0f4f9;
             color: #0b57d0;
         }
-        
+
         .footer-btn.text-btn {
             padding: 6px 10px;
             gap: 6px;

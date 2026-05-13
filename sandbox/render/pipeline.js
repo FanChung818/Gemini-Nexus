@@ -1,4 +1,3 @@
-
 // sandbox/render/pipeline.js
 import { MathHandler } from './math_utils.js';
 
@@ -15,15 +14,15 @@ export function transformMarkdown(text) {
     }
 
     const mathHandler = new MathHandler();
-    
+
     // 1. Protect Math blocks
     let processedText = mathHandler.protect(text || '');
-    
+
     // 2. Parse Markdown
     let html = marked.parse(processedText);
-    
+
     // 3. Restore Math blocks
     html = mathHandler.restore(html);
-    
+
     return html;
 }

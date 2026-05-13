@@ -1,4 +1,3 @@
-
 // background/control/connection.js
 import { CollectorManager } from './collectors.js';
 
@@ -12,7 +11,7 @@ export class BrowserConnection {
         this.attached = false;
         this.onDetachCallbacks = [];
         this.eventListeners = new Set();
-        
+
         // Tracing State
         this.traceEvents = [];
         this.traceCompletePromise = null;
@@ -23,7 +22,7 @@ export class BrowserConnection {
 
         // Global listener for CDP events
         chrome.debugger.onEvent.addListener(this._handleEvent.bind(this));
-        
+
         // Monitor external detachments (e.g. user closed tab or clicked "Cancel" on infobar)
         chrome.debugger.onDetach.addListener(this._onDebuggerDetached.bind(this));
     }
@@ -42,9 +41,9 @@ export class BrowserConnection {
 
             // 1. Pass to collectors for persistence
             this.collectors.handleEvent(method, params);
-            
+
             // 2. Pass to active listeners (e.g. WaitHelper)
-            this.eventListeners.forEach(callback => callback(method, params));
+            this.eventListeners.forEach((callback) => callback(method, params));
         }
     }
 
@@ -60,7 +59,7 @@ export class BrowserConnection {
         this.attached = false;
         this.currentTabId = null;
         this.traceEvents = [];
-        this.onDetachCallbacks.forEach(cb => cb());
+        this.onDetachCallbacks.forEach((cb) => cb());
     }
 
     addListener(callback) {
@@ -82,28 +81,32 @@ export class BrowserConnection {
         if (this.attached && this.currentTabId === tabId) {
             return;
         }
-        
+
         // If attached to a different tab, detach first
         if (this.attached && this.currentTabId !== tabId) {
             await this.detach();
         }
 
         return new Promise((resolve, reject) => {
-            chrome.debugger.attach({ tabId }, "1.3", async () => {
+            chrome.debugger.attach({ tabId }, '1.3', async () => {
                 if (chrome.runtime.lastError) {
                     const msg = chrome.runtime.lastError.message;
                     // Suppress common expected errors for restricted targets to avoid log noise
-                    if (msg.includes("restricted URL") || msg.includes("Cannot access") || msg.includes("Attach to webui")) {
-                        console.debug("[BrowserConnection] Attach skipped (restricted):", msg);
+                    if (
+                        msg.includes('restricted URL') ||
+                        msg.includes('Cannot access') ||
+                        msg.includes('Attach to webui')
+                    ) {
+                        console.debug('[BrowserConnection] Attach skipped (restricted):', msg);
                     } else {
-                        console.warn("[BrowserConnection] Attach failed:", msg);
+                        console.warn('[BrowserConnection] Attach failed:', msg);
                     }
                     // Resolve anyway to allow fallback actions (like navigation) to proceed without debugger
                     resolve();
                 } else {
                     this.attached = true;
                     this.currentTabId = tabId;
-                    
+
                     // Clear collectors on new attachment (new session)
                     this.collectors.clear();
                     // Clear trace buffer
@@ -111,25 +114,25 @@ export class BrowserConnection {
 
                     // Enable domains for collection
                     try {
-                        await this.sendCommand("Network.enable");
-                        await this.sendCommand("Log.enable");
-                        await this.sendCommand("Runtime.enable");
+                        await this.sendCommand('Network.enable');
+                        await this.sendCommand('Log.enable');
+                        await this.sendCommand('Runtime.enable');
                         // Page domain is often enabled by actions, but good to have for lifecycle
                         // Also enables Page.javascriptDialogOpening events
-                        await this.sendCommand("Page.enable");
+                        await this.sendCommand('Page.enable');
                         // Enable Audits for issues (CORS, mixed content, etc)
-                        await this.sendCommand("Audits.enable");
+                        await this.sendCommand('Audits.enable');
 
                         // Enable auto-attach for OOPIFs (Out-Of-Process Iframes)
                         // This allows perceiving content in cross-origin frames like Stripe, Google Login, etc.
                         // flatten: true is essential for chrome.debugger handling
-                        await this.sendCommand("Target.setAutoAttach", {
+                        await this.sendCommand('Target.setAutoAttach', {
                             autoAttach: true,
                             waitForDebuggerOnStart: false,
-                            flatten: true
+                            flatten: true,
                         });
                     } catch (e) {
-                        console.warn("Failed to enable collection domains:", e);
+                        console.warn('Failed to enable collection domains:', e);
                     }
 
                     resolve();
@@ -142,12 +145,12 @@ export class BrowserConnection {
         if (!this.attached || !this.currentTabId) return;
         return new Promise((resolve) => {
             chrome.debugger.detach({ tabId: this.currentTabId }, () => {
-                // IMPORTANT: Consume lastError to prevent "Unchecked runtime.lastError" 
+                // IMPORTANT: Consume lastError to prevent "Unchecked runtime.lastError"
                 // if the tab was already closed or detached externally.
                 if (chrome.runtime.lastError) {
                     // console.debug("[BrowserConnection] Detach ignored:", chrome.runtime.lastError.message);
                 }
-                
+
                 this._cleanupState();
                 resolve();
             });
@@ -155,7 +158,7 @@ export class BrowserConnection {
     }
 
     sendCommand(method, params = {}) {
-        if (!this.currentTabId) throw new Error("No active debugger session");
+        if (!this.currentTabId) throw new Error('No active debugger session');
         return new Promise((resolve, reject) => {
             chrome.debugger.sendCommand({ tabId: this.currentTabId }, method, params, (result) => {
                 if (chrome.runtime.lastError) {
@@ -173,7 +176,7 @@ export class BrowserConnection {
     }
 
     async stopTracing() {
-        this.traceCompletePromise = new Promise(resolve => {
+        this.traceCompletePromise = new Promise((resolve) => {
             this.traceCompleteResolver = resolve;
         });
         await this.sendCommand('Tracing.end');

@@ -1,4 +1,3 @@
-
 export const GeneralSettingsTemplate = `
 <div class="setting-group">
     <h4 data-i18n="general">General</h4>

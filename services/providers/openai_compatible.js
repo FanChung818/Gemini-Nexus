@@ -1,13 +1,12 @@
-
 // services/providers/openai_compatible.js
 
 function normalizeBaseUrl(baseUrl) {
-    return String(baseUrl || '').replace(/\/$/, "");
+    return String(baseUrl || '').replace(/\/$/, '');
 }
 
 function getFileBase64(files) {
     if (!Array.isArray(files)) return [];
-    return files.map(file => file?.base64).filter(Boolean);
+    return files.map((file) => file?.base64).filter(Boolean);
 }
 
 function normalizeMessageImages(message) {
@@ -17,20 +16,20 @@ function normalizeMessageImages(message) {
 
 function buildOpenAIContent(text, images) {
     if (!images || images.length === 0) {
-        return text || "";
+        return text || '';
     }
 
     const content = [];
     if (text) {
-        content.push({ type: "text", text: text });
+        content.push({ type: 'text', text: text });
     }
 
-    images.forEach(img => {
+    images.forEach((img) => {
         content.push({
-            type: "image_url",
+            type: 'image_url',
             image_url: {
-                url: img
-            }
+                url: img,
+            },
         });
     });
 
@@ -39,18 +38,18 @@ function buildOpenAIContent(text, images) {
 
 function buildResponsesContent(text, images) {
     if (!images || images.length === 0) {
-        return text || "";
+        return text || '';
     }
 
     const content = [];
     if (text) {
-        content.push({ type: "input_text", text: text });
+        content.push({ type: 'input_text', text: text });
     }
 
-    images.forEach(img => {
+    images.forEach((img) => {
         content.push({
-            type: "input_image",
-            image_url: img
+            type: 'input_image',
+            image_url: img,
         });
     });
 
@@ -61,21 +60,21 @@ function buildChatMessages(prompt, systemInstruction, history, files) {
     const messages = [];
 
     if (systemInstruction) {
-        messages.push({ role: "system", content: systemInstruction });
+        messages.push({ role: 'system', content: systemInstruction });
     }
 
     if (Array.isArray(history)) {
-        history.forEach(msg => {
+        history.forEach((msg) => {
             messages.push({
                 role: msg.role === 'ai' ? 'assistant' : 'user',
-                content: buildOpenAIContent(msg.text, normalizeMessageImages(msg))
+                content: buildOpenAIContent(msg.text, normalizeMessageImages(msg)),
             });
         });
     }
 
     messages.push({
-        role: "user",
-        content: buildOpenAIContent(prompt, getFileBase64(files))
+        role: 'user',
+        content: buildOpenAIContent(prompt, getFileBase64(files)),
     });
 
     return messages;
@@ -85,17 +84,17 @@ function buildResponsesInput(prompt, history, files) {
     const input = [];
 
     if (Array.isArray(history)) {
-        history.forEach(msg => {
+        history.forEach((msg) => {
             input.push({
                 role: msg.role === 'ai' ? 'assistant' : 'user',
-                content: buildResponsesContent(msg.text, normalizeMessageImages(msg))
+                content: buildResponsesContent(msg.text, normalizeMessageImages(msg)),
             });
         });
     }
 
     input.push({
-        role: "user",
-        content: buildResponsesContent(prompt, getFileBase64(files))
+        role: 'user',
+        content: buildResponsesContent(prompt, getFileBase64(files)),
     });
 
     return input;
@@ -109,7 +108,7 @@ function addSource(sources, seenSourceUrls, source) {
     seenSourceUrls.add(url);
     sources.push({
         title: citation.title || url,
-        url
+        url,
     });
 }
 
@@ -123,43 +122,45 @@ function extractSourcesFromResponseItem(item, sources, seenSourceUrls) {
 
     const actionSources = item.action?.sources;
     if (Array.isArray(actionSources)) {
-        actionSources.forEach(source => addSource(sources, seenSourceUrls, source));
+        actionSources.forEach((source) => addSource(sources, seenSourceUrls, source));
     }
 
     if (!Array.isArray(item.content)) return;
-    item.content.forEach(part => {
+    item.content.forEach((part) => {
         if (Array.isArray(part?.annotations)) {
-            part.annotations.forEach(annotation => extractSourcesFromAnnotation(annotation, sources, seenSourceUrls));
+            part.annotations.forEach((annotation) =>
+                extractSourcesFromAnnotation(annotation, sources, seenSourceUrls)
+            );
         }
     });
 }
 
 function extractTextFromCompletedResponse(responseObject) {
-    if (!responseObject || !Array.isArray(responseObject.output)) return "";
+    if (!responseObject || !Array.isArray(responseObject.output)) return '';
 
     return responseObject.output
-        .filter(item => item?.type === 'message' && Array.isArray(item.content))
-        .flatMap(item => item.content)
-        .filter(part => part?.type === 'output_text' && typeof part.text === 'string')
-        .map(part => part.text)
-        .join("");
+        .filter((item) => item?.type === 'message' && Array.isArray(item.content))
+        .flatMap((item) => item.content)
+        .filter((part) => part?.type === 'output_text' && typeof part.text === 'string')
+        .map((part) => part.text)
+        .join('');
 }
 
 function extractReasoningSummaryFromResponseItem(item) {
-    if (item?.type !== 'reasoning' || !Array.isArray(item.summary)) return "";
+    if (item?.type !== 'reasoning' || !Array.isArray(item.summary)) return '';
 
     return item.summary
-        .filter(part => typeof part?.text === 'string')
-        .map(part => part.text)
-        .join("");
+        .filter((part) => typeof part?.text === 'string')
+        .map((part) => part.text)
+        .join('');
 }
 
 function extractReasoningSummaryFromCompletedResponse(responseObject) {
-    if (!responseObject || !Array.isArray(responseObject.output)) return "";
+    if (!responseObject || !Array.isArray(responseObject.output)) return '';
 
     return responseObject.output
-        .map(item => extractReasoningSummaryFromResponseItem(item))
-        .join("");
+        .map((item) => extractReasoningSummaryFromResponseItem(item))
+        .join('');
 }
 
 async function readErrorMessage(response) {
@@ -167,24 +168,40 @@ async function readErrorMessage(response) {
     try {
         const errJson = JSON.parse(errorText);
         if (errJson.error && errJson.error.message) errorText = errJson.error.message;
-    } catch(e) {}
+    } catch (e) {}
     return errorText;
 }
 
 /**
  * Sends a message using an OpenAI Compatible API.
  */
-export async function sendOpenAIMessage(prompt, systemInstruction, history, config, files, signal, onUpdate) {
+export async function sendOpenAIMessage(
+    prompt,
+    systemInstruction,
+    history,
+    config,
+    files,
+    signal,
+    onUpdate
+) {
     let { baseUrl, apiKey, model } = config;
 
-    if (!baseUrl) throw new Error("Base URL is missing.");
-    if (!model) throw new Error("Model ID is missing.");
+    if (!baseUrl) throw new Error('Base URL is missing.');
+    if (!model) throw new Error('Model ID is missing.');
 
     baseUrl = normalizeBaseUrl(baseUrl);
     const useResponsesApi = config?.useResponsesApi === true;
     const webSearch = config?.webSearch === true;
     if (useResponsesApi) {
-        return sendOpenAIResponsesMessage(prompt, systemInstruction, history, { ...config, baseUrl, apiKey, model }, files, signal, onUpdate);
+        return sendOpenAIResponsesMessage(
+            prompt,
+            systemInstruction,
+            history,
+            { ...config, baseUrl, apiKey, model },
+            files,
+            signal,
+            onUpdate
+        );
     }
 
     const url = `${baseUrl}/chat/completions`;
@@ -192,7 +209,7 @@ export async function sendOpenAIMessage(prompt, systemInstruction, history, conf
     const payload = {
         model: model,
         messages: buildChatMessages(prompt, systemInstruction, history, files),
-        stream: true
+        stream: true,
     };
 
     if (config.reasoningEffort) {
@@ -204,9 +221,9 @@ export async function sendOpenAIMessage(prompt, systemInstruction, history, conf
     }
 
     const headers = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
     };
-    
+
     if (apiKey) {
         headers['Authorization'] = `Bearer ${apiKey}`;
     }
@@ -218,7 +235,7 @@ export async function sendOpenAIMessage(prompt, systemInstruction, history, conf
         method: 'POST',
         headers: headers,
         body: JSON.stringify(payload),
-        signal
+        signal,
     });
 
     if (!response.ok) {
@@ -227,42 +244,42 @@ export async function sendOpenAIMessage(prompt, systemInstruction, history, conf
     }
 
     const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
+    const decoder = new TextDecoder('utf-8');
     const sources = [];
     const seenSourceUrls = new Set();
-    
-    let buffer = "";
-    let fullText = "";
-    let fullThoughts = ""; // Not standard in OpenAI, but some models (DeepSeek R1) might output <think> tags in content
+
+    let buffer = '';
+    let fullText = '';
+    let fullThoughts = ''; // Not standard in OpenAI, but some models (DeepSeek R1) might output <think> tags in content
 
     while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
-        
+
         let lines = buffer.split('\n');
-        buffer = lines.pop(); 
-        
+        buffer = lines.pop();
+
         for (const line of lines) {
             const trimmed = line.trim();
             if (trimmed.startsWith('data: ')) {
                 const dataStr = trimmed.substring(6);
                 if (dataStr === '[DONE]') continue;
-                
+
                 try {
                     const data = JSON.parse(dataStr);
                     if (data.choices && data.choices.length > 0) {
                         const choice = data.choices[0];
                         const delta = choice.delta || {};
-                        
+
                         // Standard Content
                         if (delta.content) {
                             fullText += delta.content;
                             onUpdate(fullText, fullThoughts);
                         }
-                        
+
                         // Reasoning Content (DeepSeek R1 style or similar extension)
                         // If the API returns reasoning_content, use it as thoughts
                         if (delta.reasoning_content) {
@@ -271,11 +288,15 @@ export async function sendOpenAIMessage(prompt, systemInstruction, history, conf
                         }
 
                         if (Array.isArray(delta.annotations)) {
-                            delta.annotations.forEach(annotation => extractSourcesFromAnnotation(annotation, sources, seenSourceUrls));
+                            delta.annotations.forEach((annotation) =>
+                                extractSourcesFromAnnotation(annotation, sources, seenSourceUrls)
+                            );
                         }
 
                         if (Array.isArray(choice.message?.annotations)) {
-                            choice.message.annotations.forEach(annotation => extractSourcesFromAnnotation(annotation, sources, seenSourceUrls));
+                            choice.message.annotations.forEach((annotation) =>
+                                extractSourcesFromAnnotation(annotation, sources, seenSourceUrls)
+                            );
                         }
                     }
                 } catch (e) {
@@ -287,25 +308,33 @@ export async function sendOpenAIMessage(prompt, systemInstruction, history, conf
 
     return {
         text: fullText,
-        thoughts: fullThoughts || null, 
+        thoughts: fullThoughts || null,
         sources,
-        images: [], 
-        context: null 
+        images: [],
+        context: null,
     };
 }
 
-async function sendOpenAIResponsesMessage(prompt, systemInstruction, history, config, files, signal, onUpdate) {
+async function sendOpenAIResponsesMessage(
+    prompt,
+    systemInstruction,
+    history,
+    config,
+    files,
+    signal,
+    onUpdate
+) {
     const { baseUrl, apiKey, model } = config;
     const url = `${baseUrl}/responses`;
     const payload = {
         model,
         input: buildResponsesInput(prompt, history, files),
-        stream: true
+        stream: true,
     };
 
     if (config.webSearch === true) {
-        payload.tools = [{ type: "web_search" }];
-        payload.include = ["web_search_call.action.sources"];
+        payload.tools = [{ type: 'web_search' }];
+        payload.include = ['web_search_call.action.sources'];
     }
 
     if (systemInstruction) {
@@ -315,12 +344,12 @@ async function sendOpenAIResponsesMessage(prompt, systemInstruction, history, co
     if (config.reasoningEffort) {
         payload.reasoning = {
             effort: config.reasoningEffort,
-            summary: "detailed"
+            summary: 'detailed',
         };
     }
 
     const headers = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
     };
 
     if (apiKey) {
@@ -334,7 +363,7 @@ async function sendOpenAIResponsesMessage(prompt, systemInstruction, history, co
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
-        signal
+        signal,
     });
 
     if (!response.ok) {
@@ -343,13 +372,13 @@ async function sendOpenAIResponsesMessage(prompt, systemInstruction, history, co
     }
 
     const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
+    const decoder = new TextDecoder('utf-8');
     const sources = [];
     const seenSourceUrls = new Set();
 
-    let buffer = "";
-    let fullText = "";
-    let fullThoughts = "";
+    let buffer = '';
+    let fullText = '';
+    let fullThoughts = '';
     let streamError = null;
 
     while (true) {
@@ -382,13 +411,22 @@ async function sendOpenAIResponsesMessage(prompt, systemInstruction, history, co
                     continue;
                 }
 
-                if ((data.type === 'response.reasoning_summary_text.delta' || data.type === 'response.reasoning_text.delta') && data.delta) {
+                if (
+                    (data.type === 'response.reasoning_summary_text.delta' ||
+                        data.type === 'response.reasoning_text.delta') &&
+                    data.delta
+                ) {
                     fullThoughts += data.delta;
                     onUpdate(fullText, fullThoughts);
                     continue;
                 }
 
-                if ((data.type === 'response.reasoning_summary_text.done' || data.type === 'response.reasoning_text.done') && data.text && !fullThoughts) {
+                if (
+                    (data.type === 'response.reasoning_summary_text.done' ||
+                        data.type === 'response.reasoning_text.done') &&
+                    data.text &&
+                    !fullThoughts
+                ) {
                     fullThoughts = data.text;
                     onUpdate(fullText, fullThoughts);
                     continue;
@@ -402,7 +440,9 @@ async function sendOpenAIResponsesMessage(prompt, systemInstruction, history, co
                 if (data.type === 'response.output_item.done') {
                     extractSourcesFromResponseItem(data.item, sources, seenSourceUrls);
                     if (!fullThoughts) {
-                        const completedThoughts = extractReasoningSummaryFromResponseItem(data.item);
+                        const completedThoughts = extractReasoningSummaryFromResponseItem(
+                            data.item
+                        );
                         if (completedThoughts) {
                             fullThoughts = completedThoughts;
                             onUpdate(fullText, fullThoughts);
@@ -412,7 +452,9 @@ async function sendOpenAIResponsesMessage(prompt, systemInstruction, history, co
                 }
 
                 if (data.type === 'response.completed' && data.response) {
-                    data.response.output?.forEach(item => extractSourcesFromResponseItem(item, sources, seenSourceUrls));
+                    data.response.output?.forEach((item) =>
+                        extractSourcesFromResponseItem(item, sources, seenSourceUrls)
+                    );
                     if (!fullThoughts) {
                         fullThoughts = extractReasoningSummaryFromCompletedResponse(data.response);
                     }
@@ -436,6 +478,6 @@ async function sendOpenAIResponsesMessage(prompt, systemInstruction, history, co
         thoughts: fullThoughts || null,
         sources,
         images: [],
-        context: null
+        context: null,
     };
 }

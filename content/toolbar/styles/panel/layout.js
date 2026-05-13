@@ -1,4 +1,4 @@
-(function() {
+(function () {
     window.GeminiStyles = window.GeminiStyles || {};
     window.GeminiStyles.PanelLayout = `
         /* Ask Window Styles - Layout */
@@ -11,7 +11,7 @@
             height: 400px;
             min-width: 320px;
             min-height: 250px;
-            
+
             /* Constraints to prevent exceeding display area */
             max-width: 90vw;
             max-height: 90vh;
@@ -25,7 +25,7 @@
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            
+
             /* Native Resize Capability */
             resize: both;
             overflow: hidden; /* Required for resize to work */
@@ -39,7 +39,7 @@
         /* --- Docking Styles --- */
 
         .ask-window[data-dock] {
-            resize: none; 
+            resize: none;
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
@@ -47,9 +47,9 @@
             left: 0 !important;
             right: auto !important;
             border-radius: 0 12px 12px 0;
-            transform: translateX(calc(-100% + 8px)) !important; 
+            transform: translateX(calc(-100% + 8px)) !important;
         }
-        
+
         .ask-window[data-dock="right"] {
             left: auto !important;
             right: 0 !important;

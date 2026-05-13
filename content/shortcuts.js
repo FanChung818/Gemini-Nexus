@@ -1,11 +1,10 @@
-
 // content/shortcuts.js
 
-(function() {
+(function () {
     const DEFAULT_SHORTCUTS = {
-        quickAsk: "Ctrl+G",
-        openPanel: "Alt+S",
-        browserControl: "Ctrl+B"
+        quickAsk: 'Ctrl+G',
+        openPanel: 'Alt+S',
+        browserControl: 'Ctrl+B',
     };
 
     class ShortcutManager {
@@ -30,7 +29,10 @@
             // Listen for updates
             chrome.storage.onChanged.addListener((changes, area) => {
                 if (area === 'local' && changes.geminiShortcuts) {
-                    this.appShortcuts = { ...this.appShortcuts, ...changes.geminiShortcuts.newValue };
+                    this.appShortcuts = {
+                        ...this.appShortcuts,
+                        ...changes.geminiShortcuts.newValue,
+                    };
                 }
             });
 
@@ -40,9 +42,9 @@
 
         handleKeydown(e) {
             if (this.match(e, this.appShortcuts.openPanel)) {
-                e.preventDefault(); 
+                e.preventDefault();
                 e.stopPropagation();
-                chrome.runtime.sendMessage({ action: "OPEN_SIDE_PANEL" });
+                chrome.runtime.sendMessage({ action: 'OPEN_SIDE_PANEL' });
                 return;
             }
 
@@ -59,7 +61,7 @@
                 e.preventDefault();
                 e.stopPropagation();
                 // Toggle side panel / browser control
-                chrome.runtime.sendMessage({ action: "TOGGLE_SIDE_PANEL_CONTROL" });
+                chrome.runtime.sendMessage({ action: 'TOGGLE_SIDE_PANEL_CONTROL' });
                 return;
             }
         }
@@ -67,21 +69,23 @@
         match(event, shortcutString) {
             if (!shortcutString || typeof shortcutString !== 'string') return false;
             if (!event || typeof event.key !== 'string') return false;
-            
-            const parts = shortcutString.split('+').map(p => p.trim().toLowerCase());
+
+            const parts = shortcutString.split('+').map((p) => p.trim().toLowerCase());
             const key = event.key.toLowerCase();
-            
+
             const hasCtrl = parts.includes('ctrl');
             const hasAlt = parts.includes('alt');
             const hasShift = parts.includes('shift');
             const hasMeta = parts.includes('meta') || parts.includes('command');
-            
+
             if (event.ctrlKey !== hasCtrl) return false;
             if (event.altKey !== hasAlt) return false;
             if (event.shiftKey !== hasShift) return false;
             if (event.metaKey !== hasMeta) return false;
 
-            const mainKeys = parts.filter(p => !['ctrl','alt','shift','meta','command'].includes(p));
+            const mainKeys = parts.filter(
+                (p) => !['ctrl', 'alt', 'shift', 'meta', 'command'].includes(p)
+            );
             if (mainKeys.length !== 1) return false;
 
             return key === mainKeys[0];

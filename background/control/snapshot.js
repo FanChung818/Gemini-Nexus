@@ -1,4 +1,3 @@
-
 // background/control/snapshot.js
 import { SnapshotFormatter } from './snapshot/formatter.js';
 
@@ -12,7 +11,7 @@ export class SnapshotManager {
         this.snapshotMap = new Map(); // Maps uid -> backendNodeId
         this.uidToAxNode = new Map(); // Maps uid -> AXNode (raw)
         this.snapshotIdCount = 0;
-        
+
         // Listen to connection detach to clear state
         this.connection.onDetach(() => this.clear());
     }
@@ -28,16 +27,20 @@ export class SnapshotManager {
         if (uid && uid.includes('_')) {
             const parts = uid.split('_');
             const snapshotVersion = parseInt(parts[0], 10);
-            
+
             if (!isNaN(snapshotVersion) && snapshotVersion !== this.snapshotIdCount) {
-                throw new Error(`Stale Element Reference: UID '${uid}' belongs to an older snapshot (v${snapshotVersion}). The current page state is v${this.snapshotIdCount}. You MUST call 'take_snapshot' to get fresh UIDs.`);
+                throw new Error(
+                    `Stale Element Reference: UID '${uid}' belongs to an older snapshot (v${snapshotVersion}). The current page state is v${this.snapshotIdCount}. You MUST call 'take_snapshot' to get fresh UIDs.`
+                );
             }
         }
 
         const id = this.snapshotMap.get(uid);
         if (!id) {
             // If ID matches current version but not found in map, it's likely invalid or ephemeral
-            throw new Error(`Element '${uid}' not found in current snapshot. Please verify the UID or take a new snapshot.`);
+            throw new Error(
+                `Element '${uid}' not found in current snapshot. Please verify the UID or take a new snapshot.`
+            );
         }
         return id;
     }
@@ -45,7 +48,7 @@ export class SnapshotManager {
     getAXNode(uid) {
         return this.uidToAxNode.get(uid);
     }
-    
+
     _getVal(prop) {
         return prop && prop.value;
     }
@@ -58,14 +61,14 @@ export class SnapshotManager {
         // Ideally we map uid -> nodeId (CDP ID) for traversal.
         // For now, this is used by Select element handling.
         // Simplified fallback: Iterate all known nodes in current map
-        
+
         for (const [uid, node] of this.uidToAxNode.entries()) {
-            // Crude check: is the uid lexically "larger" and shares prefix? 
-            // Better approach: SnapshotFormatter provides structure. 
+            // Crude check: is the uid lexically "larger" and shares prefix?
+            // Better approach: SnapshotFormatter provides structure.
             // Since we cleared reLocate, we assume direct mapping logic is handled in takeSnapshot.
-            
+
             if (uid !== rootUid && predicate(node, uid)) {
-                 return uid;
+                return uid;
             }
         }
         return null;
@@ -73,15 +76,15 @@ export class SnapshotManager {
 
     async takeSnapshot(args = {}) {
         // Ensure domains are enabled
-        await this.connection.sendCommand("DOM.enable");
-        await this.connection.sendCommand("Accessibility.enable");
-        
+        await this.connection.sendCommand('DOM.enable');
+        await this.connection.sendCommand('Accessibility.enable');
+
         // Get the full accessibility tree from CDP
-        const { nodes } = await this.connection.sendCommand("Accessibility.getFullAXTree");
-        
+        const { nodes } = await this.connection.sendCommand('Accessibility.getFullAXTree');
+
         // Increment Snapshot ID (Version Control)
         this.snapshotIdCount++;
-        
+
         // Clear maps
         this.clear();
 
@@ -93,7 +96,7 @@ export class SnapshotManager {
                     this.snapshotMap.set(uid, node.backendDOMNodeId);
                 }
                 this.uidToAxNode.set(uid, node);
-            }
+            },
         });
 
         return formatter.format(nodes);

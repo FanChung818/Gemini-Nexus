@@ -6,19 +6,19 @@ import { appendMessage } from './message.js';
 vi.mock('./content.js', () => ({
     renderContent: vi.fn((contentDiv, text) => {
         contentDiv.textContent = text || '';
-    })
+    }),
 }));
 
 vi.mock('./clipboard.js', () => ({
-    copyToClipboard: vi.fn()
+    copyToClipboard: vi.fn(),
 }));
 
 vi.mock('./generated_image.js', () => ({
-    createGeneratedImage: vi.fn(() => document.createElement('img'))
+    createGeneratedImage: vi.fn(() => document.createElement('img')),
 }));
 
 vi.mock('../core/i18n.js', () => ({
-    t: (key) => key
+    t: (key) => key,
 }));
 
 describe('appendMessage copy button', () => {
@@ -30,7 +30,7 @@ describe('appendMessage copy button', () => {
         const container = document.createElement('div');
         const controller = appendMessage(container, '', 'ai', null, '', null, {
             isStreaming: true,
-            autoScroll: false
+            autoScroll: false,
         });
 
         controller.update('', undefined, { isStreaming: true });
@@ -42,7 +42,7 @@ describe('appendMessage copy button', () => {
         const container = document.createElement('div');
         const controller = appendMessage(container, '', 'ai', null, '', null, {
             isStreaming: true,
-            autoScroll: false
+            autoScroll: false,
         });
 
         controller.update('Visible answer', undefined, { isStreaming: true });
@@ -56,7 +56,7 @@ describe('appendMessage copy button', () => {
         const container = document.createElement('div');
         const controller = appendMessage(container, '', 'ai', null, 'thinking', null, {
             isStreaming: true,
-            autoScroll: false
+            autoScroll: false,
         });
 
         controller.update('I will call a tool now.', undefined, { isStreaming: true });
@@ -64,6 +64,8 @@ describe('appendMessage copy button', () => {
 
         controller.finalize('I will call a tool now.', undefined, { suppressCopy: true });
         expect(container.querySelector('.copy-btn')).toBeNull();
-        expect(container.querySelector('.msg-content')?.textContent).toBe('I will call a tool now.');
+        expect(container.querySelector('.msg-content')?.textContent).toBe(
+            'I will call a tool now.'
+        );
     });
 });

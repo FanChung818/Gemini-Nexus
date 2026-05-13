@@ -1,4 +1,3 @@
-
 // sidepanel/utils/download.js
 
 export function downloadFile(url, filename) {

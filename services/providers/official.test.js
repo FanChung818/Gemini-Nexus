@@ -9,16 +9,26 @@ describe('extractOfficialResponseData', () => {
                 parts: [
                     { text: 'Thinking...', thought: true, thoughtSignature: 'sig-1' },
                     { text: 'Visible answer.' },
-                    { functionCall: { id: 'call-1', name: 'take_snapshot', args: { uid: 'root' } } },
-                    { functionCall: { id: 'call-1', name: 'take_snapshot', args: { uid: 'root' } } },
-                    { thought: 'More reasoning.' }
-                ]
+                    {
+                        functionCall: {
+                            id: 'call-1',
+                            name: 'take_snapshot',
+                            args: { uid: 'root' },
+                        },
+                    },
+                    {
+                        functionCall: {
+                            id: 'call-1',
+                            name: 'take_snapshot',
+                            args: { uid: 'root' },
+                        },
+                    },
+                    { thought: 'More reasoning.' },
+                ],
             },
             groundingMetadata: {
-                groundingChunks: [
-                    { web: { uri: 'https://example.com/source', title: 'Example' } }
-                ]
-            }
+                groundingChunks: [{ web: { uri: 'https://example.com/source', title: 'Example' } }],
+            },
         });
 
         expect(result).toEqual({
@@ -30,19 +40,31 @@ describe('extractOfficialResponseData', () => {
                 parts: [
                     { text: 'Thinking...', thought: true, thoughtSignature: 'sig-1' },
                     { text: 'Visible answer.' },
-                    { functionCall: { id: 'call-1', name: 'take_snapshot', args: { uid: 'root' } } },
-                    { functionCall: { id: 'call-1', name: 'take_snapshot', args: { uid: 'root' } } },
-                    { thought: 'More reasoning.' }
-                ]
+                    {
+                        functionCall: {
+                            id: 'call-1',
+                            name: 'take_snapshot',
+                            args: { uid: 'root' },
+                        },
+                    },
+                    {
+                        functionCall: {
+                            id: 'call-1',
+                            name: 'take_snapshot',
+                            args: { uid: 'root' },
+                        },
+                    },
+                    { thought: 'More reasoning.' },
+                ],
             },
             functionCalls: [
                 {
                     id: 'call-1',
                     name: 'take_snapshot',
                     args: { uid: 'root' },
-                    partIndex: 2
-                }
-            ]
+                    partIndex: 2,
+                },
+            ],
         });
     });
 
@@ -52,7 +74,7 @@ describe('extractOfficialResponseData', () => {
             thoughts: '',
             thoughtSignature: null,
             officialContent: null,
-            functionCalls: []
+            functionCalls: [],
         });
     });
 });

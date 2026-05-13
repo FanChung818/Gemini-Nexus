@@ -1,14 +1,13 @@
-
 export const FooterTemplate = `
     <!-- FOOTER -->
     <div class="footer">
         <div id="status"></div>
-        
+
         <div class="tools-container">
             <button id="tools-scroll-left" class="scroll-nav-btn left" aria-label="Scroll Left">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
             </button>
-            
+
             <div class="tools-row" id="tools-row">
                 <button id="browser-control-btn" class="tool-btn" data-i18n-title="browserControlTooltip" title="Allow model to control browser">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -64,7 +63,7 @@ export const FooterTemplate = `
         <div class="input-wrapper">
             <!-- Dynamic Image Preview Container -->
             <div id="image-preview" class="image-preview"></div>
-            
+
             <div class="input-row">
                 <label id="upload-btn" data-i18n-title="uploadImageTooltip" title="Upload File">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>

@@ -4,26 +4,26 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatController } from './chat.js';
 
 vi.mock('../render/clipboard.js', () => ({
-    copyToClipboard: vi.fn()
+    copyToClipboard: vi.fn(),
 }));
 
 vi.mock('../core/i18n.js', () => ({
-    t: (key) => key
+    t: (key) => key,
 }));
 
 function setScrollMetrics(element, { scrollHeight, clientHeight, scrollTop }) {
     Object.defineProperty(element, 'scrollHeight', {
         configurable: true,
-        value: scrollHeight
+        value: scrollHeight,
     });
     Object.defineProperty(element, 'clientHeight', {
         configurable: true,
-        value: clientHeight
+        value: clientHeight,
     });
     Object.defineProperty(element, 'scrollTop', {
         configurable: true,
         writable: true,
-        value: scrollTop
+        value: scrollTop,
     });
 }
 
@@ -37,7 +37,7 @@ function createController() {
         historyDiv,
         inputFn: document.createElement('textarea'),
         sendBtn: document.createElement('button'),
-        statusDiv: document.createElement('div')
+        statusDiv: document.createElement('div'),
     });
 
     return { controller, historyDiv };
@@ -58,20 +58,20 @@ describe('ChatController streaming scroll following', () => {
         setScrollMetrics(historyDiv, {
             scrollHeight: 1000,
             clientHeight: 400,
-            scrollTop: 600
+            scrollTop: 600,
         });
 
         controller.handleHistoryScroll();
         setScrollMetrics(historyDiv, {
             scrollHeight: 1300,
             clientHeight: 400,
-            scrollTop: 600
+            scrollTop: 600,
         });
         controller.followStreamingContent();
 
         expect(historyDiv.scrollTo).toHaveBeenCalledWith({
             top: 1300,
-            behavior: 'instant'
+            behavior: 'instant',
         });
     });
 
@@ -80,14 +80,14 @@ describe('ChatController streaming scroll following', () => {
         setScrollMetrics(historyDiv, {
             scrollHeight: 1000,
             clientHeight: 400,
-            scrollTop: 300
+            scrollTop: 300,
         });
 
         controller.handleHistoryScroll();
         setScrollMetrics(historyDiv, {
             scrollHeight: 1300,
             clientHeight: 400,
-            scrollTop: 300
+            scrollTop: 300,
         });
         controller.followStreamingContent();
 

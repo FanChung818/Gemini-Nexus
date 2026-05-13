@@ -1,10 +1,8 @@
-
 // background/control/actions/performance.js
 import { BaseActionHandler } from './base.js';
 import { TraceProcessor } from '../trace_processor.js';
 
 export class PerformanceActions extends BaseActionHandler {
-    
     constructor(connection, snapshotManager, waitHelper) {
         super(connection, snapshotManager, waitHelper);
         this.isRunning = false;
@@ -12,27 +10,33 @@ export class PerformanceActions extends BaseActionHandler {
 
     async startTrace({ reload = false } = {}) {
         if (this.isRunning) {
-            return "Error: A performance trace is already running. Use stop_trace first.";
+            return 'Error: A performance trace is already running. Use stop_trace first.';
         }
 
         try {
             // Standard categories used by Lighthouse/DevTools
             const categories = [
-                '-*', 'blink.console', 'blink.user_timing', 'devtools.timeline', 
-                'disabled-by-default-devtools.screenshot', 'loading', 
-                'latencyInfo', 'v8.execute', 'disabled-by-default-lighthouse'
+                '-*',
+                'blink.console',
+                'blink.user_timing',
+                'devtools.timeline',
+                'disabled-by-default-devtools.screenshot',
+                'loading',
+                'latencyInfo',
+                'v8.execute',
+                'disabled-by-default-lighthouse',
             ].join(',');
 
             await this.connection.startTracing(categories);
             this.isRunning = true;
 
-            let msg = "Performance trace started.";
-            
+            let msg = 'Performance trace started.';
+
             if (reload) {
                 const tabId = this.connection.currentTabId;
                 if (tabId) {
                     await chrome.tabs.reload(tabId);
-                    msg += " Page reloading...";
+                    msg += ' Page reloading...';
                 }
             }
 
@@ -45,7 +49,7 @@ export class PerformanceActions extends BaseActionHandler {
 
     async stopTrace() {
         if (!this.isRunning) {
-            return "Error: No trace is currently running.";
+            return 'Error: No trace is currently running.';
         }
 
         try {

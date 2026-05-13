@@ -1,18 +1,19 @@
-
 // sandbox/boot/events.js
-import { sendToBackground } from '../../shared/messaging.js';
+import { sendToBackground } from '../../shared/messaging/index.js';
 import { t } from '../core/i18n.js';
 
 export function bindAppEvents(app, ui, setResizeRef) {
     // New Chat Buttons
-    document.getElementById('new-chat-header-btn').addEventListener('click', () => app.handleNewChat());
-    
+    document
+        .getElementById('new-chat-header-btn')
+        .addEventListener('click', () => app.handleNewChat());
+
     // Tab Switcher Button
     const tabSwitcherBtn = document.getElementById('tab-switcher-btn');
     if (tabSwitcherBtn) {
         tabSwitcherBtn.addEventListener('click', () => app.handleTabSwitcher());
     }
-    
+
     // Open Full Page Button
     const openFullPageBtn = document.getElementById('open-full-page-btn');
     if (openFullPageBtn) {
@@ -36,7 +37,7 @@ export function bindAppEvents(app, ui, setResizeRef) {
     }
 
     // Tools
-    
+
     // Browser Control (Functional Toggle)
     const browserControlBtn = document.getElementById('browser-control-btn');
     if (browserControlBtn) {
@@ -47,25 +48,29 @@ export function bindAppEvents(app, ui, setResizeRef) {
     }
 
     document.getElementById('quote-btn').addEventListener('click', () => {
-        sendToBackground({ action: "GET_ACTIVE_SELECTION" });
+        sendToBackground({ action: 'GET_ACTIVE_SELECTION' });
         if (ui.inputFn) ui.inputFn.focus();
     });
 
     document.getElementById('ocr-btn').addEventListener('click', () => {
         app.setCaptureMode('ocr');
-        sendToBackground({ action: "INITIATE_CAPTURE", mode: 'ocr', source: 'sidepanel' });
+        sendToBackground({ action: 'INITIATE_CAPTURE', mode: 'ocr', source: 'sidepanel' });
         ui.updateStatus(t('selectOcr'));
     });
-    
+
     document.getElementById('screenshot-translate-btn').addEventListener('click', () => {
         app.setCaptureMode('screenshot_translate');
-        sendToBackground({ action: "INITIATE_CAPTURE", mode: 'screenshot_translate', source: 'sidepanel' });
+        sendToBackground({
+            action: 'INITIATE_CAPTURE',
+            mode: 'screenshot_translate',
+            source: 'sidepanel',
+        });
         ui.updateStatus(t('selectTranslate'));
     });
 
     document.getElementById('snip-btn').addEventListener('click', () => {
         app.setCaptureMode('snip');
-        sendToBackground({ action: "INITIATE_CAPTURE", mode: 'snip', source: 'sidepanel' });
+        sendToBackground({ action: 'INITIATE_CAPTURE', mode: 'snip', source: 'sidepanel' });
         ui.updateStatus(t('selectSnip'));
     });
 
@@ -80,7 +85,7 @@ export function bindAppEvents(app, ui, setResizeRef) {
 
     // Model Selector
     const modelSelect = document.getElementById('model-select');
-    
+
     // Auto-resize Logic
     let resizeModelSelectFrame = null;
     const resizeModelSelect = () => {
@@ -95,7 +100,7 @@ export function bindAppEvents(app, ui, setResizeRef) {
             }
 
             if (!modelSelect) return;
-        
+
             // Safety: Ensure selectedIndex is valid
             if (modelSelect.selectedIndex === -1) {
                 if (modelSelect.options.length > 0) modelSelect.selectedIndex = 0;
@@ -109,7 +114,7 @@ export function bindAppEvents(app, ui, setResizeRef) {
                 fontSize: '13px',
                 fontWeight: '500',
                 fontFamily: window.getComputedStyle(modelSelect).fontFamily,
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
             });
             tempSpan.textContent = modelSelect.options[modelSelect.selectedIndex].text;
             document.body.appendChild(tempSpan);
@@ -118,13 +123,13 @@ export function bindAppEvents(app, ui, setResizeRef) {
             modelSelect.style.width = `${width + 34}px`;
         });
     };
-    
+
     if (setResizeRef) setResizeRef(resizeModelSelect); // Expose for message handler
 
     if (modelSelect) {
         modelSelect.addEventListener('change', (e) => {
-             app.handleModelChange(e.target.value);
-             resizeModelSelect();
+            app.handleModelChange(e.target.value);
+            resizeModelSelect();
         });
         // Call initial resize after a short delay to ensure fonts/styles loaded
         setTimeout(resizeModelSelect, 50);
@@ -141,7 +146,9 @@ export function bindAppEvents(app, ui, setResizeRef) {
                 e.preventDefault();
                 if (modelSelect) {
                     const direction = e.shiftKey ? -1 : 1;
-                    const newIndex = (modelSelect.selectedIndex + direction + modelSelect.length) % modelSelect.length;
+                    const newIndex =
+                        (modelSelect.selectedIndex + direction + modelSelect.length) %
+                        modelSelect.length;
                     modelSelect.selectedIndex = newIndex;
                     modelSelect.dispatchEvent(new Event('change'));
                 }
@@ -166,7 +173,7 @@ export function bindAppEvents(app, ui, setResizeRef) {
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
             e.preventDefault();
-            if(inputFn) inputFn.focus();
+            if (inputFn) inputFn.focus();
         }
     });
 }

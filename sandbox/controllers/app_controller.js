@@ -1,19 +1,18 @@
-
 // sandbox/controllers/app_controller.js
 import { MessageHandler } from './message_handler.js';
 import { SessionFlowController } from './session_flow.js';
 import { PromptController } from './prompt.js';
 import { t } from '../core/i18n.js';
-import { saveSessionsToStorage, sendToBackground } from '../../shared/messaging.js';
+import { saveSessionsToStorage, sendToBackground } from '../../shared/messaging/index.js';
 
 export class AppController {
     constructor(sessionManager, uiController, imageManager) {
         this.sessionManager = sessionManager;
         this.ui = uiController;
         this.imageManager = imageManager;
-        
-        this.captureMode = 'snip'; 
-        this.isGenerating = false; 
+
+        this.captureMode = 'snip';
+        this.isGenerating = false;
         this.generatingSessionId = null;
         this.pageContextActive = false;
         this.browserControlActive = false;
@@ -21,17 +20,12 @@ export class AppController {
         this.currentTabId = null;
         this.boundSessionId = null;
         this.sessionsRestored = false;
-        
+
         // Sidebar Restore Behavior: 'auto', 'restore', 'new'
         this.sidebarRestoreBehavior = 'auto';
 
         // Initialize Message Handler
-        this.messageHandler = new MessageHandler(
-            sessionManager, 
-            uiController, 
-            imageManager, 
-            this
-        );
+        this.messageHandler = new MessageHandler(sessionManager, uiController, imageManager, this);
 
         // Initialize Sub-Controllers
         this.sessionFlow = new SessionFlowController(sessionManager, uiController, this);
@@ -45,11 +39,11 @@ export class AppController {
     setCaptureMode(mode) {
         this.captureMode = mode;
     }
-    
+
     togglePageContext() {
         this.pageContextActive = !this.pageContextActive;
         this.ui.chat.togglePageContext(this.pageContextActive);
-        
+
         if (this.pageContextActive) {
             this._checkPageContent();
         }
@@ -65,7 +59,7 @@ export class AppController {
 
     _checkPageContent() {
         this.ui.updateStatus(t('readingPage'));
-        sendToBackground({ action: "CHECK_PAGE_CONTEXT" });
+        sendToBackground({ action: 'CHECK_PAGE_CONTEXT' });
     }
 
     toggleBrowserControl(forceState = null) {
@@ -81,30 +75,30 @@ export class AppController {
         if (btn) {
             btn.classList.toggle('active', this.browserControlActive);
         }
-        
+
         // Show/Hide the tab switcher in header
         this.ui.toggleTabSwitcher(this.browserControlActive);
-        
+
         // Signal background to start/stop debugger session immediately
-        sendToBackground({ 
-            action: "TOGGLE_BROWSER_CONTROL", 
-            enabled: this.browserControlActive 
+        sendToBackground({
+            action: 'TOGGLE_BROWSER_CONTROL',
+            enabled: this.browserControlActive,
         });
-        
+
         if (this.browserControlActive) {
-            // Disable page context if browser control is on (optional preference, 
+            // Disable page context if browser control is on (optional preference,
             // but usually commands don't need full page context context)
             // For now, keeping them independent.
         }
     }
-    
+
     handleTabSwitcher() {
-        sendToBackground({ action: "GET_OPEN_TABS" });
+        sendToBackground({ action: 'GET_OPEN_TABS' });
     }
-    
+
     handleTabSelected(tabId, shouldSwitch = true) {
         // tabId can be null (to unlock) or an integer
-        sendToBackground({ action: "SWITCH_TAB", tabId: tabId, switchVisual: shouldSwitch });
+        sendToBackground({ action: 'SWITCH_TAB', tabId: tabId, switchVisual: shouldSwitch });
     }
 
     // --- Delegation to Sub-Controllers ---
@@ -116,28 +110,32 @@ export class AppController {
     switchToSession(sessionId) {
         this.sessionFlow.switchToSession(sessionId);
     }
-    
+
     rerender() {
         const currentId = this.sessionManager.currentSessionId;
         if (currentId) {
             this.switchToSession(currentId);
         }
     }
-    
+
     getSelectedModel() {
-        return this.ui.modelSelect ? this.ui.modelSelect.value : "gemini-2.5-flash";
+        return this.ui.modelSelect ? this.ui.modelSelect.value : 'gemini-2.5-flash';
     }
 
     handleModelChange(model) {
         const connectionData = this.ui.settings?.connectionData;
-        const provider = connectionData?.provider || (connectionData?.useOfficialApi ? 'official' : 'web');
+        const provider =
+            connectionData?.provider || (connectionData?.useOfficialApi ? 'official' : 'web');
         if (provider === 'openai' && connectionData) {
             connectionData.openaiSelectedModel = model;
         }
-        window.parent.postMessage({
-            action: 'SAVE_MODEL',
-            payload: { provider, model }
-        }, '*');
+        window.parent.postMessage(
+            {
+                action: 'SAVE_MODEL',
+                payload: { provider, model },
+            },
+            '*'
+        );
     }
 
     handleDeleteSession(sessionId) {
@@ -154,19 +152,20 @@ export class AppController {
 
     saveCurrentTabSessionBinding(sessionId) {
         if (!Number.isInteger(this.currentTabId) || this.currentTabId <= 0) return;
-        window.parent.postMessage({
-            action: 'SAVE_SIDE_PANEL_SESSION_BINDING',
-            payload: {
-                tabId: this.currentTabId,
-                sessionId
-            }
-        }, '*');
+        window.parent.postMessage(
+            {
+                action: 'SAVE_SIDE_PANEL_SESSION_BINDING',
+                payload: {
+                    tabId: this.currentTabId,
+                    sessionId,
+                },
+            },
+            '*'
+        );
     }
 
     getBoundSession() {
-        return this.boundSessionId
-            ? this.sessionManager.getSessionById(this.boundSessionId)
-            : null;
+        return this.boundSessionId ? this.sessionManager.getSessionById(this.boundSessionId) : null;
     }
 
     restoreRememberedTabSession() {
@@ -188,7 +187,7 @@ export class AppController {
     hasNewAiMessage(session, previousMessageCount) {
         const messages = Array.isArray(session?.messages) ? session.messages : [];
         if (messages.length <= previousMessageCount) return false;
-        return messages.slice(previousMessageCount).some(message => message?.role === 'ai');
+        return messages.slice(previousMessageCount).some((message) => message?.role === 'ai');
     }
 
     syncCurrentSessionFromStorage(sessionId, previousMessageCount) {
@@ -197,7 +196,10 @@ export class AppController {
 
         const scrollState = this.ui.getChatScrollState ? this.ui.getChatScrollState() : null;
         this.sessionFlow.switchToSession(sessionId, { restoreScrollState: scrollState });
-        this.messageHandler.markSessionRenderedFromStorage(sessionId, this.getMessageCount(session));
+        this.messageHandler.markSessionRenderedFromStorage(
+            sessionId,
+            this.getMessageCount(session)
+        );
         return true;
     }
 
@@ -205,7 +207,7 @@ export class AppController {
 
     async handleIncomingMessage(event) {
         const { action, payload } = event.data;
-        
+
         if (action === 'RESTORE_SIDEBAR_BEHAVIOR') {
             this.sidebarRestoreBehavior = payload;
             // Update UI settings panel
@@ -253,33 +255,33 @@ export class AppController {
 
             // If we are initializing (no current session yet), apply the behavior logic
             if (!currentId || !currentSessionExists) {
-                 const sorted = this.sessionManager.getSortedSessions();
-                 
-                 let shouldRestore = false;
-                 
-                 if (this.sidebarRestoreBehavior === 'new') {
-                     shouldRestore = false;
-                 } else if (this.sidebarRestoreBehavior === 'restore') {
-                     shouldRestore = true;
-                 } else {
-                     // 'auto' mode: Restore if last active within 10 minutes
-                     if (sorted.length > 0) {
-                         const lastActive = sorted[0].timestamp;
-                         const now = Date.now();
-                         const tenMinutes = 10 * 60 * 1000;
-                         if (now - lastActive < tenMinutes) {
-                             shouldRestore = true;
-                         }
-                     }
-                 }
+                const sorted = this.sessionManager.getSortedSessions();
 
-                 if (this.sidePanelScope === 'remembered_tabs') {
-                     this.restoreRememberedTabSession();
-                 } else if (shouldRestore && sorted.length > 0) {
-                     this.switchToSession(sorted[0].id);
-                 } else {
-                     this.handleNewChat();
-                 }
+                let shouldRestore = false;
+
+                if (this.sidebarRestoreBehavior === 'new') {
+                    shouldRestore = false;
+                } else if (this.sidebarRestoreBehavior === 'restore') {
+                    shouldRestore = true;
+                } else {
+                    // 'auto' mode: Restore if last active within 10 minutes
+                    if (sorted.length > 0) {
+                        const lastActive = sorted[0].timestamp;
+                        const now = Date.now();
+                        const tenMinutes = 10 * 60 * 1000;
+                        if (now - lastActive < tenMinutes) {
+                            shouldRestore = true;
+                        }
+                    }
+                }
+
+                if (this.sidePanelScope === 'remembered_tabs') {
+                    this.restoreRememberedTabSession();
+                } else if (shouldRestore && sorted.length > 0) {
+                    this.switchToSession(sorted[0].id);
+                } else {
+                    this.handleNewChat();
+                }
             }
             return;
         }
@@ -298,12 +300,16 @@ export class AppController {
             }
             if (payload.action === 'ACTIVATE_BROWSER_CONTROL') {
                 this.toggleBrowserControl(true);
-                if(this.ui.inputFn) this.ui.inputFn.focus();
+                if (this.ui.inputFn) this.ui.inputFn.focus();
                 return;
             }
             // Tab list response
             if (payload.action === 'OPEN_TABS_RESULT') {
-                this.ui.openTabSelector(payload.tabs, (tabId, shouldSwitch) => this.handleTabSelected(tabId, shouldSwitch), payload.lockedTabId);
+                this.ui.openTabSelector(
+                    payload.tabs,
+                    (tabId, shouldSwitch) => this.handleTabSelected(tabId, shouldSwitch),
+                    payload.lockedTabId
+                );
                 return;
             }
             // Tab Locked Notification (Auto-lock update)
@@ -319,13 +325,15 @@ export class AppController {
                 const formatted = new Intl.NumberFormat().format(len);
                 const msg = t('pageReadSuccess').replace('{count}', formatted);
                 this.ui.updateStatus(msg);
-                setTimeout(() => { if(!this.isGenerating) this.ui.updateStatus(""); }, 3000);
+                setTimeout(() => {
+                    if (!this.isGenerating) this.ui.updateStatus('');
+                }, 3000);
                 return;
             }
-            
+
             await this.messageHandler.handle(payload);
         }
-        
+
         // Pass other messages to message bridge handler if not handled here
         // (AppMessageBridge handles standard restores, this controller handles extended logic)
     }

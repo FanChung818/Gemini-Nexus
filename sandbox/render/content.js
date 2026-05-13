@@ -1,4 +1,3 @@
-
 // sandbox/render/content.js
 import { transformMarkdown } from './pipeline.js';
 
@@ -19,7 +18,10 @@ function stripOuterMarkdownFence(text) {
     const trimmed = normalizeEscapedFenceMarkers(text).trim();
     if (!trimmed) return '';
 
-    const withoutOpening = trimmed.replace(/^```[ \t]*(?:json|javascript|js|text|txt)?(?:[ \t]*\r?\n|[ \t]+)?/i, '');
+    const withoutOpening = trimmed.replace(
+        /^```[ \t]*(?:json|javascript|js|text|txt)?(?:[ \t]*\r?\n|[ \t]+)?/i,
+        ''
+    );
     return withoutOpening.replace(/\r?\n?[ \t]*```[\s\S]*$/i, '').trim();
 }
 
@@ -96,7 +98,7 @@ function parseToolOutputText(text) {
     return {
         toolName: headerMatch ? headerMatch[1].trim() : '',
         body: value.slice(bodyStart, bodyEnd),
-        step: stepMatch ? stepMatch[1] : ''
+        step: stepMatch ? stepMatch[1] : '',
     };
 }
 
@@ -145,7 +147,8 @@ function getStructuredPreviewValue(value) {
         if (!(key in value)) continue;
         const candidate = value[key];
         if (typeof candidate === 'string' && candidate.trim()) return candidate;
-        if (candidate !== undefined && candidate !== null && typeof candidate !== 'object') return candidate;
+        if (candidate !== undefined && candidate !== null && typeof candidate !== 'object')
+            return candidate;
     }
 
     return undefined;
@@ -159,7 +162,10 @@ function looksLikeJsonStructure(text) {
 function getLooseJsonFieldPreview(text) {
     const candidates = [text, text.replace(/\\"/g, '"')];
     for (const key of TOOL_PREVIEW_KEYS) {
-        const pattern = new RegExp(`["']${escapeRegExp(key)}["']\\s*:\\s*(["'])([\\s\\S]*?)\\1`, 'i');
+        const pattern = new RegExp(
+            `["']${escapeRegExp(key)}["']\\s*:\\s*(["'])([\\s\\S]*?)\\1`,
+            'i'
+        );
         for (const candidate of candidates) {
             const match = candidate.match(pattern);
             if (match && match[2].trim()) {
@@ -175,8 +181,8 @@ function getReadableJsonFallbackPreview(text) {
     const readable = (text || '')
         .replace(/^[\s,[{\]}:"]+/, '')
         .split('\n')
-        .map(line => line.replace(/^[\s,[{\]}:"]+/, '').trim())
-        .find(line => /[A-Za-z0-9\u4e00-\u9fff]/.test(line));
+        .map((line) => line.replace(/^[\s,[{\]}:"]+/, '').trim())
+        .find((line) => /[A-Za-z0-9\u4e00-\u9fff]/.test(line));
 
     if (!readable || /^[\s,[{\]}:,"]*$/.test(readable)) {
         return '';
@@ -200,7 +206,7 @@ function escapeRegExp(value) {
 function truncatePreview(text) {
     const collapsed = (text || '')
         .split('\n')
-        .map(line => line.trim())
+        .map((line) => line.trim())
         .filter(Boolean)
         .slice(0, 2)
         .join(' ');
@@ -215,7 +221,7 @@ function createToolDisclosure(contentDiv, text, options = {}) {
     const callIndex = Number(options.callIndex);
     const callCount = Number(options.callCount);
     const status = normalizeToolStatus(options.toolStatus);
-    const outputText = options.kind === 'tool-status' ? (text || '') : parsed.body;
+    const outputText = options.kind === 'tool-status' ? text || '' : parsed.body;
     const formattedBody = formatToolOutputBody(outputText);
     const formattedToolCall = formatToolCallText(options.toolCallText);
     const preview = getOutputPreview(formattedBody);
@@ -283,21 +289,28 @@ function createToolDisclosure(contentDiv, text, options = {}) {
     if (formattedToolCall) {
         const call = document.createElement('div');
         call.className = 'tool-call-body';
-        call.innerHTML = transformMarkdown(`\`\`\`json\n${escapeFenceContent(formattedToolCall)}\n\`\`\``);
+        call.innerHTML = transformMarkdown(
+            `\`\`\`json\n${escapeFenceContent(formattedToolCall)}\n\`\`\``
+        );
         body.appendChild(call);
     }
 
     if (hasOutput) {
         const output = document.createElement('div');
         output.className = 'tool-output-body';
-        output.innerHTML = transformMarkdown(`\`\`\`json\n${escapeFenceContent(formattedBody)}\n\`\`\``);
+        output.innerHTML = transformMarkdown(
+            `\`\`\`json\n${escapeFenceContent(formattedBody)}\n\`\`\``
+        );
         body.appendChild(output);
     }
 
     const setExpanded = (nextExpanded) => {
         wrapper.classList.toggle('tool-disclosure-expanded', nextExpanded);
         toggle.setAttribute('aria-expanded', nextExpanded ? 'true' : 'false');
-        toggle.setAttribute('aria-label', nextExpanded ? `Collapse ${displayName}` : `Expand ${displayName}`);
+        toggle.setAttribute(
+            'aria-label',
+            nextExpanded ? `Collapse ${displayName}` : `Expand ${displayName}`
+        );
         body.hidden = !nextExpanded;
     };
 
@@ -316,29 +329,28 @@ export function renderContent(contentDiv, text, role, options = {}) {
     if (role === 'tool-output' || role === 'tool-status') {
         createToolDisclosure(contentDiv, text, {
             ...options,
-            kind: role
+            kind: role,
         });
         return;
     }
 
     // Render Markdown and Math for AI responses
     if (role === 'ai') {
-        
         // Use shared pipeline
         const html = transformMarkdown(text);
         contentDiv.innerHTML = html;
-        
+
         // Render Math (KaTeX Auto-render extension)
         // This processes the specific DOM element after HTML insertion
         if (typeof renderMathInElement !== 'undefined') {
             renderMathInElement(contentDiv, {
                 delimiters: [
-                    {left: '$$', right: '$$', display: true},
-                    {left: '$', right: '$', display: false},
-                    {left: '\\(', right: '\\)', display: false},
-                    {left: '\\[', right: '\\]', display: true}
+                    { left: '$$', right: '$$', display: true },
+                    { left: '$', right: '$', display: false },
+                    { left: '\\(', right: '\\)', display: false },
+                    { left: '\\[', right: '\\]', display: true },
                 ],
-                throwOnError: false
+                throwOnError: false,
             });
         }
     } else {

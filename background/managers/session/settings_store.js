@@ -1,6 +1,5 @@
-
 // background/managers/session/settings_store.js
-import { DEFAULT_CONTEXT_RECENT_TURNS } from '../../../shared/constants.js';
+import { DEFAULT_CONTEXT_RECENT_TURNS } from '../../../shared/config/constants.js';
 
 const OPENAI_WEB_SEARCH_MODES = new Set(['off', 'responses', 'chat']);
 
@@ -13,24 +12,24 @@ function normalizeOpenAISettings(stored) {
     if (!hasUseResponsesSetting && OPENAI_WEB_SEARCH_MODES.has(legacyMode)) {
         return {
             useResponsesApi: legacyMode === 'responses',
-            webSearch: legacyMode === 'responses' || legacyMode === 'chat'
+            webSearch: legacyMode === 'responses' || legacyMode === 'chat',
         };
     }
 
     return {
         useResponsesApi: stored.geminiOpenaiUseResponsesApi === true,
-        webSearch: hasWebSearchSetting ? legacyEnabled : false
+        webSearch: hasWebSearchSetting ? legacyEnabled : false,
     };
 }
 
 export async function getConnectionSettings() {
     const stored = await chrome.storage.local.get([
         'geminiProvider',
-        'geminiUseOfficialApi', 
+        'geminiUseOfficialApi',
         'geminiOfficialBaseUrl',
-        'geminiApiKey', 
+        'geminiApiKey',
         'geminiOfficialModel',
-        'geminiThinkingLevel', 
+        'geminiThinkingLevel',
         'geminiOfficialWebSearch',
         'geminiApiKeyPointer',
         'geminiOpenaiBaseUrl',
@@ -41,7 +40,7 @@ export async function getConnectionSettings() {
         'geminiOpenaiWebSearchMode',
         'geminiOpenaiWebSearch',
         'geminiContextMode',
-        'geminiContextRecentTurns'
+        'geminiContextRecentTurns',
     ]);
 
     // Legacy Migration Logic
@@ -50,26 +49,29 @@ export async function getConnectionSettings() {
         provider = stored.geminiUseOfficialApi === true ? 'official' : 'web';
     }
 
-    let activeApiKey = stored.geminiApiKey || "";
+    let activeApiKey = stored.geminiApiKey || '';
 
     // Handle API Key Rotation (Comma separated) for Official Gemini
     if (provider === 'official' && activeApiKey.includes(',')) {
-        const keys = activeApiKey.split(',').map(k => k.trim()).filter(k => k);
-        
+        const keys = activeApiKey
+            .split(',')
+            .map((k) => k.trim())
+            .filter((k) => k);
+
         if (keys.length > 0) {
             let pointer = stored.geminiApiKeyPointer || 0;
-            
+
             // Reset pointer if out of bounds (e.g. keys removed)
             if (typeof pointer !== 'number' || pointer >= keys.length || pointer < 0) {
                 pointer = 0;
             }
-            
+
             activeApiKey = keys[pointer];
-            
+
             // Advance pointer for next call
             const nextPointer = (pointer + 1) % keys.length;
             await chrome.storage.local.set({ geminiApiKeyPointer: nextPointer });
-            
+
             console.log(`[Gemini Nexus] Rotating Official API Key (Index: ${pointer})`);
         }
     } else {
@@ -82,20 +84,21 @@ export async function getConnectionSettings() {
     return {
         provider: provider,
         // Official
-        officialBaseUrl: stored.geminiOfficialBaseUrl || "https://generativelanguage.googleapis.com/v1beta",
+        officialBaseUrl:
+            stored.geminiOfficialBaseUrl || 'https://generativelanguage.googleapis.com/v1beta',
         apiKey: activeApiKey,
-        officialModel: stored.geminiOfficialModel || "gemini-3-flash-preview, gemini-3-pro-preview",
-        thinkingLevel: stored.geminiThinkingLevel || "low",
+        officialModel: stored.geminiOfficialModel || 'gemini-3-flash-preview, gemini-3-pro-preview',
+        thinkingLevel: stored.geminiThinkingLevel || 'low',
         officialWebSearch: stored.geminiOfficialWebSearch === true,
         // OpenAI
         openaiBaseUrl: stored.geminiOpenaiBaseUrl,
         openaiApiKey: stored.geminiOpenaiApiKey,
         openaiModel: stored.geminiOpenaiModel,
-        openaiThinkingLevel: stored.geminiOpenaiThinkingLevel || "low",
+        openaiThinkingLevel: stored.geminiOpenaiThinkingLevel || 'low',
         openaiUseResponsesApi: openaiSettings.useResponsesApi,
         openaiWebSearch: openaiSettings.webSearch,
         // Context management
-        contextMode: stored.geminiContextMode || "summary",
-        contextRecentTurns: stored.geminiContextRecentTurns || DEFAULT_CONTEXT_RECENT_TURNS
+        contextMode: stored.geminiContextMode || 'summary',
+        contextRecentTurns: stored.geminiContextRecentTurns || DEFAULT_CONTEXT_RECENT_TURNS,
     };
 }

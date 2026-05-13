@@ -33,8 +33,8 @@ This project uses native DOM rendering modules rather than a component framework
 **Example**:
 
 ```javascript
-const bubble = appendMessage(historyDiv, "", "ai", null, "", null, {
-    isStreaming: true
+const bubble = appendMessage(historyDiv, '', 'ai', null, '', null, {
+    isStreaming: true,
 });
 
 bubble.update(nextText, nextThoughts, { isStreaming: true });
@@ -44,6 +44,7 @@ bubble.addImages(images);
 ```
 
 **Contract**:
+
 - `update(text, thoughts, { isStreaming: true })` updates the existing message nodes and must not create duplicate streamed sections.
 - `finalize(text, thoughts)` applies final streamed state such as completed labels, elapsed duration, and auto-collapse behavior.
 - Restored history messages call `appendMessage()` without streaming options and must not briefly enter streaming UI states.
@@ -69,6 +70,7 @@ Use shared CSS files and existing CSS variables. Do not add frontend runtime sty
 **Why**: These behaviors have edge cases that are easy to miss by guessing, especially around user intent. For example, streaming chat should usually maintain a sticky-to-bottom state while the user remains near the bottom, use content-size observation to follow streamed growth, and stop following after the user scrolls away.
 
 **Contract**:
+
 - Prefer official browser APIs and documented patterns first, such as `scrollTo`, `scrollIntoView`, `MutationObserver`, `ResizeObserver`, and `IntersectionObserver`.
 - For app-level behavior, compare at least one mature implementation or library pattern before changing logic.
 - Preserve user intent: automatic following is allowed only while the user has not explicitly moved away from the followed region.
@@ -79,6 +81,7 @@ Use shared CSS files and existing CSS variables. Do not add frontend runtime sty
 **Problem**: Reasoning content is streamed separately from the final answer and should be inspectable without dominating the message.
 
 **Solution**: Render thoughts as a lightweight collapsible block above the AI response:
+
 - Use a native `<button>` trigger with `aria-expanded` and `aria-controls`.
 - Expand automatically while thoughts are streaming.
 - Collapse automatically on final reply and show elapsed seconds when available.
@@ -138,7 +141,7 @@ Use shared CSS files and existing CSS variables. Do not add frontend runtime sty
 - Same tool name appears multiple times in one response -> status/output keys must remain distinct.
 - Restored legacy messages without metadata -> recover `toolName` and `step` from the saved `[Tool Output: ...]` text when possible.
 - Adjacent or malformed fences around consumed tool-call JSON, such as ``````json between calls, -> strip the consumed tool-call sequence from assistant markdown and keep only the final prose visible.
-- Early stream chunks like ```json, ```json followed by `{`, or a partial `{"tool": ...` object -> keep assistant markdown empty only while they remain within the uncertainty budget, instead of flashing a normal JSON code block.
+- Early stream chunks like `json, `json followed by `{`, or a partial `{"tool": ...` object -> keep assistant markdown empty only while they remain within the uncertainty budget, instead of flashing a normal JSON code block.
 - Long ambiguous JSON/code blocks without a confirmed tool protocol shape -> release to assistant markdown so normal long-code streaming is not delayed until generation finishes.
 - Empty or whitespace-only fenced code blocks -> render nothing, not a copy-only code block.
 

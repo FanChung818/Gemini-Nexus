@@ -21,11 +21,8 @@ export class SidePanelScopeManager {
     init() {
         (async () => {
             const [localState, sessionState] = await Promise.all([
-                chrome.storage.local.get([
-                    'geminiSidePanelScope',
-                    'geminiSidePanelEnabledTabs'
-                ]),
-                chrome.storage.session.get(['geminiSidePanelEnabledTabs'])
+                chrome.storage.local.get(['geminiSidePanelScope', 'geminiSidePanelEnabledTabs']),
+                chrome.storage.session.get(['geminiSidePanelEnabledTabs']),
             ]);
 
             const normalizedScope = this.normalizeScope(localState.geminiSidePanelScope);
@@ -52,23 +49,35 @@ export class SidePanelScopeManager {
             if (areaName === 'local' && changes.geminiSidePanelScope) {
                 const normalizedScope = this.normalizeScope(changes.geminiSidePanelScope.newValue);
                 if (changes.geminiSidePanelScope.newValue !== normalizedScope) {
-                    chrome.storage.local.set({ geminiSidePanelScope: normalizedScope }).catch((error) => {
-                        console.warn('[SidePanelScopeManager] Failed to migrate legacy scope:', error);
-                    });
+                    chrome.storage.local
+                        .set({ geminiSidePanelScope: normalizedScope })
+                        .catch((error) => {
+                            console.warn(
+                                '[SidePanelScopeManager] Failed to migrate legacy scope:',
+                                error
+                            );
+                        });
                 }
                 this.scope = normalizedScope;
                 needsRefresh = true;
             }
 
             if (areaName === 'session' && changes.geminiSidePanelEnabledTabs) {
-                this.enabledTabs = this.normalizeEnabledTabs(changes.geminiSidePanelEnabledTabs.newValue);
+                this.enabledTabs = this.normalizeEnabledTabs(
+                    changes.geminiSidePanelEnabledTabs.newValue
+                );
                 needsRefresh = true;
             }
 
             if (needsRefresh) {
                 this.refreshDefaultOptions()
                     .then(() => this.refreshAllTabs())
-                    .catch((error) => console.warn('[SidePanelScopeManager] Failed to refresh scope state:', error));
+                    .catch((error) =>
+                        console.warn(
+                            '[SidePanelScopeManager] Failed to refresh scope state:',
+                            error
+                        )
+                    );
             }
         });
 
@@ -76,7 +85,10 @@ export class SidePanelScopeManager {
             if (this.enabledTabs[tabId]) {
                 delete this.enabledTabs[tabId];
                 this.persistEnabledTabs().catch((error) => {
-                    console.warn('[SidePanelScopeManager] Failed to persist removed tab state:', error);
+                    console.warn(
+                        '[SidePanelScopeManager] Failed to persist removed tab state:',
+                        error
+                    );
                 });
             }
         });
@@ -115,7 +127,7 @@ export class SidePanelScopeManager {
     async refreshDefaultOptions() {
         await chrome.sidePanel.setOptions({
             path: DEFAULT_PANEL_PATH,
-            enabled: this.scope === 'global'
+            enabled: this.scope === 'global',
         });
     }
 
@@ -132,7 +144,7 @@ export class SidePanelScopeManager {
         await chrome.sidePanel.setOptions({
             tabId,
             path: getPanelPathForTab(tabId),
-            enabled
+            enabled,
         });
     }
 
@@ -140,35 +152,42 @@ export class SidePanelScopeManager {
         if (!tabId || !windowId) return;
 
         if (this.scope === 'remembered_tabs') {
-            const disableDefaultPromise = chrome.sidePanel.setOptions({
-                path: DEFAULT_PANEL_PATH,
-                enabled: false
-            }).catch(() => {});
+            const disableDefaultPromise = chrome.sidePanel
+                .setOptions({
+                    path: DEFAULT_PANEL_PATH,
+                    enabled: false,
+                })
+                .catch(() => {});
 
-            const enableTabPromise = chrome.sidePanel.setOptions({
-                tabId,
-                path: getPanelPathForTab(tabId),
-                enabled: true
-            }).catch((error) => {
-                console.warn('[SidePanelScopeManager] Failed to enable remembered side panel:', error);
-            });
-
-            const openPromise = chrome.sidePanel.open({ tabId, windowId });
+            const enableTabPromise = chrome.sidePanel
+                .setOptions({
+                    tabId,
+                    path: getPanelPathForTab(tabId),
+                    enabled: true,
+                })
+                .catch((error) => {
+                    console.warn(
+                        '[SidePanelScopeManager] Failed to enable remembered side panel:',
+                        error
+                    );
+                    throw error;
+                });
 
             if (!this.enabledTabs[tabId]) {
                 this.enabledTabs[tabId] = true;
                 await this.persistEnabledTabs();
             }
 
-            await Promise.all([disableDefaultPromise, enableTabPromise, openPromise]);
+            await Promise.all([disableDefaultPromise, enableTabPromise]);
+            await chrome.sidePanel.open({ tabId, windowId });
         } else {
             const defaultOptionsPromise = Promise.all([
                 this.refreshDefaultOptions(),
                 chrome.sidePanel.setOptions({
                     tabId,
                     path: getPanelPathForTab(tabId),
-                    enabled: true
-                })
+                    enabled: true,
+                }),
             ]);
             const openPromise = chrome.sidePanel.open({ tabId, windowId });
             await Promise.all([defaultOptionsPromise, openPromise]);

@@ -1,4 +1,3 @@
-
 // background/index.js
 import { GeminiSessionManager } from './managers/session_manager.js';
 import { ImageManager } from './managers/image_manager.js';
@@ -16,7 +15,7 @@ const logManager = new LogManager();
 // Setup Console Interception (Captures logs for UI download)
 setupConsoleInterception(logManager);
 
-console.info("[Gemini Nexus] Background Service Worker Started");
+console.info('[Gemini Nexus] Background Service Worker Started');
 
 // Initialize Managers
 const sessionManager = new GeminiSessionManager();
@@ -25,7 +24,7 @@ const controlManager = new BrowserControlManager();
 const sidePanelScopeManager = new SidePanelScopeManager();
 const mcpManager = new McpRemoteManager({
     clientName: 'gemini-nexus',
-    clientVersion: chrome.runtime.getManifest().version
+    clientVersion: chrome.runtime.getManifest().version,
 });
 
 // Setup Sidepanel
@@ -40,7 +39,14 @@ chrome.action.onClicked.addListener((tab) => {
 
 // Initialize Modules
 setupContextMenus(imageManager);
-setupMessageListener(sessionManager, imageManager, controlManager, mcpManager, logManager, sidePanelScopeManager);
+setupMessageListener(
+    sessionManager,
+    imageManager,
+    controlManager,
+    mcpManager,
+    logManager,
+    sidePanelScopeManager
+);
 
 // Initialize Advanced Keep-Alive (Cookie Rotation)
 keepAliveManager.init();

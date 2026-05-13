@@ -5,33 +5,43 @@ import {
     createOfficialModelMessage,
     hasNativeFunctionCalls,
     parseToolCommand,
-    splitToolCallFromText
+    splitToolCallFromText,
 } from './utils.js';
 
 describe('session tool utilities', () => {
     it('parses fenced and trailing raw tool calls from model text', () => {
-        expect(parseToolCommand('Use this:\n```json\n{"tool":"click","args":{"uid":"btn-1"}}\n```')).toEqual({
+        expect(
+            parseToolCommand('Use this:\n```json\n{"tool":"click","args":{"uid":"btn-1"}}\n```')
+        ).toEqual({
             name: 'click',
-            args: { uid: 'btn-1' }
+            args: { uid: 'btn-1' },
         });
 
-        expect(parseToolCommand('Next step:\n{"tool":"fill","args":{"uid":"input-1","value":"hello"}}')).toEqual({
+        expect(
+            parseToolCommand('Next step:\n{"tool":"fill","args":{"uid":"input-1","value":"hello"}}')
+        ).toEqual({
             name: 'fill',
-            args: { uid: 'input-1', value: 'hello' }
+            args: { uid: 'input-1', value: 'hello' },
         });
     });
 
     it('splits only trailing tool calls and preserves user-visible text', () => {
-        expect(splitToolCallFromText('I will click now.\n```json\n{"tool":"click","args":{"uid":"btn-1"}}\n```')).toEqual({
+        expect(
+            splitToolCallFromText(
+                'I will click now.\n```json\n{"tool":"click","args":{"uid":"btn-1"}}\n```'
+            )
+        ).toEqual({
             displayText: 'I will click now.',
             toolCallText: '{"tool":"click","args":{"uid":"btn-1"}}',
-            hasToolCall: true
+            hasToolCall: true,
         });
 
-        expect(splitToolCallFromText('This is not trailing {"tool":"click","args":{}} text')).toEqual({
+        expect(
+            splitToolCallFromText('This is not trailing {"tool":"click","args":{}} text')
+        ).toEqual({
             displayText: 'This is not trailing {"tool":"click","args":{}} text',
             toolCallText: '',
-            hasToolCall: false
+            hasToolCall: false,
         });
     });
 
@@ -39,25 +49,29 @@ describe('session tool utilities', () => {
         expect(hasNativeFunctionCalls({ functionCalls: [{ name: 'take_snapshot' }] })).toBe(true);
         expect(hasNativeFunctionCalls({ functionCalls: [{ name: '   ' }] })).toBe(false);
 
-        expect(createOfficialFunctionResponsePart({
-            id: 'call-1',
-            toolName: 'take_snapshot',
-            output: 'snapshot',
-            status: 'completed'
-        })).toEqual({
+        expect(
+            createOfficialFunctionResponsePart({
+                id: 'call-1',
+                toolName: 'take_snapshot',
+                output: 'snapshot',
+                status: 'completed',
+            })
+        ).toEqual({
             functionResponse: {
                 id: 'call-1',
                 name: 'take_snapshot',
                 response: {
                     output: 'snapshot',
-                    status: 'completed'
-                }
-            }
+                    status: 'completed',
+                },
+            },
         });
 
-        expect(createOfficialFunctionResponseMessage([
-            { toolName: 'take_snapshot', output: 'snapshot' }
-        ])).toEqual({
+        expect(
+            createOfficialFunctionResponseMessage([
+                { toolName: 'take_snapshot', output: 'snapshot' },
+            ])
+        ).toEqual({
             role: 'user',
             text: '',
             officialContent: {
@@ -68,12 +82,12 @@ describe('session tool utilities', () => {
                             name: 'take_snapshot',
                             response: {
                                 output: 'snapshot',
-                                status: 'completed'
-                            }
-                        }
-                    }
-                ]
-            }
+                                status: 'completed',
+                            },
+                        },
+                    },
+                ],
+            },
         });
     });
 
@@ -87,8 +101,8 @@ describe('session tool utilities', () => {
             thoughtSignature: 'signature',
             officialContent: {
                 role: 'model',
-                parts: [{ text: 'Visible answer' }]
-            }
+                parts: [{ text: 'Visible answer' }],
+            },
         };
 
         expect(createOfficialModelMessage(result)).toEqual({
@@ -101,8 +115,8 @@ describe('session tool utilities', () => {
             thoughtSignature: 'signature',
             officialContent: {
                 role: 'model',
-                parts: [{ text: 'Visible answer' }]
-            }
+                parts: [{ text: 'Visible answer' }],
+            },
         });
     });
 });

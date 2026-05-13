@@ -6,7 +6,7 @@ import { transformMarkdown } from './pipeline.js';
 
 function createMarkedStub() {
     const state = {
-        renderer: null
+        renderer: null,
     };
 
     return {
@@ -19,12 +19,12 @@ function createMarkedStub() {
             if (match && state.renderer?.code) {
                 return state.renderer.code({
                     lang: match[1] || '',
-                    text: match[2] || ''
+                    text: match[2] || '',
                 });
             }
             return text || '';
         },
-        state
+        state,
     };
 }
 

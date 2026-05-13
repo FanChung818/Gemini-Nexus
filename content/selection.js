@@ -1,7 +1,6 @@
-
 // content/selection.js
 
-(function() {
+(function () {
     class SelectionObserver {
         constructor(callbacks) {
             this.callbacks = callbacks || {}; // { onSelection, onClear, onClick }
@@ -34,13 +33,13 @@
                 if (text.length > 0) {
                     const range = selection.getRangeAt(0);
                     const rect = range.getBoundingClientRect();
-                    
+
                     if (this.callbacks.onSelection) {
                         this.callbacks.onSelection({
                             text,
                             range,
                             rect,
-                            mousePoint: { x: mouseX, y: mouseY }
+                            mousePoint: { x: mouseX, y: mouseY },
                         });
                     }
                 } else {

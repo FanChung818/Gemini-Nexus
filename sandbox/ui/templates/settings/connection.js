@@ -1,8 +1,7 @@
-
 export const ConnectionSettingsTemplate = `
 <div class="setting-group">
     <h4 data-i18n="connection">Connection</h4>
-    
+
     <div style="margin-bottom: 12px;">
         <label data-i18n="connectionProvider" style="font-weight: 500; display: block; margin-bottom: 6px;">Model Provider</label>
         <select id="provider-select" class="shortcut-input" style="width: 100%; text-align: left; padding: 8px 12px;">
@@ -11,7 +10,7 @@ export const ConnectionSettingsTemplate = `
             <option value="openai" data-i18n="providerOpenAI">OpenAI Compatible API</option>
         </select>
     </div>
-    
+
     <div id="api-key-container" style="display: none; flex-direction: column; gap: 12px; margin-bottom: 12px; padding: 12px; background: rgba(0,0,0,0.03); border-radius: 8px;">
         <!-- Official API Fields -->
         <div id="official-fields" style="display: none; flex-direction: column; gap: 12px;">

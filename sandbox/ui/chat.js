@@ -1,4 +1,3 @@
-
 // ui_chat.js -> sandbox/ui/chat.js
 import { t } from '../core/i18n.js';
 import { copyToClipboard } from '../render/clipboard.js';
@@ -36,28 +35,31 @@ export class ChatController {
                     if (href && /^https?:\/\//i.test(href)) {
                         e.preventDefault();
                         e.stopPropagation();
-                        window.parent.postMessage({
-                            action: 'OPEN_EXTERNAL_URL',
-                            payload: { url: href }
-                        }, '*');
+                        window.parent.postMessage(
+                            {
+                                action: 'OPEN_EXTERNAL_URL',
+                                payload: { url: href },
+                            },
+                            '*'
+                        );
                         return;
                     }
                 }
 
                 const btn = e.target.closest('.copy-code-btn');
                 if (!btn) return;
-                
+
                 const wrapper = btn.closest('.code-block-wrapper');
                 const codeEl = wrapper.querySelector('code');
                 if (!codeEl) return;
-                
+
                 try {
                     await copyToClipboard(codeEl.textContent);
-                    
+
                     // Visual Feedback
                     const originalHtml = btn.innerHTML;
                     btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Copied</span>`;
-                    
+
                     setTimeout(() => {
                         btn.innerHTML = originalHtml;
                     }, 2000);
@@ -68,7 +70,9 @@ export class ChatController {
         }
 
         if (this.historyDiv) {
-            this.historyDiv.addEventListener('scroll', () => this.handleHistoryScroll(), { passive: true });
+            this.historyDiv.addEventListener('scroll', () => this.handleHistoryScroll(), {
+                passive: true,
+            });
             this.initScrollObservers();
         }
     }
@@ -86,9 +90,8 @@ export class ChatController {
     isNearBottom(threshold = 120) {
         if (!this.historyDiv) return null;
 
-        const distanceFromBottom = this.historyDiv.scrollHeight
-            - this.historyDiv.scrollTop
-            - this.historyDiv.clientHeight;
+        const distanceFromBottom =
+            this.historyDiv.scrollHeight - this.historyDiv.scrollTop - this.historyDiv.clientHeight;
 
         return distanceFromBottom <= threshold;
     }
@@ -100,7 +103,7 @@ export class ChatController {
             scrollTop: this.historyDiv.scrollTop,
             scrollHeight: this.historyDiv.scrollHeight,
             clientHeight: this.historyDiv.clientHeight,
-            isNearBottom: this.isNearBottom()
+            isNearBottom: this.isNearBottom(),
         };
     }
 
@@ -122,7 +125,7 @@ export class ChatController {
             mutationObserver.observe(this.historyDiv, {
                 childList: true,
                 subtree: true,
-                characterData: true
+                characterData: true,
             });
         }
 
@@ -152,7 +155,7 @@ export class ChatController {
             if (!this.historyDiv) return;
             this.historyDiv.scrollTo({
                 top: this.historyDiv.scrollHeight,
-                behavior
+                behavior,
             });
         });
     }
@@ -173,7 +176,10 @@ export class ChatController {
             }
 
             this.shouldFollowBottom = false;
-            const maxScrollTop = Math.max(0, this.historyDiv.scrollHeight - this.historyDiv.clientHeight);
+            const maxScrollTop = Math.max(
+                0,
+                this.historyDiv.scrollHeight - this.historyDiv.clientHeight
+            );
             this.historyDiv.scrollTop = Math.min(state.scrollTop, maxScrollTop);
         }, 50);
     }
@@ -192,7 +198,7 @@ export class ChatController {
                 if (lastMsg) {
                     this.historyDiv.scrollTo({
                         top: lastMsg.offsetTop - 20,
-                        behavior: 'smooth'
+                        behavior: 'smooth',
                     });
                 } else {
                     this.historyDiv.scrollTop = this.historyDiv.scrollHeight;
@@ -217,23 +223,25 @@ export class ChatController {
 
     setLoading(isLoading) {
         // Toggle button between Send and Stop
-        if(isLoading) {
-            this.updateStatus(""); // Clear status text, only show spinner
+        if (isLoading) {
+            this.updateStatus(''); // Clear status text, only show spinner
             if (this.statusDiv) this.statusDiv.classList.add('thinking');
 
             if (this.sendBtn) {
                 // Stop Icon (Square)
-                this.sendBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="7" y="7" width="10" height="10" rx="1"/></svg>';
+                this.sendBtn.innerHTML =
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="7" y="7" width="10" height="10" rx="1"/></svg>';
                 this.sendBtn.title = t('stopGenerating');
                 this.sendBtn.classList.add('generating');
             }
         } else {
-            this.updateStatus("");
+            this.updateStatus('');
             if (this.statusDiv) this.statusDiv.classList.remove('thinking');
 
             if (this.sendBtn) {
                 // Send Icon (Paper plane)
-                this.sendBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>';
+                this.sendBtn.innerHTML =
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>';
                 this.sendBtn.title = t('sendMessage');
                 this.sendBtn.disabled = false;
                 this.sendBtn.classList.remove('generating');

@@ -4,7 +4,6 @@ import { handleFillElement } from './keyboard/fill.js';
 import { handlePressKey } from './keyboard/press.js';
 
 export class KeyboardActions extends BaseActionHandler {
-    
     async fillElement(args) {
         return handleFillElement(this, args);
     }

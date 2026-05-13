@@ -1,4 +1,3 @@
-
 // background/control/wait_helper.js
 
 /**
@@ -29,7 +28,7 @@ export class WaitForHelper {
             // Time to wait for a navigation to potentially start after an action
             expectNavigationIn: 500 * cpu,
             // Max time to wait for navigation to complete
-            navigation: 15000 * network 
+            navigation: 15000 * network,
         };
     }
 
@@ -42,12 +41,12 @@ export class WaitForHelper {
         if (!this.connection.attached) {
             await actionFn();
             // Wait a bit for potential navigation to start/process since we can't track it precisely via CDP
-            await new Promise(r => setTimeout(r, 1000));
+            await new Promise((r) => setTimeout(r, 1000));
             return;
         }
 
         // Enable Page domain to receive navigation events
-        await this.connection.sendCommand("Page.enable").catch(() => {});
+        await this.connection.sendCommand('Page.enable').catch(() => {});
 
         // 1. Setup Navigation Listener (Race Condition Handling)
         // We start listening BEFORE the action to catch immediate transitions
@@ -64,9 +63,8 @@ export class WaitForHelper {
             if (navStarted) {
                 await this._waitForLoadEvent();
             }
-
         } catch (e) {
-            console.error("Error during action execution/waiting:", e);
+            console.error('Error during action execution/waiting:', e);
             throw e;
         }
 
@@ -75,11 +73,14 @@ export class WaitForHelper {
     }
 
     _waitForNavigationStart() {
-        return new Promise(resolve => {
+        return new Promise((resolve) => {
             let timer = null;
-            
+
             const listener = (method, params) => {
-                if (method === 'Page.frameStartedNavigating' || method === 'Page.navigatedWithinDocument') {
+                if (
+                    method === 'Page.frameStartedNavigating' ||
+                    method === 'Page.navigatedWithinDocument'
+                ) {
                     cleanup();
                     resolve(true);
                 }
@@ -101,9 +102,9 @@ export class WaitForHelper {
     }
 
     _waitForLoadEvent() {
-        return new Promise(resolve => {
+        return new Promise((resolve) => {
             let timer = null;
-            
+
             const listener = (method, params) => {
                 // Wait for load event (lifecycle complete)
                 if (method === 'Page.loadEventFired') {
@@ -139,7 +140,7 @@ export class WaitForHelper {
         const tStable = stabilityDuration || this.timeouts.stableDomFor;
 
         try {
-            await this.connection.sendCommand("Runtime.evaluate", {
+            await this.connection.sendCommand('Runtime.evaluate', {
                 expression: `
                     (async () => {
                         const startTime = Date.now();
@@ -149,17 +150,17 @@ export class WaitForHelper {
                             if (Date.now() - startTime > ${tMax}) return false;
                             await new Promise(r => setTimeout(r, 100));
                         }
-                        
+
                         // 2. Wait for stability
                         return await new Promise((resolve) => {
                             let timer = null;
-                            
+
                             const observer = new MutationObserver(() => {
                                 // Mutation detected, reset timer
                                 if (timer) clearTimeout(timer);
                                 timer = setTimeout(done, ${tStable});
                             });
-                            
+
                             function done() {
                                 observer.disconnect();
                                 resolve(true);
@@ -171,21 +172,21 @@ export class WaitForHelper {
                                 childList: true,
                                 subtree: true
                             });
-                            
+
                             // Initial timer (resolve if no mutations happen immediately)
                             timer = setTimeout(done, ${tStable});
-                            
+
                             // Max safety timeout (deduct time spent waiting for body)
                             const remaining = Math.max(100, ${tMax} - (Date.now() - startTime));
                             setTimeout(() => {
                                 observer.disconnect();
-                                resolve(false); 
+                                resolve(false);
                             }, remaining);
                         });
                     })()
                 `,
                 awaitPromise: true,
-                returnByValue: true
+                returnByValue: true,
             });
         } catch (e) {
             // Ignore errors if runtime context is gone (e.g. page closed or navigated away mid-script)

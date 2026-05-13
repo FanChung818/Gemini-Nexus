@@ -1,4 +1,3 @@
-
 // background/control/actions/input.js
 import { BaseActionHandler } from './base.js';
 import { MouseActions } from './input/mouse.js';
@@ -13,12 +12,20 @@ export class InputActions extends BaseActionHandler {
         this.file = new FileActions(connection, snapshotManager, waitHelper);
     }
 
-    async clickElement(args) { return this.mouse.clickElement(args); }
-    async dragElement(args) { return this.mouse.dragElement(args); }
-    async hoverElement(args) { return this.mouse.hoverElement(args); }
-    
-    async fillElement(args) { return this.keyboard.fillElement(args); }
-    
+    async clickElement(args) {
+        return this.mouse.clickElement(args);
+    }
+    async dragElement(args) {
+        return this.mouse.dragElement(args);
+    }
+    async hoverElement(args) {
+        return this.mouse.hoverElement(args);
+    }
+
+    async fillElement(args) {
+        return this.keyboard.fillElement(args);
+    }
+
     async fillForm({ elements }) {
         if (!elements || !Array.isArray(elements)) {
             return "Error: 'elements' array is required for fill_form.";
@@ -43,15 +50,19 @@ export class InputActions extends BaseActionHandler {
         return `Form filled:\n${results.join('\n')}`;
     }
 
-    async pressKey(args) { return this.keyboard.pressKey(args); }
-    
-    async attachFile(args) { return this.file.attachFile(args); }
+    async pressKey(args) {
+        return this.keyboard.pressKey(args);
+    }
+
+    async attachFile(args) {
+        return this.file.attachFile(args);
+    }
 
     async handleDialog({ accept = true, promptText }) {
         try {
-            await this.cmd("Page.handleJavaScriptDialog", {
+            await this.cmd('Page.handleJavaScriptDialog', {
                 accept: accept,
-                promptText: promptText
+                promptText: promptText,
             });
             return `Dialog handled (accept: ${accept}).`;
         } catch (e) {

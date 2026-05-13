@@ -1,6 +1,5 @@
-
 // sandbox/ui/settings/sections/general.js
-import { DEFAULT_CONTEXT_RECENT_TURNS } from '../../../../shared/constants.js';
+import { DEFAULT_CONTEXT_RECENT_TURNS } from '../../../../shared/config/constants.js';
 
 export class GeneralSection {
     constructor(callbacks) {
@@ -19,28 +18,33 @@ export class GeneralSection {
             contextModeSelect: get('context-mode-select'),
             contextRecentTurnsInput: get('context-recent-turns-input'),
             sidebarRadios: document.querySelectorAll('input[name="sidebar-behavior"]'),
-            sidePanelScopeRadios: document.querySelectorAll('input[name="sidepanel-scope"]')
+            sidePanelScopeRadios: document.querySelectorAll('input[name="sidepanel-scope"]'),
         };
     }
 
     bindEvents() {
-        const { textSelectionToggle, imageToolsToggle, sidebarRadios, sidePanelScopeRadios } = this.elements;
+        const { textSelectionToggle, imageToolsToggle, sidebarRadios, sidePanelScopeRadios } =
+            this.elements;
 
         if (textSelectionToggle) {
-            textSelectionToggle.addEventListener('change', (e) => this.fire('onTextSelectionChange', e.target.checked));
+            textSelectionToggle.addEventListener('change', (e) =>
+                this.fire('onTextSelectionChange', e.target.checked)
+            );
         }
         if (imageToolsToggle) {
-            imageToolsToggle.addEventListener('change', (e) => this.fire('onImageToolsChange', e.target.checked));
+            imageToolsToggle.addEventListener('change', (e) =>
+                this.fire('onImageToolsChange', e.target.checked)
+            );
         }
         if (sidebarRadios) {
-            sidebarRadios.forEach(radio => {
+            sidebarRadios.forEach((radio) => {
                 radio.addEventListener('change', (e) => {
-                    if(e.target.checked) this.fire('onSidebarBehaviorChange', e.target.value);
+                    if (e.target.checked) this.fire('onSidebarBehaviorChange', e.target.value);
                 });
             });
         }
         if (sidePanelScopeRadios) {
-            sidePanelScopeRadios.forEach(radio => {
+            sidePanelScopeRadios.forEach((radio) => {
                 radio.addEventListener('change', (e) => {
                     if (e.target.checked) this.fire('onSidePanelScopeChange', e.target.value);
                 });
@@ -49,29 +53,32 @@ export class GeneralSection {
     }
 
     setToggles(textSelection, imageTools) {
-        if (this.elements.textSelectionToggle) this.elements.textSelectionToggle.checked = textSelection;
+        if (this.elements.textSelectionToggle)
+            this.elements.textSelectionToggle.checked = textSelection;
         if (this.elements.imageToolsToggle) this.elements.imageToolsToggle.checked = imageTools;
     }
 
     setAccountIndices(val) {
-        if (this.elements.accountIndicesInput) this.elements.accountIndicesInput.value = val || "0";
+        if (this.elements.accountIndicesInput) this.elements.accountIndicesInput.value = val || '0';
     }
 
     setSidebarBehavior(behavior) {
         if (this.elements.sidebarRadios) {
             const val = behavior || 'auto';
-            this.elements.sidebarRadios.forEach(radio => {
-                radio.checked = (radio.value === val);
+            this.elements.sidebarRadios.forEach((radio) => {
+                radio.checked = radio.value === val;
             });
         }
     }
 
     setSidePanelScope(scope) {
         if (this.elements.sidePanelScopeRadios) {
-            const availableValues = new Set(Array.from(this.elements.sidePanelScopeRadios).map(radio => radio.value));
+            const availableValues = new Set(
+                Array.from(this.elements.sidePanelScopeRadios).map((radio) => radio.value)
+            );
             const val = availableValues.has(scope) ? scope : 'remembered_tabs';
-            this.elements.sidePanelScopeRadios.forEach(radio => {
-                radio.checked = (radio.value === val);
+            this.elements.sidePanelScopeRadios.forEach((radio) => {
+                radio.checked = radio.value === val;
             });
         }
     }
@@ -84,22 +91,37 @@ export class GeneralSection {
             this.elements.contextModeSelect.value = mode;
         }
         if (this.elements.contextRecentTurnsInput) {
-            this.elements.contextRecentTurnsInput.value = Number.isFinite(recentTurns) ? recentTurns : DEFAULT_CONTEXT_RECENT_TURNS;
+            this.elements.contextRecentTurnsInput.value = Number.isFinite(recentTurns)
+                ? recentTurns
+                : DEFAULT_CONTEXT_RECENT_TURNS;
         }
     }
 
     getData() {
-        const { textSelectionToggle, imageToolsToggle, accountIndicesInput, contextModeSelect, contextRecentTurnsInput, sidebarRadios, sidePanelScopeRadios } = this.elements;
-        const selectedSidebarBehavior = Array.from(sidebarRadios || []).find(radio => radio.checked)?.value || 'auto';
-        const selectedScope = Array.from(sidePanelScopeRadios || []).find(radio => radio.checked)?.value || 'remembered_tabs';
+        const {
+            textSelectionToggle,
+            imageToolsToggle,
+            accountIndicesInput,
+            contextModeSelect,
+            contextRecentTurnsInput,
+            sidebarRadios,
+            sidePanelScopeRadios,
+        } = this.elements;
+        const selectedSidebarBehavior =
+            Array.from(sidebarRadios || []).find((radio) => radio.checked)?.value || 'auto';
+        const selectedScope =
+            Array.from(sidePanelScopeRadios || []).find((radio) => radio.checked)?.value ||
+            'remembered_tabs';
         return {
             textSelection: textSelectionToggle ? textSelectionToggle.checked : true,
             imageTools: imageToolsToggle ? imageToolsToggle.checked : true,
-            accountIndices: accountIndicesInput ? accountIndicesInput.value : "0",
+            accountIndices: accountIndicesInput ? accountIndicesInput.value : '0',
             sidebarBehavior: selectedSidebarBehavior,
             sidePanelScope: selectedScope,
             contextMode: contextModeSelect ? contextModeSelect.value : 'summary',
-            contextRecentTurns: contextRecentTurnsInput ? contextRecentTurnsInput.value : DEFAULT_CONTEXT_RECENT_TURNS
+            contextRecentTurns: contextRecentTurnsInput
+                ? contextRecentTurnsInput.value
+                : DEFAULT_CONTEXT_RECENT_TURNS,
         };
     }
 

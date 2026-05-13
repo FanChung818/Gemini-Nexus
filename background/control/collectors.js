@@ -1,10 +1,9 @@
-
 // background/control/collectors.js
 
 export class NetworkCollector {
     constructor() {
         this.requests = new Map();
-        this.maxItems = 300; 
+        this.maxItems = 300;
     }
 
     onEvent(method, params) {
@@ -19,7 +18,7 @@ export class NetworkCollector {
                 type: type,
                 status: 'pending',
                 startTime: timestamp,
-                completed: false
+                completed: false,
             });
             this._prune();
         } else if (method === 'Network.responseReceived') {
@@ -49,7 +48,7 @@ export class NetworkCollector {
     // Called when Main Frame navigates
     onNavigation() {
         this.requests.clear();
-        console.log("[NetworkCollector] Cleared requests due to navigation");
+        console.log('[NetworkCollector] Cleared requests due to navigation');
     }
 
     _prune() {
@@ -71,8 +70,8 @@ export class NetworkCollector {
     getList(resourceTypes, limit = 50) {
         let items = Array.from(this.requests.values());
         if (resourceTypes && Array.isArray(resourceTypes) && resourceTypes.length > 0) {
-            const allowed = resourceTypes.map(t => t.toLowerCase());
-            items = items.filter(r => r.type && allowed.includes(r.type.toLowerCase()));
+            const allowed = resourceTypes.map((t) => t.toLowerCase());
+            items = items.filter((r) => r.type && allowed.includes(r.type.toLowerCase()));
         }
         return items.slice(-limit).reverse();
     }
@@ -94,22 +93,22 @@ export class LogCollector {
             this._add({
                 type: entry.level,
                 text: entry.text,
-                source: entry.source
+                source: entry.source,
             });
         } else if (method === 'Runtime.consoleAPICalled') {
             const { type, args } = params;
-            const text = args.map(a => a.value || a.description || '[Object]').join(' ');
+            const text = args.map((a) => a.value || a.description || '[Object]').join(' ');
             this._add({
                 type: type,
                 text: text,
-                source: 'console'
+                source: 'console',
             });
         } else if (method === 'Runtime.exceptionThrown') {
             const { exceptionDetails } = params;
             this._add({
                 type: 'error',
                 text: exceptionDetails.text,
-                source: 'runtime'
+                source: 'runtime',
             });
         }
     }
@@ -127,7 +126,7 @@ export class LogCollector {
     }
 
     getFormatted() {
-        return this.logs.map(l => `[${l.type.toUpperCase()}] ${l.source}: ${l.text}`).join('\n');
+        return this.logs.map((l) => `[${l.type.toUpperCase()}] ${l.source}: ${l.text}`).join('\n');
     }
 }
 
@@ -140,7 +139,7 @@ export class DialogCollector {
         if (method === 'Page.javascriptDialogOpening') {
             this.activeDialog = {
                 type: params.type,
-                message: params.message
+                message: params.message,
             };
         } else if (method === 'Page.javascriptDialogClosed') {
             this.activeDialog = null;
@@ -177,7 +176,11 @@ export class CollectorManager {
         if (method.startsWith('Network.')) {
             this.network.onEvent(method, params);
         }
-        if (method.startsWith('Log.') || method.startsWith('Runtime.') || method.startsWith('Audits.')) {
+        if (
+            method.startsWith('Log.') ||
+            method.startsWith('Runtime.') ||
+            method.startsWith('Audits.')
+        ) {
             this.logs.onEvent(method, params);
         }
         if (method.startsWith('Page.javascriptDialog')) {

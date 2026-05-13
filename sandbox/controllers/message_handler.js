@@ -1,13 +1,9 @@
-
 // sandbox/controllers/message_handler.js
 import { appendContextCompressionNotice, appendMessage } from '../render/message.js';
-import { cropImage } from '../../shared/crop_utils.js';
-import {
-    isToolCallOnlyText,
-    splitToolCallFromText
-} from '../../shared/tool_call_text.js';
+import { cropImage } from '../../shared/dom/crop_utils.js';
+import { isToolCallOnlyText, splitToolCallFromText } from '../../shared/text/tool_call_text.js';
 import { t } from '../core/i18n.js';
-import { WatermarkRemover } from '../../shared/watermark_remover.js';
+import { WatermarkRemover } from '../../shared/media/watermark_remover.js';
 
 function hasDisplayableThoughts(thoughts) {
     return typeof thoughts === 'string' ? thoughts.trim().length > 0 : Boolean(thoughts);
@@ -31,84 +27,92 @@ export class MessageHandler {
 
     async handle(request) {
         // MCP server test result
-        if (request.action === "MCP_TEST_RESULT") {
-            if (this.ui && this.ui.settings && typeof this.ui.settings.updateMcpTestResult === 'function') {
+        if (request.action === 'MCP_TEST_RESULT') {
+            if (
+                this.ui &&
+                this.ui.settings &&
+                typeof this.ui.settings.updateMcpTestResult === 'function'
+            ) {
                 this.ui.settings.updateMcpTestResult(request);
             }
             return;
         }
 
-        if (request.action === "MCP_TOOLS_RESULT") {
-            if (this.ui && this.ui.settings && typeof this.ui.settings.updateMcpToolsResult === 'function') {
+        if (request.action === 'MCP_TOOLS_RESULT') {
+            if (
+                this.ui &&
+                this.ui.settings &&
+                typeof this.ui.settings.updateMcpToolsResult === 'function'
+            ) {
                 this.ui.settings.updateMcpToolsResult(request);
             }
             return;
         }
 
         // 0. Stream Update
-        if (request.action === "GEMINI_STREAM_UPDATE") {
+        if (request.action === 'GEMINI_STREAM_UPDATE') {
             this.handleStreamUpdate(request);
             return;
         }
 
-        if (request.action === "GEMINI_CONTEXT_STATUS") {
+        if (request.action === 'GEMINI_CONTEXT_STATUS') {
             this.handleContextStatus(request);
             return;
         }
 
         // 1. AI Reply
-        if (request.action === "GEMINI_REPLY") {
+        if (request.action === 'GEMINI_REPLY') {
             this.handleGeminiReply(request);
             return;
         }
 
-        if (request.action === "TOOL_OUTPUT_MESSAGE") {
+        if (request.action === 'TOOL_OUTPUT_MESSAGE') {
             this.handleToolOutputMessage(request);
             return;
         }
 
-        if (request.action === "TOOL_CALL_STATUS_MESSAGE") {
+        if (request.action === 'TOOL_CALL_STATUS_MESSAGE') {
             this.handleToolCallStatusMessage(request);
             return;
         }
 
         // 2. Image Fetch Result (For User Uploads)
-        if (request.action === "FETCH_IMAGE_RESULT") {
+        if (request.action === 'FETCH_IMAGE_RESULT') {
             this.handleImageResult(request);
             return;
         }
 
         // 2.1 Generated Image Result (Proxy Fetch for Display)
-        if (request.action === "GENERATED_IMAGE_RESULT") {
+        if (request.action === 'GENERATED_IMAGE_RESULT') {
             await this.handleGeneratedImageResult(request);
             return;
         }
 
         // 3. Capture Result (Crop & OCR)
-        if (request.action === "CROP_SCREENSHOT") {
+        if (request.action === 'CROP_SCREENSHOT') {
             await this.handleCropResult(request);
             return;
         }
 
         // 4. Mode Sync (from Context Menu)
-        if (request.action === "SET_SIDEBAR_CAPTURE_MODE") {
+        if (request.action === 'SET_SIDEBAR_CAPTURE_MODE') {
             this.app.setCaptureMode(request.mode);
             let statusText = t('selectSnip');
             if (request.mode === 'ocr') statusText = t('selectOcr');
             if (request.mode === 'screenshot_translate') statusText = t('selectTranslate');
-            
+
             this.ui.updateStatus(statusText);
             return;
         }
 
         // 5. Quote Selection Result
-        if (request.action === "SELECTION_RESULT") {
+        if (request.action === 'SELECTION_RESULT') {
             this.handleSelectionResult(request);
             return;
         }
 
         // 6. Page Context Toggle (from Context Menu)
-        if (request.action === "TOGGLE_PAGE_CONTEXT") {
+        if (request.action === 'TOGGLE_PAGE_CONTEXT') {
             this.app.setPageContext(request.enable);
             return;
         }
@@ -134,16 +138,18 @@ export class MessageHandler {
         const lastMessage = session.messages[session.messages.length - 1];
         if (!lastMessage || lastMessage.role !== 'ai') return false;
 
-        const expectedText = request.text || "";
-        const actualText = lastMessage.text || "";
+        const expectedText = request.text || '';
+        const actualText = lastMessage.text || '';
         const textMatches = expectedText
             ? actualText === expectedText || actualText.startsWith(expectedText)
             : actualText.length > 0;
         if (!textMatches) return false;
 
         if (request.thoughts) {
-            const actualThoughts = lastMessage.thoughts || "";
-            return actualThoughts === request.thoughts || actualThoughts.startsWith(request.thoughts);
+            const actualThoughts = lastMessage.thoughts || '';
+            return (
+                actualThoughts === request.thoughts || actualThoughts.startsWith(request.thoughts)
+            );
         }
 
         return true;
@@ -158,7 +164,8 @@ export class MessageHandler {
         if (!session || !session.id) return false;
         const renderedCount = this.storageRenderedMessageCounts.get(session.id);
         if (!Number.isInteger(renderedCount)) return false;
-        if (!Array.isArray(session.messages) || renderedCount < session.messages.length) return false;
+        if (!Array.isArray(session.messages) || renderedCount < session.messages.length)
+            return false;
         return this.hasPersistedAiReply(session, request);
     }
 
@@ -173,11 +180,11 @@ export class MessageHandler {
         const previous = this.streamStates.get(sessionId) || {};
         const next = {
             ...previous,
-            sessionId
+            sessionId,
         };
 
         if (request.text !== undefined) {
-            const rawText = request.text || "";
+            const rawText = request.text || '';
             const split = splitToolCallFromText(rawText, { allowPartial: true });
             next.rawText = rawText;
             next.text = split.displayText;
@@ -186,14 +193,14 @@ export class MessageHandler {
             }
         }
         if (request.thoughts !== undefined) {
-            next.thoughts = request.thoughts || "";
+            next.thoughts = request.thoughts || '';
         }
         if (hasDisplayableThoughts(next.thoughts)) {
             if (!Number.isFinite(next.thoughtsStartedAt)) {
                 const elapsedSeconds = Number.isFinite(next.thoughtsElapsedSeconds)
                     ? next.thoughtsElapsedSeconds
                     : 0;
-                next.thoughtsStartedAt = Date.now() - (elapsedSeconds * 1000);
+                next.thoughtsStartedAt = Date.now() - elapsedSeconds * 1000;
             }
             next.thoughtsElapsedSeconds = Math.max(0, (Date.now() - next.thoughtsStartedAt) / 1000);
         }
@@ -214,16 +221,16 @@ export class MessageHandler {
     }
 
     createStreamingBubble(state = {}) {
-        const bubble = appendMessage(this.ui.historyDiv, "", 'ai', null, "", null, {
+        const bubble = appendMessage(this.ui.historyDiv, '', 'ai', null, '', null, {
             isStreaming: true,
             thoughtsStartedAt: state.thoughtsStartedAt,
-            thoughtsElapsedSeconds: state.thoughtsElapsedSeconds
+            thoughtsElapsedSeconds: state.thoughtsElapsedSeconds,
         });
 
-        bubble.update(state.text || "", state.thoughts || "", {
+        bubble.update(state.text || '', state.thoughts || '', {
             isStreaming: true,
             thoughtsStartedAt: state.thoughtsStartedAt,
-            thoughtsElapsedSeconds: state.thoughtsElapsedSeconds
+            thoughtsElapsedSeconds: state.thoughtsElapsedSeconds,
         });
         this.streamingBubble = bubble;
     }
@@ -231,7 +238,7 @@ export class MessageHandler {
     handleStreamUpdate(request) {
         if (!this.isGeneratingSessionMessage(request)) return;
         const state = this.cacheStreamState(request);
-        const displayText = state?.text || "";
+        const displayText = state?.text || '';
 
         // Prevent race condition: Ignore stream updates arriving shortly after user cancelled
         if (this.app.prompt.isCancellationRecent()) {
@@ -245,10 +252,10 @@ export class MessageHandler {
         if (!this.streamingBubble) {
             this.createStreamingBubble(state);
         }
-        
+
         // Update content if text or thoughts exist
         this.streamingBubble.update(displayText, request.thoughts, { isStreaming: true });
-        
+
         // Ensure UI state reflects generation
         if (!this.app.isGenerating) {
             this.app.isGenerating = true;
@@ -260,7 +267,7 @@ export class MessageHandler {
         if (!this.isGeneratingSessionMessage(request)) return;
         const state = this.cacheStreamState({
             ...request,
-            contextState: request.state === 'compressing' ? request.state : null
+            contextState: request.state === 'compressing' ? request.state : null,
         });
         if (!this.isCurrentSessionMessage(request)) return;
 
@@ -304,7 +311,7 @@ export class MessageHandler {
             this.resetStream();
             return;
         }
-        
+
         const session = this.sessionManager.getCurrentSession();
         if (session) {
             // Note: We do NOT save to sessionManager/storage here anymore.
@@ -322,9 +329,9 @@ export class MessageHandler {
             if (this.streamingBubble) {
                 // Finalize the streaming bubble with complete text and thoughts
                 this.streamingBubble.finalize(request.text, request.thoughts, {
-                    thoughtsDurationSeconds: request.thoughtsDurationSeconds
+                    thoughtsDurationSeconds: request.thoughtsDurationSeconds,
                 });
-                
+
                 // Inject images if any
                 if (request.images && request.images.length > 0) {
                     this.streamingBubble.addImages(request.images);
@@ -333,11 +340,11 @@ export class MessageHandler {
                 if (request.sources && request.sources.length > 0) {
                     this.streamingBubble.addSources(request.sources);
                 }
-                
+
                 if (request.status !== 'success') {
                     // Optionally style error
                 }
-                
+
                 // Clear reference
                 this.streamingBubble = null;
             } else {
@@ -345,10 +352,18 @@ export class MessageHandler {
                 if (this.hasStorageRenderedAiReply(session, request)) {
                     return;
                 }
-                appendMessage(this.ui.historyDiv, request.text, 'ai', request.images, request.thoughts, request.sources, {
-                    isFinal: true,
-                    thoughtsDurationSeconds: request.thoughtsDurationSeconds
-                });
+                appendMessage(
+                    this.ui.historyDiv,
+                    request.text,
+                    'ai',
+                    request.images,
+                    request.thoughts,
+                    request.sources,
+                    {
+                        isFinal: true,
+                        thoughtsDurationSeconds: request.thoughtsDurationSeconds,
+                    }
+                );
             }
         }
     }
@@ -366,7 +381,7 @@ export class MessageHandler {
         this.finalizeActiveStream({
             text: this.getStreamRawText(sessionId) || request.toolCallText,
             thoughts: this.getStreamThoughts(sessionId),
-            clearToolCallJson: true
+            clearToolCallJson: true,
         });
         this.clearStreamState(sessionId);
 
@@ -390,7 +405,7 @@ export class MessageHandler {
                 toolCallText,
                 toolStep: request.step,
                 toolCallIndex: request.callIndex,
-                toolCallCount: request.callCount
+                toolCallCount: request.callCount,
             });
             session.timestamp = Date.now();
             this.app.sessionFlow.refreshHistoryUI();
@@ -411,7 +426,7 @@ export class MessageHandler {
                 step: request.step,
                 callIndex: request.callIndex,
                 callCount: request.callCount,
-                toolOutputKey: renderedKey
+                toolOutputKey: renderedKey,
             }
         );
         this.ui.scrollToBottom();
@@ -426,7 +441,7 @@ export class MessageHandler {
         this.finalizeActiveStream({
             text: this.getStreamRawText(sessionId) || request.toolCallText,
             thoughts: this.getStreamThoughts(sessionId),
-            clearToolCallJson: true
+            clearToolCallJson: true,
         });
         this.clearStreamState(sessionId);
 
@@ -438,7 +453,7 @@ export class MessageHandler {
                 toolCallText,
                 callIndex: request.callIndex,
                 callCount: request.callCount,
-                isCollapsed: true
+                isCollapsed: true,
             });
             this.ui.scrollToBottom();
             return;
@@ -459,7 +474,7 @@ export class MessageHandler {
                 callIndex: request.callIndex,
                 callCount: request.callCount,
                 toolStatusKey: statusKey,
-                isCollapsed: true
+                isCollapsed: true,
             }
         );
 
@@ -471,15 +486,19 @@ export class MessageHandler {
         if (!this.streamingBubble) return;
         let finalText;
         if (state.clearToolCallJson) {
-            const split = splitToolCallFromText(state.text || "", { allowPartial: true });
+            const split = splitToolCallFromText(state.text || '', { allowPartial: true });
             if (split.hasToolCall) {
                 finalText = split.displayText;
             } else if (isToolCallOnlyText(state.text, { allowPartial: true })) {
-                finalText = "";
+                finalText = '';
             }
-            finalText = finalText || "";
+            finalText = finalText || '';
         }
-        if (state.clearToolCallJson && !hasDisplayableText(finalText) && !hasDisplayableThoughts(state.thoughts)) {
+        if (
+            state.clearToolCallJson &&
+            !hasDisplayableText(finalText) &&
+            !hasDisplayableThoughts(state.thoughts)
+        ) {
             if (typeof this.streamingBubble.dispose === 'function') {
                 this.streamingBubble.dispose();
             }
@@ -490,8 +509,11 @@ export class MessageHandler {
             return;
         }
         if (typeof this.streamingBubble.finalize === 'function') {
-            this.streamingBubble.finalize(finalText, undefined, {
-                suppressCopy: state.clearToolCallJson === true
+            const finalThoughts = hasDisplayableThoughts(state.thoughts)
+                ? state.thoughts
+                : undefined;
+            this.streamingBubble.finalize(finalText, finalThoughts, {
+                suppressCopy: state.clearToolCallJson === true,
             });
         } else if (typeof this.streamingBubble.dispose === 'function') {
             this.streamingBubble.dispose();
@@ -500,29 +522,31 @@ export class MessageHandler {
     }
 
     getStreamToolCallText(sessionId) {
-        if (!sessionId) return "";
+        if (!sessionId) return '';
         const state = this.streamStates.get(sessionId);
         if (typeof state?.toolCallText === 'string' && state.toolCallText.trim()) {
             return state.toolCallText;
         }
-        const split = splitToolCallFromText(state?.rawText || state?.text || "", { allowPartial: true });
+        const split = splitToolCallFromText(state?.rawText || state?.text || '', {
+            allowPartial: true,
+        });
         return split.toolCallText;
     }
 
     getStreamRawText(sessionId) {
-        if (!sessionId) return "";
+        if (!sessionId) return '';
         const state = this.streamStates.get(sessionId);
-        return typeof state?.rawText === 'string' ? state.rawText : (state?.text || "");
+        return typeof state?.rawText === 'string' ? state.rawText : state?.text || '';
     }
 
     getStreamThoughts(sessionId) {
-        if (!sessionId) return "";
+        if (!sessionId) return '';
         const state = this.streamStates.get(sessionId);
-        return typeof state?.thoughts === 'string' ? state.thoughts : "";
+        return typeof state?.thoughts === 'string' ? state.thoughts : '';
     }
 
     getRequestToolCallText(request, sessionId) {
-        const requestText = typeof request?.toolCallText === 'string' ? request.toolCallText : "";
+        const requestText = typeof request?.toolCallText === 'string' ? request.toolCallText : '';
         const split = splitToolCallFromText(requestText, { allowPartial: true });
         if (split.hasToolCall) return split.toolCallText;
         if (isToolCallOnlyText(requestText, { allowPartial: true })) return requestText.trim();
@@ -543,23 +567,25 @@ export class MessageHandler {
             request.toolName || '',
             Number.isFinite(request.step) ? request.step : '',
             Number.isFinite(request.callIndex) ? request.callIndex : '',
-            request.text || ''
+            request.text || '',
         ].join('|');
     }
 
     hasRenderedToolOutput(key) {
         if (!key || !this.ui || !this.ui.historyDiv) return false;
-        return Array.from(this.ui.historyDiv.querySelectorAll('[data-tool-output-key]'))
-            .some(element => element.dataset.toolOutputKey === key);
+        return Array.from(this.ui.historyDiv.querySelectorAll('[data-tool-output-key]')).some(
+            (element) => element.dataset.toolOutputKey === key
+        );
     }
 
     getToolStatusKey(request) {
         if (!request) return '';
-        const parts = [
-            request.sessionId || '',
-            request.toolName || ''
-        ];
-        if (Number.isFinite(request.callIndex) && Number.isFinite(request.callCount) && request.callCount > 1) {
+        const parts = [request.sessionId || '', request.toolName || ''];
+        if (
+            Number.isFinite(request.callIndex) &&
+            Number.isFinite(request.callCount) &&
+            request.callCount > 1
+        ) {
             parts.push(String(request.callIndex));
         }
         return parts.join('|');
@@ -567,8 +593,9 @@ export class MessageHandler {
 
     findRenderedToolStatus(key) {
         if (!key || !this.ui || !this.ui.historyDiv) return null;
-        const element = Array.from(this.ui.historyDiv.querySelectorAll('[data-tool-status-key]'))
-            .find(candidate => candidate.dataset.toolStatusKey === key);
+        const element = Array.from(
+            this.ui.historyDiv.querySelectorAll('[data-tool-status-key]')
+        ).find((candidate) => candidate.dataset.toolStatusKey === key);
         return element?.__messageController || null;
     }
 
@@ -586,7 +613,7 @@ export class MessageHandler {
     hasPersistedToolOutput(session, request) {
         if (!session || !Array.isArray(session.messages)) return false;
         const expected = this.buildToolOutputHistoryText(request);
-        return session.messages.some(message => {
+        return session.messages.some((message) => {
             return message && message.role === 'user' && message.text === expected;
         });
     }
@@ -597,11 +624,11 @@ export class MessageHandler {
     }
 
     handleImageResult(request) {
-        this.ui.updateStatus("");
+        this.ui.updateStatus('');
         if (request.error) {
-            console.error("Image fetch failed", request.error);
+            console.error('Image fetch failed', request.error);
             this.ui.updateStatus(t('failedLoadImage'));
-            setTimeout(() => this.ui.updateStatus(""), 3000);
+            setTimeout(() => this.ui.updateStatus(''), 3000);
         } else {
             this.imageManager.setFile(request.base64, request.type, request.name);
         }
@@ -617,17 +644,17 @@ export class MessageHandler {
                     const cleanedBase64 = await WatermarkRemover.process(request.base64);
                     img.src = cleanedBase64;
                 } catch (e) {
-                    console.warn("Watermark removal failed, using original", e);
+                    console.warn('Watermark removal failed, using original', e);
                     img.src = request.base64;
                 }
-                
+
                 img.classList.remove('loading');
-                img.style.minHeight = "auto"; 
+                img.style.minHeight = 'auto';
             } else {
                 // Handle error visually
-                img.style.background = "#ffebee"; // Light red
-                img.alt = "Failed to load image";
-                console.warn("Generated image load failed:", request.error);
+                img.style.background = '#ffebee'; // Light red
+                img.alt = 'Failed to load image';
+                console.warn('Generated image load failed:', request.error);
             }
         }
     }
@@ -637,38 +664,38 @@ export class MessageHandler {
         try {
             const croppedBase64 = await cropImage(request.image, request.area);
             this.imageManager.setFile(croppedBase64, 'image/png', 'snip.png');
-            
+
             if (this.app.captureMode === 'ocr') {
                 // Change prompt to localized OCR instructions
                 this.ui.inputFn.value = t('ocrPrompt');
                 // Auto-send via the main controller
-                this.app.handleSendMessage(); 
+                this.app.handleSendMessage();
             } else if (this.app.captureMode === 'screenshot_translate') {
                 // Change prompt to localized Translate instructions
                 this.ui.inputFn.value = t('screenshotTranslatePrompt');
                 this.app.handleSendMessage();
             } else {
-                this.ui.updateStatus("");
+                this.ui.updateStatus('');
                 this.ui.inputFn.focus();
             }
         } catch (e) {
-            console.error("Crop error", e);
+            console.error('Crop error', e);
             this.ui.updateStatus(t('errorScreenshot'));
         }
     }
-    
+
     handleSelectionResult(request) {
         if (request.text && request.text.trim()) {
-             const quote = `> ${request.text.trim()}\n\n`;
-             const input = this.ui.inputFn;
-             // Append to new line if text exists
-             input.value = input.value ? input.value + "\n\n" + quote : quote;
-             input.focus();
-             // Trigger resize
-             input.dispatchEvent(new Event('input'));
+            const quote = `> ${request.text.trim()}\n\n`;
+            const input = this.ui.inputFn;
+            // Append to new line if text exists
+            input.value = input.value ? input.value + '\n\n' + quote : quote;
+            input.focus();
+            // Trigger resize
+            input.dispatchEvent(new Event('input'));
         } else {
-             this.ui.updateStatus(t('noTextSelected'));
-             setTimeout(() => this.ui.updateStatus(""), 2000);
+            this.ui.updateStatus(t('noTextSelected'));
+            setTimeout(() => this.ui.updateStatus(''), 2000);
         }
     }
 
@@ -690,7 +717,8 @@ export class MessageHandler {
     }
 
     clearActiveStream() {
-        const activeSessionId = this.app.generatingSessionId || this.sessionManager.currentSessionId || null;
+        const activeSessionId =
+            this.app.generatingSessionId || this.sessionManager.currentSessionId || null;
         this.clearStreamState(activeSessionId);
         this.resetStream({ remove: true });
     }

@@ -1,4 +1,3 @@
-
 import { ConnectionSettingsTemplate } from './settings/connection.js';
 import { GeneralSettingsTemplate } from './settings/general.js';
 import { AppearanceSettingsTemplate } from './settings/appearance.js';

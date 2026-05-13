@@ -1,4 +1,3 @@
-
 export const TabSelectorTemplate = `
     <!-- TAB SELECTOR MODAL -->
     <div id="tab-selector-modal" class="settings-modal">
