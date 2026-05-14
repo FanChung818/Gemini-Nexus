@@ -1,5 +1,9 @@
 // sandbox/ui/settings/sections/general.js
-import { DEFAULT_CONTEXT_RECENT_TURNS } from '../../../../shared/config/constants.js';
+import {
+    DEFAULT_CONTEXT_MODE,
+    DEFAULT_CONTEXT_RECENT_TURNS,
+    DEFAULT_SIDE_PANEL_SCOPE,
+} from '../../../../shared/config/constants.js';
 
 export class GeneralSection {
     constructor(callbacks) {
@@ -76,7 +80,7 @@ export class GeneralSection {
             const availableValues = new Set(
                 Array.from(this.elements.sidePanelScopeRadios).map((radio) => radio.value)
             );
-            const val = availableValues.has(scope) ? scope : 'remembered_tabs';
+            const val = availableValues.has(scope) ? scope : DEFAULT_SIDE_PANEL_SCOPE;
             this.elements.sidePanelScopeRadios.forEach((radio) => {
                 radio.checked = radio.value === val;
             });
@@ -84,7 +88,7 @@ export class GeneralSection {
     }
 
     setContextSettings(settings) {
-        const mode = settings?.mode === 'recent' ? 'recent' : 'summary';
+        const mode = settings?.mode === 'recent' ? 'recent' : DEFAULT_CONTEXT_MODE;
         const recentTurns = Number.parseInt(settings?.recentTurns, 10);
 
         if (this.elements.contextModeSelect) {
@@ -111,14 +115,14 @@ export class GeneralSection {
             Array.from(sidebarRadios || []).find((radio) => radio.checked)?.value || 'auto';
         const selectedScope =
             Array.from(sidePanelScopeRadios || []).find((radio) => radio.checked)?.value ||
-            'remembered_tabs';
+            DEFAULT_SIDE_PANEL_SCOPE;
         return {
             textSelection: textSelectionToggle ? textSelectionToggle.checked : true,
             imageTools: imageToolsToggle ? imageToolsToggle.checked : true,
             accountIndices: accountIndicesInput ? accountIndicesInput.value : '0',
             sidebarBehavior: selectedSidebarBehavior,
             sidePanelScope: selectedScope,
-            contextMode: contextModeSelect ? contextModeSelect.value : 'summary',
+            contextMode: contextModeSelect ? contextModeSelect.value : DEFAULT_CONTEXT_MODE,
             contextRecentTurns: contextRecentTurnsInput
                 ? contextRecentTurnsInput.value
                 : DEFAULT_CONTEXT_RECENT_TURNS,

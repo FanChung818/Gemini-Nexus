@@ -25,10 +25,6 @@
     --btn-active-bg: #c2e7ff;
     --btn-active-text: #001d35;
 
-    --sidebar-new-chat-bg: #dde3ea;
-    --sidebar-new-chat-text: #041e49;
-    --sidebar-new-chat-hover: #ffffff;
-
     /* Primary Actions (Send button, User Bubble) */
     --primary: #0b57d0;
     --primary-hover: #0842a0;
@@ -80,10 +76,6 @@
     --btn-hover: #333537;
     --btn-active-bg: #004a77;
     --btn-active-text: #c2e7ff;
-
-    --sidebar-new-chat-bg: #2d2e2f;
-    --sidebar-new-chat-text: #e3e3e3;
-    --sidebar-new-chat-hover: #3c3d3f;
 
     /* Adjusted Blue for Dark Mode */
     --primary: #4a90e2;

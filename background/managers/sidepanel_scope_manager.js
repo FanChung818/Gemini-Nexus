@@ -1,7 +1,7 @@
 // background/managers/sidepanel_scope_manager.js
+import { DEFAULT_SIDE_PANEL_SCOPE } from '../../shared/config/constants.js';
 
 const DEFAULT_PANEL_PATH = 'sidepanel/index.html';
-const DEFAULT_SCOPE = 'remembered_tabs';
 
 export function getPanelPathForTab(tabId) {
     const normalizedTabId = Number(tabId);
@@ -14,7 +14,7 @@ export function getPanelPathForTab(tabId) {
 
 export class SidePanelScopeManager {
     constructor() {
-        this.scope = DEFAULT_SCOPE;
+        this.scope = DEFAULT_SIDE_PANEL_SCOPE;
         this.enabledTabs = {};
     }
 
@@ -95,10 +95,10 @@ export class SidePanelScopeManager {
     }
 
     normalizeScope(scope) {
-        if (scope === 'global' || scope === 'remembered_tabs') {
+        if (scope === 'global' || scope === DEFAULT_SIDE_PANEL_SCOPE) {
             return scope;
         }
-        return DEFAULT_SCOPE;
+        return DEFAULT_SIDE_PANEL_SCOPE;
     }
 
     normalizeEnabledTabs(value) {
@@ -151,7 +151,7 @@ export class SidePanelScopeManager {
     async openForTab(tabId, windowId) {
         if (!tabId || !windowId) return;
 
-        if (this.scope === 'remembered_tabs') {
+        if (this.scope === DEFAULT_SIDE_PANEL_SCOPE) {
             const disableDefaultPromise = chrome.sidePanel
                 .setOptions({
                     path: DEFAULT_PANEL_PATH,

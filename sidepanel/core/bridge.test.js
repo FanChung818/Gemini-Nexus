@@ -14,7 +14,6 @@ function createFrame() {
 
 function createState() {
     return {
-        getCached: vi.fn(),
         getCurrentTabId: vi.fn(() => null),
         markUiReady: vi.fn(),
         save: vi.fn(),

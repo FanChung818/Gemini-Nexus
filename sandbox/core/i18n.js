@@ -1,6 +1,6 @@
 // sandbox/core/i18n.js
 
-export const translations = {
+const translations = {
     en: {
         searchPlaceholder: 'Search for chats',
         recentLabel: 'Recent',
@@ -334,7 +334,7 @@ export const translations = {
     },
 };
 
-export function resolveLanguage(pref) {
+function resolveLanguage(pref) {
     if (pref === 'system') {
         return navigator.language.startsWith('zh') ? 'zh' : 'en';
     }

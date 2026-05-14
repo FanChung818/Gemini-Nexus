@@ -1,26 +1,16 @@
 // background/managers/session/settings_store.js
-import { DEFAULT_CONTEXT_RECENT_TURNS } from '../../../shared/config/constants.js';
-
-const OPENAI_WEB_SEARCH_MODES = new Set(['off', 'responses', 'chat']);
-
-function normalizeOpenAISettings(stored) {
-    const legacyMode = stored.geminiOpenaiWebSearchMode;
-    const legacyEnabled = stored.geminiOpenaiWebSearch === true;
-    const hasUseResponsesSetting = typeof stored.geminiOpenaiUseResponsesApi === 'boolean';
-    const hasWebSearchSetting = typeof stored.geminiOpenaiWebSearch === 'boolean';
-
-    if (!hasUseResponsesSetting && OPENAI_WEB_SEARCH_MODES.has(legacyMode)) {
-        return {
-            useResponsesApi: legacyMode === 'responses',
-            webSearch: legacyMode === 'responses' || legacyMode === 'chat',
-        };
-    }
-
-    return {
-        useResponsesApi: stored.geminiOpenaiUseResponsesApi === true,
-        webSearch: hasWebSearchSetting ? legacyEnabled : false,
-    };
-}
+import {
+    DEFAULT_CONTEXT_MODE,
+    DEFAULT_CONTEXT_RECENT_TURNS,
+    DEFAULT_OFFICIAL_BASE_URL,
+    DEFAULT_OFFICIAL_MODELS,
+    DEFAULT_THINKING_LEVEL,
+} from '../../../shared/config/constants.js';
+import {
+    getConnectionProvider,
+    getOpenAIWebSearchStorageKeys,
+} from '../../../shared/settings/connection.js';
+import { normalizeOpenAIWebSearchSettings } from '../../../shared/settings/openai.js';
 
 export async function getConnectionSettings() {
     const stored = await chrome.storage.local.get([
@@ -43,11 +33,7 @@ export async function getConnectionSettings() {
         'geminiContextRecentTurns',
     ]);
 
-    // Legacy Migration Logic
-    let provider = stored.geminiProvider;
-    if (!provider) {
-        provider = stored.geminiUseOfficialApi === true ? 'official' : 'web';
-    }
+    const provider = getConnectionProvider(stored);
 
     let activeApiKey = stored.geminiApiKey || '';
 
@@ -79,26 +65,28 @@ export async function getConnectionSettings() {
         activeApiKey = activeApiKey.trim();
     }
 
-    const openaiSettings = normalizeOpenAISettings(stored);
+    const openaiSettings = normalizeOpenAIWebSearchSettings(
+        stored,
+        getOpenAIWebSearchStorageKeys()
+    );
 
     return {
         provider: provider,
         // Official
-        officialBaseUrl:
-            stored.geminiOfficialBaseUrl || 'https://generativelanguage.googleapis.com/v1beta',
+        officialBaseUrl: stored.geminiOfficialBaseUrl || DEFAULT_OFFICIAL_BASE_URL,
         apiKey: activeApiKey,
-        officialModel: stored.geminiOfficialModel || 'gemini-3-flash-preview, gemini-3-pro-preview',
-        thinkingLevel: stored.geminiThinkingLevel || 'low',
+        officialModel: stored.geminiOfficialModel || DEFAULT_OFFICIAL_MODELS,
+        thinkingLevel: stored.geminiThinkingLevel || DEFAULT_THINKING_LEVEL,
         officialWebSearch: stored.geminiOfficialWebSearch === true,
         // OpenAI
         openaiBaseUrl: stored.geminiOpenaiBaseUrl,
         openaiApiKey: stored.geminiOpenaiApiKey,
         openaiModel: stored.geminiOpenaiModel,
-        openaiThinkingLevel: stored.geminiOpenaiThinkingLevel || 'low',
+        openaiThinkingLevel: stored.geminiOpenaiThinkingLevel || DEFAULT_THINKING_LEVEL,
         openaiUseResponsesApi: openaiSettings.useResponsesApi,
         openaiWebSearch: openaiSettings.webSearch,
         // Context management
-        contextMode: stored.geminiContextMode || 'summary',
+        contextMode: stored.geminiContextMode || DEFAULT_CONTEXT_MODE,
         contextRecentTurns: stored.geminiContextRecentTurns || DEFAULT_CONTEXT_RECENT_TURNS,
     };
 }

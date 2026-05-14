@@ -1,4 +1,5 @@
 // services/providers/openai_compatible.js
+import { readSseJson } from './sse.js';
 
 function normalizeBaseUrl(baseUrl) {
     return String(baseUrl || '').replace(/\/$/, '');
@@ -243,68 +244,42 @@ export async function sendOpenAIMessage(
         throw new Error(`API Error (${response.status}): ${errorText}`);
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder('utf-8');
     const sources = [];
     const seenSourceUrls = new Set();
-
-    let buffer = '';
     let fullText = '';
     let fullThoughts = ''; // Not standard in OpenAI, but some models (DeepSeek R1) might output <think> tags in content
 
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+    await readSseJson(response, (data) => {
+        if (data.choices && data.choices.length > 0) {
+            const choice = data.choices[0];
+            const delta = choice.delta || {};
 
-        const chunk = decoder.decode(value, { stream: true });
-        buffer += chunk;
+            // Standard Content
+            if (delta.content) {
+                fullText += delta.content;
+                onUpdate(fullText, fullThoughts);
+            }
 
-        let lines = buffer.split('\n');
-        buffer = lines.pop();
+            // Reasoning Content (DeepSeek R1 style or similar extension)
+            // If the API returns reasoning_content, use it as thoughts
+            if (delta.reasoning_content) {
+                fullThoughts += delta.reasoning_content;
+                onUpdate(fullText, fullThoughts);
+            }
 
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (trimmed.startsWith('data: ')) {
-                const dataStr = trimmed.substring(6);
-                if (dataStr === '[DONE]') continue;
+            if (Array.isArray(delta.annotations)) {
+                delta.annotations.forEach((annotation) =>
+                    extractSourcesFromAnnotation(annotation, sources, seenSourceUrls)
+                );
+            }
 
-                try {
-                    const data = JSON.parse(dataStr);
-                    if (data.choices && data.choices.length > 0) {
-                        const choice = data.choices[0];
-                        const delta = choice.delta || {};
-
-                        // Standard Content
-                        if (delta.content) {
-                            fullText += delta.content;
-                            onUpdate(fullText, fullThoughts);
-                        }
-
-                        // Reasoning Content (DeepSeek R1 style or similar extension)
-                        // If the API returns reasoning_content, use it as thoughts
-                        if (delta.reasoning_content) {
-                            fullThoughts += delta.reasoning_content;
-                            onUpdate(fullText, fullThoughts);
-                        }
-
-                        if (Array.isArray(delta.annotations)) {
-                            delta.annotations.forEach((annotation) =>
-                                extractSourcesFromAnnotation(annotation, sources, seenSourceUrls)
-                            );
-                        }
-
-                        if (Array.isArray(choice.message?.annotations)) {
-                            choice.message.annotations.forEach((annotation) =>
-                                extractSourcesFromAnnotation(annotation, sources, seenSourceUrls)
-                            );
-                        }
-                    }
-                } catch (e) {
-                    // Ignore parse errors
-                }
+            if (Array.isArray(choice.message?.annotations)) {
+                choice.message.annotations.forEach((annotation) =>
+                    extractSourcesFromAnnotation(annotation, sources, seenSourceUrls)
+                );
             }
         }
-    }
+    });
 
     return {
         text: fullText,
@@ -371,103 +346,75 @@ async function sendOpenAIResponsesMessage(
         throw new Error(`API Error (${response.status}): ${errorText}`);
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder('utf-8');
     const sources = [];
     const seenSourceUrls = new Set();
-
-    let buffer = '';
     let fullText = '';
     let fullThoughts = '';
     let streamError = null;
 
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        let lines = buffer.split('\n');
-        buffer = lines.pop();
-
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith('data: ')) continue;
-
-            const dataStr = trimmed.substring(6);
-            if (dataStr === '[DONE]') continue;
-
-            try {
-                const data = JSON.parse(dataStr);
-
-                if (data.error?.message) {
-                    streamError = data.error.message;
-                    continue;
-                }
-
-                if (data.type === 'response.output_text.delta' && data.delta) {
-                    fullText += data.delta;
-                    onUpdate(fullText, fullThoughts);
-                    continue;
-                }
-
-                if (
-                    (data.type === 'response.reasoning_summary_text.delta' ||
-                        data.type === 'response.reasoning_text.delta') &&
-                    data.delta
-                ) {
-                    fullThoughts += data.delta;
-                    onUpdate(fullText, fullThoughts);
-                    continue;
-                }
-
-                if (
-                    (data.type === 'response.reasoning_summary_text.done' ||
-                        data.type === 'response.reasoning_text.done') &&
-                    data.text &&
-                    !fullThoughts
-                ) {
-                    fullThoughts = data.text;
-                    onUpdate(fullText, fullThoughts);
-                    continue;
-                }
-
-                if (data.type === 'response.output_text.annotation.added') {
-                    extractSourcesFromAnnotation(data.annotation, sources, seenSourceUrls);
-                    continue;
-                }
-
-                if (data.type === 'response.output_item.done') {
-                    extractSourcesFromResponseItem(data.item, sources, seenSourceUrls);
-                    if (!fullThoughts) {
-                        const completedThoughts = extractReasoningSummaryFromResponseItem(
-                            data.item
-                        );
-                        if (completedThoughts) {
-                            fullThoughts = completedThoughts;
-                            onUpdate(fullText, fullThoughts);
-                        }
-                    }
-                    continue;
-                }
-
-                if (data.type === 'response.completed' && data.response) {
-                    data.response.output?.forEach((item) =>
-                        extractSourcesFromResponseItem(item, sources, seenSourceUrls)
-                    );
-                    if (!fullThoughts) {
-                        fullThoughts = extractReasoningSummaryFromCompletedResponse(data.response);
-                    }
-                    if (!fullText) {
-                        fullText = extractTextFromCompletedResponse(data.response);
-                    }
-                    onUpdate(fullText, fullThoughts);
-                }
-            } catch (_) {
-                // Ignore parse errors for incomplete or non-JSON stream lines.
-            }
+    await readSseJson(response, (data) => {
+        if (data.error?.message) {
+            streamError = data.error.message;
+            return;
         }
-    }
+
+        if (data.type === 'response.output_text.delta' && data.delta) {
+            fullText += data.delta;
+            onUpdate(fullText, fullThoughts);
+            return;
+        }
+
+        if (
+            (data.type === 'response.reasoning_summary_text.delta' ||
+                data.type === 'response.reasoning_text.delta') &&
+            data.delta
+        ) {
+            fullThoughts += data.delta;
+            onUpdate(fullText, fullThoughts);
+            return;
+        }
+
+        if (
+            (data.type === 'response.reasoning_summary_text.done' ||
+                data.type === 'response.reasoning_text.done') &&
+            data.text &&
+            !fullThoughts
+        ) {
+            fullThoughts = data.text;
+            onUpdate(fullText, fullThoughts);
+            return;
+        }
+
+        if (data.type === 'response.output_text.annotation.added') {
+            extractSourcesFromAnnotation(data.annotation, sources, seenSourceUrls);
+            return;
+        }
+
+        if (data.type === 'response.output_item.done') {
+            extractSourcesFromResponseItem(data.item, sources, seenSourceUrls);
+            if (!fullThoughts) {
+                const completedThoughts = extractReasoningSummaryFromResponseItem(data.item);
+                if (completedThoughts) {
+                    fullThoughts = completedThoughts;
+                    onUpdate(fullText, fullThoughts);
+                }
+            }
+            return;
+        }
+
+        if (data.type === 'response.completed' && data.response) {
+            data.response.output?.forEach((item) =>
+                extractSourcesFromResponseItem(item, sources, seenSourceUrls)
+            );
+            if (!fullThoughts) {
+                fullThoughts = extractReasoningSummaryFromCompletedResponse(data.response);
+            }
+            if (!fullText) {
+                fullText = extractTextFromCompletedResponse(data.response);
+            }
+            onUpdate(fullText, fullThoughts);
+        }
+    });
 
     if (streamError) {
         throw new Error(streamError);

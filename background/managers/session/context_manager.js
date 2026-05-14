@@ -1,10 +1,12 @@
 // background/managers/session/context_manager.js
 import { sendOfficialMessage } from '../../../services/providers/official.js';
 import { sendOpenAIMessage } from '../../../services/providers/openai_compatible.js';
-import { DEFAULT_CONTEXT_RECENT_TURNS } from '../../../shared/config/constants.js';
+import {
+    DEFAULT_CONTEXT_MODE,
+    DEFAULT_CONTEXT_RECENT_TURNS,
+} from '../../../shared/config/constants.js';
 import { getSessionContextSummary, updateSessionContextSummary } from '../history_manager.js';
 
-const DEFAULT_CONTEXT_MODE = 'summary';
 const MIN_RECENT_TURNS = 1;
 const MAX_RECENT_TURNS = 50;
 const MAX_SUMMARY_MESSAGE_CHARS = 4000;

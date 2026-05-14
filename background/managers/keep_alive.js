@@ -5,7 +5,7 @@ const ROTATE_URL = 'https://accounts.google.com/RotateCookies';
 // Matches Python implementation (540s = 9 minutes)
 const INTERVAL_MINUTES = 9;
 
-export class KeepAliveManager {
+class KeepAliveManager {
     constructor() {
         this.lastRotation = 0;
         this.isRotating = false;

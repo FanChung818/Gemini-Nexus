@@ -4,6 +4,7 @@ import { SidebarController } from './sidebar.js';
 import { SettingsController } from './settings.js';
 import { ViewerController } from './viewer.js';
 import { TabSelectorController } from './tab_selector.js';
+import { createModelOptions, getPreferredModel } from './model_options.js';
 
 export class UIController {
     constructor(elements) {
@@ -66,49 +67,9 @@ export class UIController {
     updateModelList(settings) {
         if (!this.modelSelect) return;
 
-        // Determine provider. Fallback to 'web' if not set.
-        // Legacy support: if provider missing but useOfficialApi is true, assume 'official'.
-        const provider = settings.provider || (settings.useOfficialApi ? 'official' : 'web');
-        const preferred =
-            provider === 'openai'
-                ? settings.openaiSelectedModel || settings.selectedModel || this.modelSelect.value
-                : settings.selectedModel || this.modelSelect.value;
+        const preferred = getPreferredModel(settings, this.modelSelect.value);
         this.modelSelect.innerHTML = '';
-
-        let opts = [];
-        if (provider === 'official') {
-            const rawModels = settings.officialModel || '';
-            const models = rawModels
-                .split(',')
-                .map((m) => m.trim())
-                .filter((m) => m);
-            if (models.length === 0) {
-                opts = [{ val: 'gemini-3-flash-preview', txt: 'gemini-3-flash-preview' }];
-            } else {
-                opts = models.map((m) => ({ val: m, txt: m }));
-            }
-        } else if (provider === 'openai') {
-            // OpenAI Compatible: Support multiple models comma-separated
-            const rawModels = settings.openaiModel || '';
-            // Split by comma, trim whitespace, remove empty entries
-            const models = rawModels
-                .split(',')
-                .map((m) => m.trim())
-                .filter((m) => m);
-
-            if (models.length === 0) {
-                opts = [{ val: 'openai_custom', txt: 'Custom Model' }];
-            } else {
-                opts = models.map((m) => ({ val: m, txt: m }));
-            }
-        } else {
-            // Web Client Models
-            opts = [
-                { val: 'gemini-3-flash', txt: 'Fast' },
-                { val: 'gemini-3-flash-thinking', txt: 'Thinking' },
-                { val: 'gemini-3-pro', txt: '3 Pro' },
-            ];
-        }
+        const opts = createModelOptions(settings);
 
         opts.forEach((o) => {
             const opt = document.createElement('option');
@@ -187,13 +148,6 @@ export class UIController {
         this.chat.setLoading(isLoading);
     }
 
-    // Sidebar
-    toggleSidebar() {
-        this.sidebar.toggle();
-    }
-    closeSidebar() {
-        this.sidebar.close();
-    }
     renderHistoryList(sessions, currentId, callbacks, renderState) {
         this.sidebar.renderList(sessions, currentId, callbacks, renderState);
     }

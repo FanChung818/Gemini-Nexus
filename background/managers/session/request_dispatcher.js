@@ -2,7 +2,10 @@
 import { sendOfficialMessage } from '../../../services/providers/official.js';
 import { sendWebMessage } from '../../../services/providers/web.js';
 import { sendOpenAIMessage } from '../../../services/providers/openai_compatible.js';
-import { DEFAULT_CONTEXT_RECENT_TURNS } from '../../../shared/config/constants.js';
+import {
+    DEFAULT_CONTEXT_MODE,
+    DEFAULT_CONTEXT_RECENT_TURNS,
+} from '../../../shared/config/constants.js';
 import { getHistory } from './history_store.js';
 import { prepareManagedContext } from './context_manager.js';
 
@@ -90,7 +93,7 @@ function createContextStatusSender(request, settings) {
                 action: 'GEMINI_CONTEXT_STATUS',
                 sessionId: request.sessionId || null,
                 state,
-                mode: settings.contextMode || 'summary',
+                mode: settings.contextMode || DEFAULT_CONTEXT_MODE,
                 recentTurns:
                     detail.recentTurns ||
                     settings.contextRecentTurns ||

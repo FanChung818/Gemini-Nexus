@@ -1,4 +1,10 @@
 // services/providers/official.js
+import {
+    DEFAULT_OFFICIAL_BASE_URL,
+    DEFAULT_OFFICIAL_MODEL,
+    DEFAULT_THINKING_LEVEL,
+} from '../../shared/config/constants.js';
+import { readSseJson } from './sse.js';
 
 function extractGroundingSources(groundingMetadata) {
     if (!groundingMetadata || !Array.isArray(groundingMetadata.groundingChunks)) {
@@ -203,7 +209,7 @@ export async function sendOfficialMessage(
 ) {
     let { baseUrl, apiKey, model: modelName, configuredModels } = config || {};
     if (!apiKey) throw new Error('API Key is missing.');
-    if (!baseUrl) baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+    if (!baseUrl) baseUrl = DEFAULT_OFFICIAL_BASE_URL;
 
     // Dynamic Model Selection: Map UI values to API IDs
     let targetModel = modelName;
@@ -213,7 +219,7 @@ export async function sendOfficialMessage(
             .split(',')
             .map((m) => m.trim())
             .filter(Boolean);
-        targetModel = configured[0] || 'gemini-3-flash-preview';
+        targetModel = configured[0] || DEFAULT_OFFICIAL_MODEL;
     }
 
     // Explicit Mapping logic
@@ -282,7 +288,7 @@ export async function sendOfficialMessage(
     if (modelName === 'gemini-3-flash-thinking' || thinkingLevel) {
         payload.generationConfig.thinkingConfig = {
             includeThoughts: true, // Ensure thoughts are returned in response
-            thinkingLevel: thinkingLevel || 'low',
+            thinkingLevel: thinkingLevel || DEFAULT_THINKING_LEVEL,
         };
     }
 
@@ -305,10 +311,6 @@ export async function sendOfficialMessage(
         throw new Error(`API Error (${response.status}): ${errorText}`);
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder('utf-8');
-
-    let buffer = '';
     let fullText = '';
     let fullThoughts = '';
     let finalThoughtSignature = null;
@@ -317,56 +319,34 @@ export async function sendOfficialMessage(
     const sources = [];
     const seenSourceUrls = new Set();
 
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+    await readSseJson(response, (data) => {
+        const candidate = data.candidates && data.candidates[0] ? data.candidates[0] : null;
 
-        const chunk = decoder.decode(value, { stream: true });
-        buffer += chunk;
+        if (candidate && candidate.groundingMetadata) {
+            extractGroundingSources(candidate.groundingMetadata).forEach((source) => {
+                if (!source.url || seenSourceUrls.has(source.url)) return;
+                seenSourceUrls.add(source.url);
+                sources.push(source);
+            });
+        }
 
-        let lines = buffer.split('\n');
-        buffer = lines.pop();
+        if (candidate && candidate.content) {
+            const parsed = extractOfficialResponseData(candidate);
+            if (parsed.officialContent) {
+                modelParts.push(...parsed.officialContent.parts);
+            }
+            if (parsed.functionCalls.length > 0) {
+                functionCalls.push(...parsed.functionCalls);
+            }
+            if (parsed.text) fullText += parsed.text;
+            if (parsed.thoughts) fullThoughts += parsed.thoughts;
+            if (parsed.thoughtSignature) finalThoughtSignature = parsed.thoughtSignature;
 
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (trimmed.startsWith('data: ')) {
-                const jsonStr = trimmed.substring(6);
-                try {
-                    const data = JSON.parse(jsonStr);
-                    const candidate =
-                        data.candidates && data.candidates[0] ? data.candidates[0] : null;
-
-                    if (candidate && candidate.groundingMetadata) {
-                        extractGroundingSources(candidate.groundingMetadata).forEach((source) => {
-                            if (!source.url || seenSourceUrls.has(source.url)) return;
-                            seenSourceUrls.add(source.url);
-                            sources.push(source);
-                        });
-                    }
-
-                    if (candidate && candidate.content) {
-                        const parsed = extractOfficialResponseData(candidate);
-                        if (parsed.officialContent) {
-                            modelParts.push(...parsed.officialContent.parts);
-                        }
-                        if (parsed.functionCalls.length > 0) {
-                            functionCalls.push(...parsed.functionCalls);
-                        }
-                        if (parsed.text) fullText += parsed.text;
-                        if (parsed.thoughts) fullThoughts += parsed.thoughts;
-                        if (parsed.thoughtSignature)
-                            finalThoughtSignature = parsed.thoughtSignature;
-
-                        if (fullText || fullThoughts) {
-                            onUpdate(fullText, fullThoughts);
-                        }
-                    }
-                } catch (e) {
-                    // Ignore parse errors for incomplete chunks
-                }
+            if (fullText || fullThoughts) {
+                onUpdate(fullText, fullThoughts);
             }
         }
-    }
+    });
 
     const seenCallIds = new Set();
     const dedupedFunctionCalls = functionCalls.filter((call) => {

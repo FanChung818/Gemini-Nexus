@@ -1,6 +1,23 @@
 // background/managers/history_manager.js
 import { generateUUID } from '../../shared/utils/index.js';
 
+async function saveSessionsAndNotify(geminiSessions) {
+    await chrome.storage.local.set({ geminiSessions });
+
+    chrome.runtime
+        .sendMessage({
+            action: 'SESSIONS_UPDATED',
+            sessions: geminiSessions,
+        })
+        .catch(() => {});
+}
+
+async function moveSessionToTopAndSave(geminiSessions, sessionIndex, session) {
+    geminiSessions.splice(sessionIndex, 1);
+    geminiSessions.unshift(session);
+    await saveSessionsAndNotify(geminiSessions);
+}
+
 /**
  * Saves a completed interaction to the chat history in local storage.
  * @param {string} text - The user's prompt.
@@ -51,15 +68,7 @@ export async function saveToHistory(text, result, filesObj = null) {
         };
 
         geminiSessions.unshift(newSession);
-        await chrome.storage.local.set({ geminiSessions });
-
-        // Notify Sidepanel to reload if open
-        chrome.runtime
-            .sendMessage({
-                action: 'SESSIONS_UPDATED',
-                sessions: geminiSessions,
-            })
-            .catch(() => {});
+        await saveSessionsAndNotify(geminiSessions);
 
         return newSession;
     } catch (e) {
@@ -96,18 +105,7 @@ export async function appendAiMessage(sessionId, result) {
             session.context = result.context; // Update context
             session.timestamp = Date.now();
 
-            // Move to top
-            geminiSessions.splice(sessionIndex, 1);
-            geminiSessions.unshift(session);
-
-            await chrome.storage.local.set({ geminiSessions });
-
-            chrome.runtime
-                .sendMessage({
-                    action: 'SESSIONS_UPDATED',
-                    sessions: geminiSessions,
-                })
-                .catch(() => {});
+            await moveSessionToTopAndSave(geminiSessions, sessionIndex, session);
 
             return true;
         }
@@ -135,17 +133,7 @@ export async function appendRawMessages(sessionId, messages) {
         });
         session.timestamp = Date.now();
 
-        geminiSessions.splice(sessionIndex, 1);
-        geminiSessions.unshift(session);
-
-        await chrome.storage.local.set({ geminiSessions });
-
-        chrome.runtime
-            .sendMessage({
-                action: 'SESSIONS_UPDATED',
-                sessions: geminiSessions,
-            })
-            .catch(() => {});
+        await moveSessionToTopAndSave(geminiSessions, sessionIndex, session);
 
         return true;
     } catch (e) {
@@ -206,18 +194,7 @@ export async function appendUserMessage(sessionId, text, images = null, metadata
             session.messages.push(message);
             session.timestamp = Date.now();
 
-            // Move to top
-            geminiSessions.splice(sessionIndex, 1);
-            geminiSessions.unshift(session);
-
-            await chrome.storage.local.set({ geminiSessions });
-
-            chrome.runtime
-                .sendMessage({
-                    action: 'SESSIONS_UPDATED',
-                    sessions: geminiSessions,
-                })
-                .catch(() => {});
+            await moveSessionToTopAndSave(geminiSessions, sessionIndex, session);
 
             return true;
         }
@@ -251,14 +228,7 @@ export async function replaceSessionSnapshot(sessionSnapshot) {
         }
 
         geminiSessions.unshift(nextSession);
-        await chrome.storage.local.set({ geminiSessions });
-
-        chrome.runtime
-            .sendMessage({
-                action: 'SESSIONS_UPDATED',
-                sessions: geminiSessions,
-            })
-            .catch(() => {});
+        await saveSessionsAndNotify(geminiSessions);
 
         return true;
     } catch (e) {

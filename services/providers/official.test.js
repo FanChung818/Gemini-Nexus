@@ -3,26 +3,22 @@ import { extractOfficialResponseData } from './official.js';
 
 describe('extractOfficialResponseData', () => {
     it('extracts visible text, thoughts, signatures, and function calls', () => {
+        const duplicateFunctionCallPart = {
+            functionCall: {
+                id: 'call-1',
+                name: 'take_snapshot',
+                args: { uid: 'root' },
+            },
+        };
+
         const result = extractOfficialResponseData({
             content: {
                 role: 'model',
                 parts: [
                     { text: 'Thinking...', thought: true, thoughtSignature: 'sig-1' },
                     { text: 'Visible answer.' },
-                    {
-                        functionCall: {
-                            id: 'call-1',
-                            name: 'take_snapshot',
-                            args: { uid: 'root' },
-                        },
-                    },
-                    {
-                        functionCall: {
-                            id: 'call-1',
-                            name: 'take_snapshot',
-                            args: { uid: 'root' },
-                        },
-                    },
+                    duplicateFunctionCallPart,
+                    duplicateFunctionCallPart,
                     { thought: 'More reasoning.' },
                 ],
             },
@@ -40,20 +36,8 @@ describe('extractOfficialResponseData', () => {
                 parts: [
                     { text: 'Thinking...', thought: true, thoughtSignature: 'sig-1' },
                     { text: 'Visible answer.' },
-                    {
-                        functionCall: {
-                            id: 'call-1',
-                            name: 'take_snapshot',
-                            args: { uid: 'root' },
-                        },
-                    },
-                    {
-                        functionCall: {
-                            id: 'call-1',
-                            name: 'take_snapshot',
-                            args: { uid: 'root' },
-                        },
-                    },
+                    duplicateFunctionCallPart,
+                    duplicateFunctionCallPart,
                     { thought: 'More reasoning.' },
                 ],
             },

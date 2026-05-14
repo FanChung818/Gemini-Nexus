@@ -1,6 +1,17 @@
 // sandbox/ui/settings/sections/connection.js
 import { sendToBackground } from '../../../../shared/messaging/index.js';
 import {
+    DEFAULT_MCP_TRANSPORT,
+    DEFAULT_OFFICIAL_BASE_URL,
+    DEFAULT_OFFICIAL_MODELS,
+    DEFAULT_PROVIDER,
+    DEFAULT_THINKING_LEVEL,
+} from '../../../../shared/config/constants.js';
+import {
+    createDefaultMcpServer,
+    getDefaultMcpUrlForTransport,
+} from '../../../../shared/settings/connection.js';
+import {
     formatMcpHeaders,
     inferMcpTransport,
     normalizeMcpHeaders,
@@ -25,23 +36,11 @@ export class ConnectionSection {
     }
 
     _getDefaultServer() {
-        return {
-            id: this._makeServerId(),
-            name: 'Local Proxy',
-            transport: 'sse',
-            url: 'http://127.0.0.1:3006/sse',
-            headers: {},
-            enabled: true,
-            toolMode: 'all', // 'all' | 'selected'
-            enabledTools: [], // only used when toolMode === 'selected'
-        };
+        return createDefaultMcpServer(this._makeServerId());
     }
 
     _getDefaultUrlForTransport(transport) {
-        const t = (transport || 'sse').toLowerCase();
-        if (t === 'ws' || t === 'websocket') return 'ws://127.0.0.1:3006/mcp';
-        if (t === 'streamable-http' || t === 'streamablehttp') return 'http://127.0.0.1:3006/mcp';
-        return 'http://127.0.0.1:3006/sse';
+        return getDefaultMcpUrlForTransport(transport);
     }
 
     queryElements() {
@@ -290,19 +289,17 @@ export class ConnectionSection {
 
         // Provider
         if (providerSelect) {
-            providerSelect.value = data.provider || 'web';
-            this.updateVisibility(data.provider || 'web');
+            providerSelect.value = data.provider || DEFAULT_PROVIDER;
+            this.updateVisibility(data.provider || DEFAULT_PROVIDER);
         }
 
         // Official
         if (officialBaseUrl)
-            officialBaseUrl.value =
-                data.officialBaseUrl || 'https://generativelanguage.googleapis.com/v1beta';
+            officialBaseUrl.value = data.officialBaseUrl || DEFAULT_OFFICIAL_BASE_URL;
         if (apiKeyInput) apiKeyInput.value = data.apiKey || '';
-        if (officialModel)
-            officialModel.value =
-                data.officialModel || 'gemini-3-flash-preview, gemini-3-pro-preview';
-        if (thinkingLevelSelect) thinkingLevelSelect.value = data.thinkingLevel || 'low';
+        if (officialModel) officialModel.value = data.officialModel || DEFAULT_OFFICIAL_MODELS;
+        if (thinkingLevelSelect)
+            thinkingLevelSelect.value = data.thinkingLevel || DEFAULT_THINKING_LEVEL;
         if (officialWebSearchEnabled)
             officialWebSearchEnabled.checked = data.officialWebSearch === true;
 
@@ -311,7 +308,7 @@ export class ConnectionSection {
         if (openaiApiKey) openaiApiKey.value = data.openaiApiKey || '';
         if (openaiModel) openaiModel.value = data.openaiModel || '';
         if (openaiThinkingLevelSelect)
-            openaiThinkingLevelSelect.value = data.openaiThinkingLevel || 'low';
+            openaiThinkingLevelSelect.value = data.openaiThinkingLevel || DEFAULT_THINKING_LEVEL;
         const openaiSettings = normalizeOpenAISettings(data);
         if (openaiUseResponsesApi) openaiUseResponsesApi.checked = openaiSettings.useResponsesApi;
         if (openaiWebSearch) openaiWebSearch.checked = openaiSettings.webSearch;
@@ -330,7 +327,7 @@ export class ConnectionSection {
             this.mcpServers = servers.map((s) => ({
                 id: s.id || this._makeServerId(),
                 name: s.name || '',
-                transport: s.transport || 'sse',
+                transport: s.transport || DEFAULT_MCP_TRANSPORT,
                 url: s.url || '',
                 headers: normalizeMcpHeaders(s.headers),
                 enabled: s.enabled !== false,
@@ -344,7 +341,7 @@ export class ConnectionSection {
         } else {
             // Legacy single server fields
             const legacyUrl = data.mcpServerUrl || '';
-            const legacyTransport = data.mcpTransport || 'sse';
+            const legacyTransport = data.mcpTransport || DEFAULT_MCP_TRANSPORT;
             const server = this._getDefaultServer();
             server.transport = legacyTransport;
             server.url = legacyUrl || server.url;
@@ -382,16 +379,14 @@ export class ConnectionSection {
         const firstEnabled = servers.find((s) => s.enabled !== false && s.url && s.url.trim());
 
         return {
-            provider: providerSelect ? providerSelect.value : 'web',
+            provider: providerSelect ? providerSelect.value : DEFAULT_PROVIDER,
             // Official
             officialBaseUrl: officialBaseUrl
                 ? officialBaseUrl.value.trim()
-                : 'https://generativelanguage.googleapis.com/v1beta',
+                : DEFAULT_OFFICIAL_BASE_URL,
             apiKey: apiKeyInput ? apiKeyInput.value.trim() : '',
-            officialModel: officialModel
-                ? officialModel.value.trim()
-                : 'gemini-3-flash-preview, gemini-3-pro-preview',
-            thinkingLevel: thinkingLevelSelect ? thinkingLevelSelect.value : 'low',
+            officialModel: officialModel ? officialModel.value.trim() : DEFAULT_OFFICIAL_MODELS,
+            thinkingLevel: thinkingLevelSelect ? thinkingLevelSelect.value : DEFAULT_THINKING_LEVEL,
             officialWebSearch: officialWebSearchEnabled
                 ? officialWebSearchEnabled.checked === true
                 : false,
@@ -401,7 +396,7 @@ export class ConnectionSection {
             openaiModel: openaiModel ? openaiModel.value.trim() : '',
             openaiThinkingLevel: openaiThinkingLevelSelect
                 ? openaiThinkingLevelSelect.value
-                : 'low',
+                : DEFAULT_THINKING_LEVEL,
             openaiUseResponsesApi: openaiUseResponsesApi
                 ? openaiUseResponsesApi.checked === true
                 : false,
@@ -414,7 +409,9 @@ export class ConnectionSection {
             mcpActiveServerId: this.mcpActiveServerId || (servers[0] ? servers[0].id : null),
 
             // Legacy fields for single-server backward compatibility
-            mcpTransport: firstEnabled ? firstEnabled.transport || 'sse' : 'sse',
+            mcpTransport: firstEnabled
+                ? firstEnabled.transport || DEFAULT_MCP_TRANSPORT
+                : DEFAULT_MCP_TRANSPORT,
             mcpServerUrl: firstEnabled ? firstEnabled.url || '' : '',
         };
     }

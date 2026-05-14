@@ -2,9 +2,7 @@
 import {
     saveShortcutsToStorage,
     saveThemeToStorage,
-    requestThemeFromStorage,
     saveLanguageToStorage,
-    requestLanguageFromStorage,
     saveTextSelectionToStorage,
     requestTextSelectionFromStorage,
     saveSidebarBehaviorToStorage,
@@ -21,27 +19,20 @@ import {
 } from '../../shared/messaging/index.js';
 import { setLanguagePreference, getLanguagePreference } from '../core/i18n.js';
 import { SettingsView } from './settings/view.js';
-import { DEFAULT_CONTEXT_RECENT_TURNS, DEFAULT_SHORTCUTS } from '../../shared/config/constants.js';
-
-const OPENAI_WEB_SEARCH_MODES = new Set(['off', 'responses', 'chat']);
-
-function normalizeOpenAISettings(data) {
-    const hasUseResponsesSetting = typeof data.openaiUseResponsesApi === 'boolean';
-    const hasWebSearchSetting = typeof data.openaiWebSearch === 'boolean';
-
-    if (!hasUseResponsesSetting && OPENAI_WEB_SEARCH_MODES.has(data.openaiWebSearchMode)) {
-        return {
-            useResponsesApi: data.openaiWebSearchMode === 'responses',
-            webSearch:
-                data.openaiWebSearchMode === 'responses' || data.openaiWebSearchMode === 'chat',
-        };
-    }
-
-    return {
-        useResponsesApi: data.openaiUseResponsesApi === true,
-        webSearch: hasWebSearchSetting ? data.openaiWebSearch === true : false,
-    };
-}
+import {
+    DEFAULT_CONTEXT_MODE,
+    DEFAULT_CONTEXT_RECENT_TURNS,
+    DEFAULT_MCP_SERVER_URL,
+    DEFAULT_MCP_TRANSPORT,
+    DEFAULT_OFFICIAL_BASE_URL,
+    DEFAULT_OFFICIAL_MODELS,
+    DEFAULT_PROVIDER,
+    DEFAULT_SHORTCUTS,
+    DEFAULT_SIDE_PANEL_SCOPE,
+    DEFAULT_THINKING_LEVEL,
+} from '../../shared/config/constants.js';
+import { createDefaultMcpServer } from '../../shared/settings/connection.js';
+import { normalizeOpenAIWebSearchSettings } from '../../shared/settings/openai.js';
 
 export class SettingsController {
     constructor(callbacks) {
@@ -55,44 +46,33 @@ export class SettingsController {
         this.imageToolsEnabled = true;
         this.accountIndices = '0';
         this.sidebarBehavior = 'auto';
-        this.sidePanelScope = 'remembered_tabs';
+        this.sidePanelScope = DEFAULT_SIDE_PANEL_SCOPE;
         this.contextSettings = {
-            mode: 'summary',
+            mode: DEFAULT_CONTEXT_MODE,
             recentTurns: DEFAULT_CONTEXT_RECENT_TURNS,
         };
 
         // Connection State
         this.connectionData = {
-            provider: 'web',
+            provider: DEFAULT_PROVIDER,
             useOfficialApi: false, // Legacy support
-            officialBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+            officialBaseUrl: DEFAULT_OFFICIAL_BASE_URL,
             apiKey: '',
-            officialModel: 'gemini-3-flash-preview, gemini-3-pro-preview',
-            thinkingLevel: 'low',
+            officialModel: DEFAULT_OFFICIAL_MODELS,
+            thinkingLevel: DEFAULT_THINKING_LEVEL,
             officialWebSearch: false,
             openaiBaseUrl: '',
             openaiApiKey: '',
             openaiModel: '',
             openaiSelectedModel: '',
-            openaiThinkingLevel: 'low',
+            openaiThinkingLevel: DEFAULT_THINKING_LEVEL,
             openaiUseResponsesApi: false,
             openaiWebSearch: false,
             // MCP (External Tools)
             mcpEnabled: false,
-            mcpTransport: 'sse',
-            mcpServerUrl: 'http://127.0.0.1:3006/sse',
-            mcpServers: [
-                {
-                    id: `srv_${Date.now()}`,
-                    name: 'Local Proxy',
-                    transport: 'sse',
-                    url: 'http://127.0.0.1:3006/sse',
-                    headers: {},
-                    enabled: true,
-                    toolMode: 'all',
-                    enabledTools: [],
-                },
-            ],
+            mcpTransport: DEFAULT_MCP_TRANSPORT,
+            mcpServerUrl: DEFAULT_MCP_SERVER_URL,
+            mcpServers: [createDefaultMcpServer()],
             mcpActiveServerId: null,
         };
 
@@ -118,7 +98,7 @@ export class SettingsController {
                 saveSidebarBehaviorToStorage(this.sidebarBehavior);
             },
             onSidePanelScopeChange: (val) => {
-                this.sidePanelScope = val || 'remembered_tabs';
+                this.sidePanelScope = val || DEFAULT_SIDE_PANEL_SCOPE;
                 saveSidePanelScopeToStorage(this.sidePanelScope);
             },
             onDownloadLogs: () => this.downloadLogs(),
@@ -196,16 +176,16 @@ export class SettingsController {
         this.sidebarBehavior = data.sidebarBehavior || 'auto';
         saveSidebarBehaviorToStorage(this.sidebarBehavior);
 
-        this.sidePanelScope = data.sidePanelScope || 'remembered_tabs';
+        this.sidePanelScope = data.sidePanelScope || DEFAULT_SIDE_PANEL_SCOPE;
         saveSidePanelScopeToStorage(this.sidePanelScope);
 
         this.contextSettings = {
-            mode: data.contextMode === 'recent' ? 'recent' : 'summary',
+            mode: data.contextMode === 'recent' ? 'recent' : DEFAULT_CONTEXT_MODE,
             recentTurns: this.normalizeRecentTurns(data.contextRecentTurns),
         };
         saveContextSettingsToStorage(this.contextSettings);
 
-        const openaiSettings = normalizeOpenAISettings(data.connection);
+        const openaiSettings = normalizeOpenAIWebSearchSettings(data.connection);
 
         // Connection
         this.connectionData = {
@@ -219,12 +199,12 @@ export class SettingsController {
             openaiApiKey: data.connection.openaiApiKey,
             openaiModel: data.connection.openaiModel,
             openaiSelectedModel: this.connectionData.openaiSelectedModel || '',
-            openaiThinkingLevel: data.connection.openaiThinkingLevel || 'low',
+            openaiThinkingLevel: data.connection.openaiThinkingLevel || DEFAULT_THINKING_LEVEL,
             openaiUseResponsesApi: openaiSettings.useResponsesApi,
             openaiWebSearch: openaiSettings.webSearch,
             // MCP
             mcpEnabled: data.connection.mcpEnabled === true,
-            mcpTransport: data.connection.mcpTransport || 'sse',
+            mcpTransport: data.connection.mcpTransport || DEFAULT_MCP_TRANSPORT,
             mcpServerUrl: data.connection.mcpServerUrl || '',
             mcpServers: Array.isArray(data.connection.mcpServers) ? data.connection.mcpServers : [],
             mcpActiveServerId: data.connection.mcpActiveServerId || null,
@@ -321,8 +301,8 @@ export class SettingsController {
 
         // Legacy compat: If provider missing but useOfficialApi is true, set to official
         if (!this.connectionData.provider) {
-            if (settings.useOfficialApi) this.connectionData.provider = 'official';
-            else this.connectionData.provider = 'web';
+            if (settings.useOfficialApi === true) this.connectionData.provider = 'official';
+            else this.connectionData.provider = DEFAULT_PROVIDER;
         }
 
         this.view.setConnectionSettings(this.connectionData);
@@ -334,13 +314,13 @@ export class SettingsController {
     }
 
     updateSidePanelScope(scope) {
-        this.sidePanelScope = scope || 'remembered_tabs';
+        this.sidePanelScope = scope || DEFAULT_SIDE_PANEL_SCOPE;
         this.view.setSidePanelScope(this.sidePanelScope);
     }
 
     updateContextSettings(settings) {
         this.contextSettings = {
-            mode: settings?.mode === 'recent' ? 'recent' : 'summary',
+            mode: settings?.mode === 'recent' ? 'recent' : DEFAULT_CONTEXT_MODE,
             recentTurns: this.normalizeRecentTurns(settings?.recentTurns),
         };
         this.view.setContextSettings(this.contextSettings);

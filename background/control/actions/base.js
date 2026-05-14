@@ -14,13 +14,6 @@ export class BaseActionHandler {
         return this.connection.sendCommand(method, params);
     }
 
-    /**
-     * @deprecated Use this.waitHelper.waitForStableDOM() directly
-     */
-    async waitForStableDOM(timeout = 3000, stabilityDuration = 500) {
-        return this.waitHelper.waitForStableDOM(timeout, stabilityDuration);
-    }
-
     async getObjectIdFromUid(uid) {
         // This will throw "Stale Element Reference" if versions mismatch,
         // catching errors early before sending commands to browser.
@@ -51,28 +44,6 @@ export class BaseActionHandler {
         this.highlightObjectId(objectId).catch(() => {});
 
         return objectId;
-    }
-
-    /**
-     * Checks if the element is visually visible (layout size > 0 and style visible).
-     */
-    async checkVisibility(objectId) {
-        try {
-            const { result } = await this.cmd('Runtime.callFunctionOn', {
-                objectId: objectId,
-                functionDeclaration: `function() {
-                    if (!this.isConnected) return false;
-                    const style = window.getComputedStyle(this);
-                    if (style.display === 'none' || style.visibility === 'hidden') return false;
-                    const rect = this.getBoundingClientRect();
-                    return rect.width > 0 && rect.height > 0;
-                }`,
-                returnByValue: true,
-            });
-            return result.value === true;
-        } catch (e) {
-            return false;
-        }
     }
 
     async highlight(uid) {

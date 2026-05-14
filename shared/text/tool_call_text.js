@@ -48,7 +48,7 @@ function stripJsonFence(text) {
     return closing ? body.slice(0, closing.index).trim() : body.trim();
 }
 
-export function parseToolCallObject(text) {
+function parseToolCallObject(text) {
     const parsed = parseJsonObject(stripJsonFence(text));
     return isCompleteToolCallObject(parsed) ? parsed : null;
 }
@@ -105,7 +105,7 @@ function isPotentialPartialToolCallPrefix(candidate, options = {}) {
     return isWithinUncertainBudget && /,\s*(?:"a(?:r(?:g(?:s)?)?)?)?$/.test(afterTool);
 }
 
-export function isToolCallCandidate(text, options = {}) {
+function isToolCallCandidate(text, options = {}) {
     const trimmed = typeof text === 'string' ? text.trim() : '';
     if (!trimmed) return false;
     if (parseToolCallObject(trimmed)) return true;

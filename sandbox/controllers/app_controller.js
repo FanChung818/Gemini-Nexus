@@ -4,6 +4,11 @@ import { SessionFlowController } from './session_flow.js';
 import { PromptController } from './prompt.js';
 import { t } from '../core/i18n.js';
 import { saveSessionsToStorage, sendToBackground } from '../../shared/messaging/index.js';
+import {
+    DEFAULT_PROVIDER,
+    DEFAULT_SIDE_PANEL_SCOPE,
+    DEFAULT_STORED_GEMINI_MODEL,
+} from '../../shared/config/constants.js';
 
 export class AppController {
     constructor(sessionManager, uiController, imageManager) {
@@ -16,7 +21,7 @@ export class AppController {
         this.generatingSessionId = null;
         this.pageContextActive = false;
         this.browserControlActive = false;
-        this.sidePanelScope = 'remembered_tabs';
+        this.sidePanelScope = DEFAULT_SIDE_PANEL_SCOPE;
         this.currentTabId = null;
         this.boundSessionId = null;
         this.sessionsRestored = false;
@@ -119,13 +124,14 @@ export class AppController {
     }
 
     getSelectedModel() {
-        return this.ui.modelSelect ? this.ui.modelSelect.value : 'gemini-2.5-flash';
+        return this.ui.modelSelect ? this.ui.modelSelect.value : DEFAULT_STORED_GEMINI_MODEL;
     }
 
     handleModelChange(model) {
         const connectionData = this.ui.settings?.connectionData;
         const provider =
-            connectionData?.provider || (connectionData?.useOfficialApi ? 'official' : 'web');
+            connectionData?.provider ||
+            (connectionData?.useOfficialApi === true ? 'official' : DEFAULT_PROVIDER);
         if (provider === 'openai' && connectionData) {
             connectionData.openaiSelectedModel = model;
         }
@@ -215,7 +221,7 @@ export class AppController {
             return;
         }
         if (action === 'RESTORE_SIDE_PANEL_SCOPE') {
-            this.sidePanelScope = payload || 'remembered_tabs';
+            this.sidePanelScope = payload || DEFAULT_SIDE_PANEL_SCOPE;
             this.ui.settings.updateSidePanelScope(payload);
             return;
         }
@@ -226,7 +232,7 @@ export class AppController {
         if (action === 'RESTORE_SIDE_PANEL_TAB_CONTEXT') {
             this.currentTabId = payload?.tabId || null;
             this.boundSessionId = payload?.sessionId || null;
-            if (this.sessionsRestored && this.sidePanelScope === 'remembered_tabs') {
+            if (this.sessionsRestored && this.sidePanelScope === DEFAULT_SIDE_PANEL_SCOPE) {
                 this.restoreRememberedTabSession();
             }
             return;
@@ -275,7 +281,7 @@ export class AppController {
                     }
                 }
 
-                if (this.sidePanelScope === 'remembered_tabs') {
+                if (this.sidePanelScope === DEFAULT_SIDE_PANEL_SCOPE) {
                     this.restoreRememberedTabSession();
                 } else if (shouldRestore && sorted.length > 0) {
                     this.switchToSession(sorted[0].id);

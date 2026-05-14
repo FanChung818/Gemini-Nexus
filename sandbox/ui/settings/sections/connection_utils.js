@@ -1,19 +1,7 @@
-const OPENAI_WEB_SEARCH_MODES = new Set(['off', 'responses', 'chat']);
+import { inferMcpTransport, normalizeMcpHeaders } from '../../../../shared/mcp/transport.js';
+import { normalizeOpenAIWebSearchSettings } from '../../../../shared/settings/openai.js';
 
-export function normalizeMcpHeaders(headers) {
-    if (!headers || typeof headers !== 'object' || Array.isArray(headers)) return {};
-
-    const result = {};
-    for (const [name, value] of Object.entries(headers)) {
-        const key = String(name || '').trim();
-        if (!key || value === undefined || value === null) continue;
-
-        const text = String(value).trim();
-        if (!text) continue;
-        result[key] = text;
-    }
-    return result;
-}
+export { inferMcpTransport, normalizeMcpHeaders };
 
 export function formatMcpHeaders(headers) {
     const normalized = normalizeMcpHeaders(headers);
@@ -40,37 +28,5 @@ export function parseMcpHeadersText(text) {
 }
 
 export function normalizeOpenAISettings(data) {
-    const hasUseResponsesSetting = typeof data.openaiUseResponsesApi === 'boolean';
-    const hasWebSearchSetting = typeof data.openaiWebSearch === 'boolean';
-
-    if (!hasUseResponsesSetting && OPENAI_WEB_SEARCH_MODES.has(data.openaiWebSearchMode)) {
-        return {
-            useResponsesApi: data.openaiWebSearchMode === 'responses',
-            webSearch:
-                data.openaiWebSearchMode === 'responses' || data.openaiWebSearchMode === 'chat',
-        };
-    }
-
-    return {
-        useResponsesApi: data.openaiUseResponsesApi === true,
-        webSearch: hasWebSearchSetting ? data.openaiWebSearch === true : false,
-    };
-}
-
-export function inferMcpTransport(transport, url) {
-    const normalized = (transport || 'sse').toLowerCase();
-    if (normalized === 'streamablehttp') return 'streamable-http';
-    if (normalized === 'websocket') return 'ws';
-
-    if (normalized === 'sse' && typeof url === 'string') {
-        try {
-            const parsed = new URL(url.trim());
-            const path = parsed.pathname.replace(/\/+$/, '').toLowerCase();
-            if (parsed.protocol.startsWith('http') && !path.endsWith('/sse')) {
-                return 'streamable-http';
-            }
-        } catch {}
-    }
-
-    return normalized;
+    return normalizeOpenAIWebSearchSettings(data);
 }

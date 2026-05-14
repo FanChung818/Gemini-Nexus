@@ -30,10 +30,6 @@ export function saveShortcutsToStorage(shortcuts) {
     );
 }
 
-export function requestThemeFromStorage() {
-    window.parent.postMessage({ action: 'GET_THEME' }, '*');
-}
-
 export function saveThemeToStorage(theme) {
     window.parent.postMessage(
         {
@@ -42,10 +38,6 @@ export function saveThemeToStorage(theme) {
         },
         '*'
     );
-}
-
-export function requestLanguageFromStorage() {
-    window.parent.postMessage({ action: 'GET_LANGUAGE' }, '*');
 }
 
 export function saveLanguageToStorage(lang) {

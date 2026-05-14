@@ -1,112 +1,19 @@
 // @ts-check
 
-/**
- * @param {unknown} url
- * @returns {string}
- */
-export function asWsUrl(url) {
-    if (!url || typeof url !== 'string') return '';
-    const trimmed = url.trim();
-    if (trimmed.startsWith('ws://') || trimmed.startsWith('wss://')) return trimmed;
-    if (trimmed.startsWith('http://')) return `ws://${trimmed.slice('http://'.length)}`;
-    if (trimmed.startsWith('https://')) return `wss://${trimmed.slice('https://'.length)}`;
-    return trimmed;
-}
+import {
+    asHttpUrl,
+    asWsUrl,
+    hasMcpHeaders,
+    inferMcpTransport,
+    mergeHttpTransportHeaders,
+    mergeMcpHeaders,
+    normalizeMcpHeaders,
+    stableMcpHeadersKey,
+} from '../../../shared/mcp/transport.js';
 
-/**
- * @param {unknown} url
- * @returns {string}
- */
-export function asHttpUrl(url) {
-    if (!url || typeof url !== 'string') return '';
-    const trimmed = url.trim();
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
-    return trimmed;
-}
-
-/**
- * @param {unknown} transport
- * @param {unknown} url
- * @returns {string}
- */
-export function inferTransport(transport, url) {
-    const normalized = String(transport || 'sse').toLowerCase();
-    if (normalized === 'streamablehttp') return 'streamable-http';
-    if (normalized === 'websocket') return 'ws';
-
-    if (normalized === 'sse' && typeof url === 'string') {
-        try {
-            const parsed = new URL(url.trim());
-            const path = parsed.pathname.replace(/\/+$/, '').toLowerCase();
-            if (parsed.protocol.startsWith('http') && !path.endsWith('/sse')) {
-                return 'streamable-http';
-            }
-        } catch {}
-    }
-
-    return normalized;
-}
-
-/**
- * @param {unknown} headers
- * @returns {Record<string, string>}
- */
-export function normalizeHeaders(headers) {
-    if (!headers || typeof headers !== 'object' || Array.isArray(headers)) return {};
-
-    /** @type {Record<string, string>} */
-    const result = {};
-    for (const [name, value] of Object.entries(headers)) {
-        const key = String(name || '').trim();
-        if (!key || value === undefined || value === null) continue;
-
-        const text = String(value).trim();
-        if (!text) continue;
-        result[key] = text;
-    }
-    return result;
-}
-
-/**
- * @param {unknown} headers
- * @returns {boolean}
- */
-export function hasHeaders(headers) {
-    return Object.keys(normalizeHeaders(headers)).length > 0;
-}
-
-/**
- * @param {unknown} headers
- * @returns {string}
- */
-export function stableHeadersKey(headers) {
-    const normalized = normalizeHeaders(headers);
-    return Object.keys(normalized)
-        .sort((a, b) => a.localeCompare(b))
-        .map((key) => `${key}:${normalized[key]}`)
-        .join('\n');
-}
-
-/**
- * @param {Record<string, string>} baseHeaders
- * @param {unknown} customHeaders
- * @returns {Record<string, string>}
- */
-export function mergeHeaders(baseHeaders, customHeaders) {
-    return {
-        ...(baseHeaders || {}),
-        ...normalizeHeaders(customHeaders),
-    };
-}
-
-/**
- * @param {{ headers?: unknown, sessionId?: string | null, protocolVersion?: string | null }} conn
- * @param {Record<string, string>} baseHeaders
- * @returns {Record<string, string>}
- */
-export function mergeHttpTransportHeaders(conn, baseHeaders) {
-    const headers = mergeHeaders(baseHeaders, conn.headers);
-    if (conn.sessionId) headers['Mcp-Session-Id'] = conn.sessionId;
-    if (conn.protocolVersion) headers['MCP-Protocol-Version'] = conn.protocolVersion;
-    return headers;
-}
+export { asHttpUrl, asWsUrl, mergeHttpTransportHeaders };
+export const inferTransport = inferMcpTransport;
+export const normalizeHeaders = normalizeMcpHeaders;
+export const hasHeaders = hasMcpHeaders;
+export const stableHeadersKey = stableMcpHeadersKey;
+export const mergeHeaders = mergeMcpHeaders;

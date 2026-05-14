@@ -120,6 +120,18 @@ export class McpRemoteManager {
         conn.protocolVersion = null;
     }
 
+    _resolvePendingRpcMessage(conn, msg) {
+        if (!msg || typeof msg !== 'object' || msg.id === undefined) return;
+
+        const entry = conn.pending.get(msg.id);
+        if (!entry) return;
+
+        clearTimeout(entry.timeout);
+        conn.pending.delete(msg.id);
+        if (msg.error) entry.reject(new Error(msg.error.message || 'MCP error'));
+        else entry.resolve(msg.result);
+    }
+
     _clearIdleTimer(conn) {
         if (conn.idleCloseTimer) {
             clearTimeout(conn.idleCloseTimer);
@@ -290,16 +302,7 @@ export class McpRemoteManager {
                 const onMessage = (event) => {
                     try {
                         const msg = JSON.parse(event.data);
-                        if (msg && typeof msg === 'object' && msg.id !== undefined) {
-                            const entry = conn.pending.get(msg.id);
-                            if (entry) {
-                                clearTimeout(entry.timeout);
-                                conn.pending.delete(msg.id);
-                                if (msg.error)
-                                    entry.reject(new Error(msg.error.message || 'MCP error'));
-                                else entry.resolve(msg.result);
-                            }
-                        }
+                        this._resolvePendingRpcMessage(conn, msg);
                     } catch {}
                 };
 
@@ -526,16 +529,7 @@ export class McpRemoteManager {
             if (type === 'message' || type === 'mcp' || type === 'data') {
                 try {
                     const msg = JSON.parse(payload);
-                    if (msg && typeof msg === 'object' && msg.id !== undefined) {
-                        const entry = conn.pending.get(msg.id);
-                        if (entry) {
-                            clearTimeout(entry.timeout);
-                            conn.pending.delete(msg.id);
-                            if (msg.error)
-                                entry.reject(new Error(msg.error.message || 'MCP error'));
-                            else entry.resolve(msg.result);
-                        }
-                    }
+                    this._resolvePendingRpcMessage(conn, msg);
                 } catch {}
             }
         };
@@ -602,10 +596,7 @@ export class McpRemoteManager {
         throw lastError || new Error('Failed to initialize MCP connection');
     }
 
-    // List tools for a single server (legacy compatibility)
-    async listTools(config) {
-        const conn = await this._ensureConnected(config);
-
+    async _listToolsForConnection(conn) {
         const now = Date.now();
         if (conn.toolsCache && now - conn.toolsCacheAt < 5 * 60 * 1000) {
             return conn.toolsCache;
@@ -618,20 +609,16 @@ export class McpRemoteManager {
         return tools;
     }
 
+    // List tools for a single server (legacy compatibility)
+    async listTools(config) {
+        const conn = await this._ensureConnected(config);
+        return this._listToolsForConnection(conn);
+    }
+
     // List tools for a specific server by ID
     async listToolsForServer(serverId, transport, url, headers = {}) {
         const conn = await this._ensureConnectedForServer(serverId, transport, url, headers);
-
-        const now = Date.now();
-        if (conn.toolsCache && now - conn.toolsCacheAt < 5 * 60 * 1000) {
-            return conn.toolsCache;
-        }
-
-        const result = await this._sendRpc(conn, 'tools/list', {});
-        const tools = result && Array.isArray(result.tools) ? result.tools : [];
-        conn.toolsCache = tools;
-        conn.toolsCacheAt = now;
-        return tools;
+        return this._listToolsForConnection(conn);
     }
 
     // List tools from all enabled servers (multi-server mode)

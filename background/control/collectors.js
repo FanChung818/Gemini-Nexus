@@ -1,6 +1,6 @@
 // background/control/collectors.js
 
-export class NetworkCollector {
+class NetworkCollector {
     constructor() {
         this.requests = new Map();
         this.maxItems = 300;
@@ -81,7 +81,7 @@ export class NetworkCollector {
     }
 }
 
-export class LogCollector {
+class LogCollector {
     constructor() {
         this.logs = [];
         this.maxItems = 50;
@@ -130,7 +130,7 @@ export class LogCollector {
     }
 }
 
-export class DialogCollector {
+class DialogCollector {
     constructor() {
         this.activeDialog = null;
     }

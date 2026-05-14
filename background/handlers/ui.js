@@ -213,18 +213,7 @@ export class UIMessageHandler {
         if (request.action === 'MCP_TEST_CONNECTION') {
             (async () => {
                 try {
-                    if (!this.mcpManager) throw new Error('MCP manager not available');
-                    const url = (request.url || '').trim();
-                    const transport = (request.transport || 'sse').toLowerCase();
-                    if (!url) throw new Error('Server URL is empty');
-
-                    const tools = await this.mcpManager.listTools({
-                        enableMcpTools: true,
-                        mcpTransport: transport,
-                        mcpServerUrl: url,
-                        mcpServerId: request.serverId || '_test_',
-                        mcpHeaders: request.headers,
-                    });
+                    const { tools, transport, url } = await this._loadMcpTools(request, '_test_');
 
                     sendResponse({
                         action: 'MCP_TEST_RESULT',
@@ -251,26 +240,7 @@ export class UIMessageHandler {
         if (request.action === 'MCP_LIST_TOOLS') {
             (async () => {
                 try {
-                    if (!this.mcpManager) throw new Error('MCP manager not available');
-                    const url = (request.url || '').trim();
-                    const transport = (request.transport || 'sse').toLowerCase();
-                    if (!url) throw new Error('Server URL is empty');
-
-                    const tools = await this.mcpManager.listTools({
-                        enableMcpTools: true,
-                        mcpTransport: transport,
-                        mcpServerUrl: url,
-                        mcpServerId: request.serverId || '_tools_',
-                        mcpHeaders: request.headers,
-                    });
-
-                    // Return only lightweight fields for UI
-                    const safeTools = Array.isArray(tools)
-                        ? tools.map((t) => ({
-                              name: t.name,
-                              description: t.description || '',
-                          }))
-                        : [];
+                    const { tools, transport, url } = await this._loadMcpTools(request, '_tools_');
 
                     sendResponse({
                         action: 'MCP_TOOLS_RESULT',
@@ -279,7 +249,7 @@ export class UIMessageHandler {
                         requestKey: request.requestKey || null,
                         transport,
                         url,
-                        tools: safeTools,
+                        tools: this._toSafeMcpTools(tools),
                     });
                 } catch (e) {
                     sendResponse({
@@ -357,6 +327,33 @@ export class UIMessageHandler {
         }
 
         return false;
+    }
+
+    async _loadMcpTools(request, fallbackServerId) {
+        if (!this.mcpManager) throw new Error('MCP manager not available');
+
+        const url = (request.url || '').trim();
+        const transport = (request.transport || 'sse').toLowerCase();
+        if (!url) throw new Error('Server URL is empty');
+
+        const tools = await this.mcpManager.listTools({
+            enableMcpTools: true,
+            mcpTransport: transport,
+            mcpServerUrl: url,
+            mcpServerId: request.serverId || fallbackServerId,
+            mcpHeaders: request.headers,
+        });
+
+        return { tools, transport, url };
+    }
+
+    _toSafeMcpTools(tools) {
+        return Array.isArray(tools)
+            ? tools.map((tool) => ({
+                  name: tool.name,
+                  description: tool.description || '',
+              }))
+            : [];
     }
 
     async _handleOpenSidePanel(request, sender) {
