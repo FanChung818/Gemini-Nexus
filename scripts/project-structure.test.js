@@ -36,7 +36,7 @@ describe('project structure', () => {
         await expect(exists('background/lib')).resolves.toBe(false);
     });
 
-    it('groups shared runtime code by capability with thin compatibility wrappers', async () => {
+    it('groups shared runtime code by capability without root-level compatibility wrappers', async () => {
         const capabilityModules = [
             'shared/config/constants.js',
             'shared/dom/crop_utils.js',
@@ -45,7 +45,7 @@ describe('project structure', () => {
             'shared/text/tool_call_text.js',
             'shared/utils/index.js',
         ];
-        const compatibilityWrappers = [
+        const removedCompatibilityWrappers = [
             'shared/constants.js',
             'shared/crop_utils.js',
             'shared/messaging.js',
@@ -58,10 +58,8 @@ describe('project structure', () => {
             await expect(exists(modulePath)).resolves.toBe(true);
         }
 
-        for (const wrapperPath of compatibilityWrappers) {
-            const source = await readFile(path.join(process.cwd(), wrapperPath), 'utf8');
-            expect(source.trim()).toMatch(/^export \* from '\.\/.+\.js';$/);
-            expect(source.trim().split('\n')).toHaveLength(1);
+        for (const wrapperPath of removedCompatibilityWrappers) {
+            await expect(exists(wrapperPath)).resolves.toBe(false);
         }
     });
 
@@ -178,5 +176,40 @@ describe('project structure', () => {
             const source = await readFile(path.join(process.cwd(), file), 'utf8');
             expect(source).not.toMatch(/https:\/\/cdn\.jsdelivr\.net/);
         }
+    });
+
+    it('keeps vendor assets limited to extension runtime resources', async () => {
+        await expect(exists('vendor/katex/katex.min.css')).resolves.toBe(true);
+        await expect(exists('vendor/highlight.js/atom-one-dark.min.css')).resolves.toBe(true);
+        await expect(exists('vendor/chrome-devtools-mcp')).resolves.toBe(false);
+    });
+
+    it('declares an unused-code scanner configured for extension entry points', async () => {
+        const packageJson = await readJson('package.json');
+        const knipConfig = await readJson('knip.json');
+
+        expect(packageJson.scripts['lint:unused']).toBe('knip --no-progress');
+        expect(packageJson.devDependencies.knip).toBeDefined();
+        expect(knipConfig.entry).toEqual(
+            expect.arrayContaining([
+                'background/index.js',
+                'sidepanel/index.html',
+                'sandbox/index.html',
+                'scripts/*.mjs',
+                'scripts/*.test.js',
+            ])
+        );
+        expect(knipConfig.project).toContain('**/*.{js,mjs,ts}');
+        const ignoredFiles = knipConfig.ignore || [];
+        expect(ignoredFiles).not.toEqual(
+            expect.arrayContaining([
+                'shared/constants.js',
+                'shared/crop_utils.js',
+                'shared/messaging.js',
+                'shared/tool_call_text.js',
+                'shared/utils.js',
+                'shared/watermark_remover.js',
+            ])
+        );
     });
 });

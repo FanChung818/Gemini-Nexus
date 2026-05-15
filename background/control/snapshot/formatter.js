@@ -8,8 +8,8 @@ export class SnapshotFormatter {
         this.selectedBackendNodeId = options.selectedBackendNodeId || null;
         this.nodeCounter = 0;
 
-        // Mappings for boolean capabilities (property name) -> attribute name
-        // Matches chrome-devtools-mcp src/formatters/snapshotFormatter.ts
+        // Mappings for boolean capabilities (property name) -> attribute name.
+        // Keep these labels aligned with Chrome DevTools MCP snapshot output.
         this.booleanPropertyMap = {
             disabled: 'disableable',
             expanded: 'expandable',

@@ -18,7 +18,7 @@ describe('package-extension', () => {
     it('keeps runtime source files in the package', () => {
         expect(shouldExcludeFromPackage('services/parser.js')).toBe(false);
         expect(shouldExcludeFromPackage('background/index.js')).toBe(false);
-        expect(shouldExcludeFromPackage('shared/tool_call_text.js')).toBe(false);
+        expect(shouldExcludeFromPackage('shared/text/tool_call_text.js')).toBe(false);
         expect(shouldExcludeFromPackage('dist/assets/app.js')).toBe(false);
     });
 
