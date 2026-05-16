@@ -38,7 +38,7 @@ chrome.action.onClicked.addListener((tab) => {
 });
 
 // Initialize Modules
-setupContextMenus(imageManager);
+setupContextMenus();
 setupMessageListener(
     sessionManager,
     imageManager,

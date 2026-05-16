@@ -76,13 +76,9 @@
             );
 
             // Init Drag Controller for Floating Toolbar
-            this.toolbarDragController = new DragController(
-                this.view.elements.toolbar,
-                this.view.elements.toolbarDrag,
-                {
-                    // No docking for small toolbar
-                }
-            );
+            new DragController(this.view.elements.toolbar, this.view.elements.toolbarDrag, {
+                // No docking for small toolbar
+            });
 
             this.events = new Events(this);
 
@@ -108,11 +104,7 @@
                     onUndock: () => this.view.undockWindow(),
                 }
             );
-            this.toolbarDragController = new DragController(
-                this.view.elements.toolbar,
-                this.view.elements.toolbarDrag,
-                {}
-            );
+            new DragController(this.view.elements.toolbar, this.view.elements.toolbarDrag, {});
             this.events = new Events(this);
             this.events.bind(this.view.elements, this.view.elements.askWindow);
         }
@@ -291,11 +283,7 @@
                     opts = models.map((m) => ({ val: m, txt: m }));
                 }
             } else {
-                opts = window.GeminiWebModels?.createOptions?.() || [
-                    { val: 'gemini-3-flash', txt: 'Fast' },
-                    { val: 'gemini-3-flash-thinking', txt: 'Thinking' },
-                    { val: 'gemini-3-pro', txt: '3.1 Pro' },
-                ];
+                opts = window.GeminiWebModels.createOptions();
             }
 
             this.view.updateModelOptions(opts, currentModel);

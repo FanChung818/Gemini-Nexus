@@ -61,14 +61,6 @@ export class AppController {
         }
     }
 
-    setPageContext(enable) {
-        if (this.pageContextActive !== enable) {
-            this.togglePageContext();
-        } else if (enable) {
-            this._checkPageContent();
-        }
-    }
-
     _checkPageContent() {
         this.ui.updateStatus(t('readingPage'));
         sendToBackground({ action: 'CHECK_PAGE_CONTEXT' });

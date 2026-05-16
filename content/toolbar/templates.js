@@ -3,9 +3,7 @@
     const ICONS = window.GeminiToolbarIcons || {};
     // Combine modular styles (loaded previously)
     const STYLES = window.GeminiToolbarStyles || '';
-    const WEB_MODEL_OPTIONS =
-        window.GeminiWebModels?.createOptionMarkup?.() ||
-        '<option value="gemini-3-flash">Fast</option><option value="gemini-3-flash-thinking">Thinking</option><option value="gemini-3-pro">3.1 Pro</option>';
+    const WEB_MODEL_OPTIONS = window.GeminiWebModels.createOptionMarkup();
 
     function buildMainStructure() {
         const t = window.GeminiToolbarStrings || {};
@@ -37,6 +35,9 @@
                 </div>
                 <div class="menu-item" id="btn-image-extract">
                     ${ICONS.SCAN_TEXT} <span>${t.extractText}</span>
+                </div>
+                <div class="menu-item" id="btn-image-translate">
+                    ${ICONS.TRANSLATE} <span>${t.translateImageText}</span>
                 </div>
 
                 <div class="menu-item has-submenu">
@@ -124,7 +125,6 @@
     }
 
     window.GeminiToolbarTemplates = {
-        buildMainStructure,
         get mainStructure() {
             return buildMainStructure();
         },

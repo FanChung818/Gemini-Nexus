@@ -32,6 +32,12 @@ describe('manifest content scripts', () => {
         expect(manifest.permissions).toContain('tabGroups');
     });
 
+    it('does not request the downloads permission when downloads use DOM anchors', async () => {
+        const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
+
+        expect(manifest.permissions).not.toContain('downloads');
+    });
+
     it('lists every runtime content script file exactly once', async () => {
         const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
         const listedFiles = manifest.content_scripts.flatMap((entry) => entry.js ?? []);
@@ -43,6 +49,21 @@ describe('manifest content scripts', () => {
 
         expect(listedFiles).toHaveLength(uniqueListedFiles.length);
         expect(uniqueListedFiles).toEqual(runtimeContentFiles);
+    });
+
+    it('loads content model metadata before scripts that render or submit model choices', async () => {
+        const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
+        const listedFiles = manifest.content_scripts.flatMap((entry) => entry.js ?? []);
+        const modelOptionsIndex = listedFiles.indexOf('content/toolbar/model_options.js');
+
+        expect(modelOptionsIndex).toBeGreaterThan(-1);
+        for (const dependentFile of [
+            'content/toolbar/templates.js',
+            'content/toolbar/ui/manager.js',
+            'content/toolbar/actions.js',
+        ]) {
+            expect(modelOptionsIndex).toBeLessThan(listedFiles.indexOf(dependentFile));
+        }
     });
 
     it('only exposes web accessible resources that exist in the source tree', async () => {

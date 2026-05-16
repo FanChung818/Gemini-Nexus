@@ -98,6 +98,23 @@ function countCodeLines(source) {
     }).length;
 }
 
+function collectI18nKeysFromSource(source) {
+    const keys = new Set();
+    const patterns = [
+        /data-i18n(?:-title|-placeholder)?="([^"]+)"/g,
+        /t\(\s*['"]([^'"]+)['"]\s*\)/g,
+        /formatT\(\s*['"]([^'"]+)['"]\s*,/g,
+    ];
+
+    for (const pattern of patterns) {
+        for (const match of source.matchAll(pattern)) {
+            keys.add(match[1]);
+        }
+    }
+
+    return keys;
+}
+
 describe('project structure', () => {
     it('uses the repository root as the runnable extension project root', async () => {
         await expect(exists('.github/workflows/package-extension.yml')).resolves.toBe(true);
@@ -174,7 +191,193 @@ describe('project structure', () => {
         expect(manager).toContain("from './mcp/tool_result.js'");
         expect(manager).toContain("from './mcp/preamble.js'");
         expect(manager).toContain("from './mcp/server_tools.js'");
+        expect(manager).not.toContain('DEBUG_MCP_REMOTE');
+        expect(manager).not.toContain('debugMcpRemote');
         expect(countCodeLines(manager)).toBeLessThan(650);
+    });
+
+    it('does not export helpers that are only used inside their own module', async () => {
+        const webModels = await readFile(
+            path.join(process.cwd(), 'shared/models/web_models.js'),
+            'utf8'
+        );
+        const sessionUtils = await readFile(
+            path.join(process.cwd(), 'background/handlers/session/utils.js'),
+            'utf8'
+        );
+        const packageExtension = await readFile(
+            path.join(process.cwd(), 'scripts/package-extension.mjs'),
+            'utf8'
+        );
+
+        expect(webModels).not.toMatch(/export function normalizeWebModel\s*\(/);
+        expect(sessionUtils).not.toMatch(/export function createOfficialFunctionResponsePart\s*\(/);
+        expect(packageExtension).not.toMatch(/export function getLocalDependencyAssets\s*\(/);
+    });
+
+    it('keeps i18n dictionaries free of untranslated orphan keys', async () => {
+        const runtimeFiles = [
+            'sandbox/controllers/session_flow.js',
+            'sandbox/controllers/app_controller.js',
+            'sandbox/controllers/prompt.js',
+            'sandbox/controllers/message_handler.js',
+            'sandbox/render/content.js',
+            'sandbox/render/sources.js',
+            'sandbox/render/config.js',
+            'sandbox/render/copy_button.js',
+            'sandbox/render/message.js',
+            'sandbox/render/generated_image.js',
+            'sandbox/boot/app.js',
+            'sandbox/boot/renderer.js',
+            'sandbox/boot/events.js',
+            'sandbox/ui/chat.js',
+            'sandbox/ui/model_options.js',
+            'sandbox/ui/sidebar.js',
+            'sandbox/ui/tab_selector.js',
+            'sandbox/ui/settings/index.js',
+            'sandbox/ui/settings/sections/connection.js',
+            'sandbox/ui/settings/sections/mcp_tools_view.js',
+            'sandbox/ui/templates/footer.js',
+            'sandbox/ui/templates/header.js',
+            'sandbox/ui/templates/sidebar.js',
+            'sandbox/ui/templates/tab_selector.js',
+            'sandbox/ui/templates/viewer.js',
+            'sandbox/ui/templates/settings/about.js',
+            'sandbox/ui/templates/settings/appearance.js',
+            'sandbox/ui/templates/settings/connection.js',
+            'sandbox/ui/templates/settings/general.js',
+            'sandbox/ui/templates/settings/index.js',
+            'sandbox/ui/templates/settings/shortcuts.js',
+        ];
+        const i18n = await readFile(path.join(process.cwd(), 'sandbox/core/i18n.js'), 'utf8');
+        const usedKeys = new Set();
+
+        for (const runtimeFile of runtimeFiles) {
+            const source = await readFile(path.join(process.cwd(), runtimeFile), 'utf8');
+            for (const key of collectI18nKeysFromSource(source)) {
+                usedKeys.add(key);
+            }
+        }
+
+        for (const match of i18n.matchAll(/^\s{8}([A-Za-z][A-Za-z0-9_]*):/gm)) {
+            expect(usedKeys.has(match[1]), match[1]).toBe(true);
+        }
+    });
+
+    it('does not keep orphaned legacy message actions without senders', async () => {
+        const sourcePaths = [
+            'background/messages.js',
+            'background/handlers/ui.js',
+            'content/messages.js',
+            'sandbox/boot/messaging.js',
+            'sandbox/controllers/message_handler.js',
+        ];
+        const retiredActions = [
+            'CAPTURE_SCREENSHOT',
+            'FOCUS_INPUT',
+            'DOM_NOT_FOUND',
+            'RESTORE_BROWSER_LOOP_LIMIT',
+            'SET_SIDEBAR_CAPTURE_MODE',
+            'TOGGLE_PAGE_CONTEXT',
+            'LOG_ENTRY',
+        ];
+
+        for (const sourcePath of sourcePaths) {
+            const source = await readFile(path.join(process.cwd(), sourcePath), 'utf8');
+            for (const action of retiredActions) {
+                expect(source).not.toContain(action);
+            }
+        }
+    });
+
+    it('does not keep controller methods that only supported retired message actions', async () => {
+        const appController = await readFile(
+            path.join(process.cwd(), 'sandbox/controllers/app_controller.js'),
+            'utf8'
+        );
+
+        expect(appController).not.toMatch(/\bsetPageContext\s*\(/);
+    });
+
+    it('keeps content toolbar bindings scoped to controls rendered by the content toolbar', async () => {
+        const events = await readFile(
+            path.join(process.cwd(), 'content/toolbar/events.js'),
+            'utf8'
+        );
+
+        expect(events).not.toContain('browser-control-btn');
+    });
+
+    it('does not keep browser-control action wrapper methods without distinct behavior', async () => {
+        const baseActionHandler = await readFile(
+            path.join(process.cwd(), 'background/control/actions/base.js'),
+            'utf8'
+        );
+
+        expect(baseActionHandler).not.toMatch(/\bhighlightObjectId\s*\(/);
+    });
+
+    it('does not expose content toolbar template helpers that only back the rendered template getter', async () => {
+        const templates = await readFile(
+            path.join(process.cwd(), 'content/toolbar/templates.js'),
+            'utf8'
+        );
+
+        expect(templates).not.toMatch(
+            /window\.GeminiToolbarTemplates\s*=\s*\{[\s\S]*\bbuildMainStructure\s*,/
+        );
+    });
+
+    it('does not keep content toolbar pin/dock state facades after removing the pin UI entry point', async () => {
+        const files = [
+            'content/toolbar/controller.js',
+            'content/toolbar/view/index.js',
+            'content/toolbar/view/window.js',
+            'content/toolbar/view/utils.js',
+        ];
+
+        for (const file of files) {
+            const source = await readFile(path.join(process.cwd(), file), 'utf8');
+            expect(source).not.toMatch(/\b(isPinned|togglePin|isDocked)\b/);
+        }
+    });
+
+    it('does not keep obsolete content toolbar HTML-mode render parameters', async () => {
+        const view = await readFile(
+            path.join(process.cwd(), 'content/toolbar/view/index.js'),
+            'utf8'
+        );
+
+        expect(view).not.toContain('isHtml');
+    });
+
+    it('does not keep unread content toolbar controller fields for self-bound DOM listeners', async () => {
+        const uiManager = await readFile(
+            path.join(process.cwd(), 'content/toolbar/ui/manager.js'),
+            'utf8'
+        );
+        const controller = await readFile(
+            path.join(process.cwd(), 'content/toolbar/controller.js'),
+            'utf8'
+        );
+
+        expect(uiManager).not.toContain('toolbarDragController');
+        expect(controller).not.toMatch(/\bthis\.(streamHandler|selectionObserver)\s*=/);
+    });
+
+    it('does not keep CSS selectors with no runtime or template producer', async () => {
+        const toolbarCoreStyles = await readFile(
+            path.join(process.cwd(), 'content/toolbar/styles/core.js'),
+            'utf8'
+        );
+        const componentStyles = await readFile(
+            path.join(process.cwd(), 'css/components.css'),
+            'utf8'
+        );
+
+        expect(toolbarCoreStyles).not.toContain('loading-state');
+        expect(toolbarCoreStyles).not.toMatch(/\.spinner\b/);
+        expect(componentStyles).not.toContain('setting-panel-note');
     });
 
     it('documents current shared and directory entrypoint conventions', async () => {

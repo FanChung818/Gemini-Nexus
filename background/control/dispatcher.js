@@ -25,7 +25,6 @@ export class ToolDispatcher {
         'click',
         'fill',
         'press_key',
-        'handle_dialog',
         'attach_file',
 
         // Observation & Logic
@@ -67,8 +66,6 @@ export class ToolDispatcher {
                 return this.actions.fillElement(args);
             case 'press_key':
                 return this.actions.pressKey(args);
-            case 'handle_dialog':
-                return this.actions.input.handleDialog(args);
             case 'attach_file':
                 return this.actions.attachFile(args);
 

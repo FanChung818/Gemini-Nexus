@@ -4,10 +4,7 @@
      * Shared Utility for Positioning Elements
      */
     window.GeminiViewUtils = {
-        positionElement: function (el, rect, isLargerWindow, isPinned, mousePoint) {
-            // Do not reposition if pinned and already visible
-            if (isPinned && el.classList.contains('visible')) return;
-
+        positionElement: function (el, rect, isLargerWindow, mousePoint) {
             const scrollX = window.scrollX || window.pageXOffset;
             const scrollY = window.scrollY || window.pageYOffset;
             const vw = window.innerWidth;

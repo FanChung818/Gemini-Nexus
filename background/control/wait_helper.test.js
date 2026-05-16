@@ -47,4 +47,21 @@ describe('WaitForHelper event waits', () => {
         await expect(wait).resolves.toBe(true);
         expect(connection.removeListener).toHaveBeenCalledTimes(1);
     });
+
+    it('does not retain unused multiplier fields after calculating timeouts', () => {
+        const connection = createConnection();
+        const helper = new WaitForHelper(connection, 2, 3);
+
+        expect(helper.timeouts.stableDom).toBe(6000);
+        expect(helper.timeouts.navigation).toBe(45000);
+        expect(Object.hasOwn(helper, 'cpuMultiplier')).toBe(false);
+        expect(Object.hasOwn(helper, 'networkMultiplier')).toBe(false);
+    });
+
+    it('does not expose a runtime multiplier update API when no caller uses one', () => {
+        const connection = createConnection();
+        const helper = new WaitForHelper(connection);
+
+        expect(helper.updateMultipliers).toBeUndefined();
+    });
 });

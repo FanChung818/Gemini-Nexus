@@ -63,6 +63,7 @@
                     imageChat: get('btn-image-chat'),
                     imageDescribe: get('btn-image-describe'),
                     imageExtract: get('btn-image-extract'),
+                    imageTranslate: get('btn-image-translate'),
 
                     // Image Edit Buttons
                     imageRemoveBg: get('btn-image-remove-bg'),
@@ -97,16 +98,6 @@
 
         // --- Delegation to Window View ---
 
-        get isPinned() {
-            return this.windowView.isPinned;
-        }
-        get isDocked() {
-            return this.windowView.isDocked;
-        }
-
-        togglePin() {
-            return this.windowView.togglePin();
-        }
         showAskWindow(rect, contextText, title, resetDrag, mousePoint) {
             return this.windowView.show(rect, contextText, title, resetDrag, mousePoint);
         }
@@ -117,9 +108,8 @@
             this.windowView.showLoading(msg);
         }
 
-        // Pass optional isHtml flag
-        showResult(text, title, isStreaming, isHtml = false) {
-            this.windowView.showResult(text, title, isStreaming, isHtml);
+        showResult(text, title, isStreaming) {
+            this.windowView.showResult(text, title, isStreaming);
         }
 
         updateStreamingState(isStreaming) {

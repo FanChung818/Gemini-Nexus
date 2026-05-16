@@ -13,13 +13,6 @@ import { filterToolsForPreamble, formatToolsPreamble } from './mcp/preamble.js';
 import { getActiveMcpServers, parseToolId, tagToolsForServer } from './mcp/server_tools.js';
 
 const DEFAULT_PROTOCOL_VERSIONS = ['2024-11-05', '2024-10-07', '2024-06-20'];
-const DEBUG_MCP_REMOTE = false;
-
-function debugMcpRemote(...args) {
-    if (DEBUG_MCP_REMOTE) {
-        console.debug(...args);
-    }
-}
 
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -624,23 +617,16 @@ export class McpRemoteManager {
     // List tools from all enabled servers (multi-server mode)
     async listAllActiveTools(servers) {
         const activeServers = getActiveMcpServers(servers);
-        debugMcpRemote(
-            '[MCP] listAllActiveTools: activeServers count:',
-            activeServers.length,
-            activeServers.map((s) => ({ id: s.id, name: s.name, url: s.url }))
-        );
         if (activeServers.length === 0) return [];
 
         const results = await Promise.allSettled(
             activeServers.map(async (server) => {
-                debugMcpRemote('[MCP] Connecting to server:', server.id, server.url);
                 const tools = await this.listToolsForServer(
                     server.id,
                     server.transport,
                     server.url,
                     server.headers
                 );
-                debugMcpRemote('[MCP] Server', server.id, 'returned', tools.length, 'tools');
                 return tagToolsForServer(server, tools);
             })
         );
@@ -649,19 +635,11 @@ export class McpRemoteManager {
         for (let i = 0; i < results.length; i++) {
             const result = results[i];
             if (result.status === 'fulfilled') {
-                debugMcpRemote(
-                    '[MCP] Server',
-                    activeServers[i].id,
-                    'fulfilled with',
-                    result.value.length,
-                    'tools'
-                );
                 allTools.push(...result.value);
             } else {
                 console.error('[MCP] Server', activeServers[i].id, 'failed:', result.reason);
             }
         }
-        debugMcpRemote('[MCP] Total tools from all servers:', allTools.length);
         return allTools;
     }
 
@@ -704,15 +682,10 @@ export class McpRemoteManager {
     async buildToolsPreamble(config) {
         const servers = config.mcpServers;
         const isMulti = this.isMultiEnabled(config);
-        debugMcpRemote('[MCP] buildToolsPreamble: isMulti=', isMulti, 'servers=', servers?.length);
 
         let allTools = [];
         if (isMulti) {
             allTools = await this.listAllActiveTools(servers);
-            debugMcpRemote(
-                '[MCP] buildToolsPreamble: allTools after listAllActiveTools:',
-                allTools.length
-            );
         } else {
             allTools = await this.listTools(config);
         }

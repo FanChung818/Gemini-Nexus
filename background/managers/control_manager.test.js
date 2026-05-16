@@ -6,6 +6,8 @@ function setupChrome() {
         debugger: {
             onEvent: { addListener: vi.fn() },
             onDetach: { addListener: vi.fn() },
+            attach: vi.fn((target, version, callback) => callback()),
+            sendCommand: vi.fn((target, method, params, callback) => callback({})),
         },
         runtime: {
             sendMessage: vi.fn(() => Promise.resolve()),
@@ -198,7 +200,7 @@ describe('BrowserControlManager native tab group indicator', () => {
         manager.connection.currentTabId = 42;
         manager.lockedTabId = 42;
         manager.controlGroupId = 9;
-        manager.controlGroupWindowId = 1;
+        manager.controlWindowId = 1;
 
         const result = await manager.execute({ name: 'new_page', args: { background: true } });
         await Promise.resolve();
@@ -225,5 +227,19 @@ describe('BrowserControlManager native tab group indicator', () => {
 
         expect(attach).toHaveBeenCalledWith(77);
         expect(snapshot).toBe('new snapshot');
+    });
+
+    it('does not enable retired diagnostics domains when attaching debugger', async () => {
+        const manager = new BrowserControlManager();
+
+        await manager.connection.attach(42);
+
+        const enabledMethods = chrome.debugger.sendCommand.mock.calls.map((call) => call[1]);
+        expect(enabledMethods).toContain('Runtime.enable');
+        expect(enabledMethods).toContain('Page.enable');
+        expect(enabledMethods).toContain('Target.setAutoAttach');
+        expect(enabledMethods).not.toContain('Network.enable');
+        expect(enabledMethods).not.toContain('Log.enable');
+        expect(enabledMethods).not.toContain('Audits.enable');
     });
 });

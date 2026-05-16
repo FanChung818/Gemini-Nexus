@@ -37,10 +37,6 @@ const requiredPaths = [
     'dist/sandbox/index.html',
 ];
 
-export function getLocalDependencyAssets() {
-    return localDependencyAssets.map((asset) => ({ ...asset }));
-}
-
 /**
  * @param {string} relativePath
  * @returns {boolean}

@@ -34,4 +34,10 @@ describe('web model metadata', () => {
             featureMode: 14,
         });
     });
+
+    it('normalizes legacy model aliases through the public header lookup', () => {
+        expect(getWebModelHeaderConfig('gemini-2.5-flash')).toEqual(
+            getWebModelHeaderConfig('gemini-3-flash')
+        );
+    });
 });

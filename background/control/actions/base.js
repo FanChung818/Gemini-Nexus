@@ -41,24 +41,9 @@ export class BaseActionHandler {
         }
 
         // Trigger highlight for visual feedback on interaction
-        this.highlightObjectId(objectId).catch(() => {});
+        this._doHighlight({ objectId }).catch(() => {});
 
         return objectId;
-    }
-
-    async highlight(uid) {
-        try {
-            const backendNodeId = this.snapshotManager.getBackendNodeId(uid);
-            if (backendNodeId) {
-                this._doHighlight({ backendNodeId });
-            }
-        } catch (e) {
-            // Ignore highlight errors for stale nodes
-        }
-    }
-
-    async highlightObjectId(objectId) {
-        this._doHighlight({ objectId });
     }
 
     async _doHighlight(params) {

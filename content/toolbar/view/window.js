@@ -59,12 +59,6 @@
     class WindowView {
         constructor(elements) {
             this.elements = elements;
-            this.isPinned = false;
-        }
-
-        togglePin() {
-            this.isPinned = !this.isPinned;
-            return this.isPinned;
         }
 
         async show(rect, contextText, title, resetDrag = null, mousePoint = null) {
@@ -87,16 +81,7 @@
                 this.undockWindow();
             }
 
-            if (!this.isPinned || !this.elements.askWindow.classList.contains('visible')) {
-                if (resetDrag) resetDrag();
-                Utils.positionElement(
-                    this.elements.askWindow,
-                    rect,
-                    true,
-                    this.isPinned,
-                    mousePoint
-                );
-            }
+            Utils.positionElement(this.elements.askWindow, rect, true, mousePoint);
 
             // Reset Content
             this.elements.windowTitle.textContent = title || getDefaultTitle();
@@ -250,10 +235,6 @@
                 el.removeAttribute('data-dock');
                 el.style.transform = '';
             }
-        }
-
-        get isDocked() {
-            return this.elements.askWindow && this.elements.askWindow.hasAttribute('data-dock');
         }
 
         isVisible() {

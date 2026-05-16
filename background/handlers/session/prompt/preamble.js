@@ -73,8 +73,4 @@ To use a tool, output a **single** JSON block at the end of your response:
 
 11. **select_page**: Switch control focus to a page by index (Background Mode: does not activate tab).
     - args: { "index": number }
-
-12. **handle_dialog**: Handle open JavaScript dialogs (alert, confirm, prompt).
-    - args: { "accept": boolean, "promptText": "string" }
-    - Default "accept": true. Use this if the browser is stuck on a dialog.
 \n`;

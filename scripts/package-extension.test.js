@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
     createPackagedManifest,
     formatContentBundle,
-    getLocalDependencyAssets,
     shouldExcludeFromPackage,
 } from './package-extension.mjs';
 
@@ -55,24 +54,5 @@ describe('package-extension', () => {
             bundle.indexOf('window.second = window.first;')
         );
         expect(bundle.endsWith('\n')).toBe(true);
-    });
-
-    it('declares local third-party assets required by the extension runtime', () => {
-        expect(getLocalDependencyAssets()).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({
-                    source: 'node_modules/highlight.js/styles/atom-one-dark.min.css',
-                    target: 'vendor/highlight.js/atom-one-dark.min.css',
-                }),
-                expect.objectContaining({
-                    source: 'node_modules/katex/dist/katex.min.css',
-                    target: 'vendor/katex/katex.min.css',
-                }),
-                expect.objectContaining({
-                    source: 'node_modules/katex/dist/fonts',
-                    target: 'vendor/katex/fonts',
-                }),
-            ])
-        );
     });
 });

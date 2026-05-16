@@ -13,19 +13,19 @@
                 onHide: () => this.ui.hideImageButton(),
             });
 
-            this.streamHandler = new window.GeminiStreamHandler(this.ui, {
+            const streamHandler = new window.GeminiStreamHandler(this.ui, {
                 onSessionId: (id) => {
                     this.lastSessionId = id;
                 },
             });
+            streamHandler.init();
 
             this.inputManager = new window.GeminiInputManager();
 
             // Initialize Dispatcher with reference to this controller
             this.dispatcher = new window.GeminiToolbarDispatcher(this);
 
-            // Selection Observer
-            this.selectionObserver = new window.GeminiSelectionObserver({
+            new window.GeminiSelectionObserver({
                 onSelection: this.handleSelection.bind(this),
                 onClear: this.handleSelectionClear.bind(this),
                 onClick: this.handleClick.bind(this),
@@ -83,7 +83,6 @@
 
             // Initialize Modules
             this.imageDetector.init();
-            this.streamHandler.init();
 
             window.addEventListener('gemini-toolbar-language-changed', () => {
                 this.ui.rebuildForLanguageChange();
@@ -206,15 +205,6 @@
         handleClick(e) {
             // If clicking inside our toolbar/window, do nothing
             if (this.ui.isHost(e.target)) return;
-
-            // If pinned OR docked, do not hide the window on outside click
-            if (this.ui.isPinned || this.ui.isDocked) {
-                // Only hide the small selection toolbar if clicking outside
-                if (this.visible && !this.ui.isWindowVisible()) {
-                    this.hide();
-                }
-                return;
-            }
 
             this.hide();
         }

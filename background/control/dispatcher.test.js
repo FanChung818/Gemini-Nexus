@@ -15,7 +15,6 @@ describe('ToolDispatcher local tool registry', () => {
             'list_pages',
             'select_page',
             'evaluate_script',
-            'handle_dialog',
             'attach_file',
         ];
 
@@ -35,6 +34,7 @@ describe('ToolDispatcher local tool registry', () => {
             'emulate',
             'fill_form',
             'wait_for',
+            'handle_dialog',
         ];
 
         for (const toolName of retiredTools) {

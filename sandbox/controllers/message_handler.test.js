@@ -10,6 +10,8 @@ vi.mock('../render/message.js', () => ({
     appendMessage: vi.fn(() => ({
         addImages: vi.fn(),
         addSources: vi.fn(),
+        div: document.createElement('div'),
+        dispose: vi.fn(),
         finalize: vi.fn(),
         update: vi.fn(),
     })),
@@ -149,6 +151,37 @@ describe('MessageHandler.handleGeminiReply', () => {
         });
 
         expect(appendMessage).not.toHaveBeenCalled();
+    });
+
+    it('removes the streaming bubble instead of adding duplicate images after storage already rendered it', () => {
+        const { handler, sessionManager, ui } = createMessageHandlerHarness();
+        const generatedImages = [{ url: 'https://lh3.googleusercontent.com/generated-1' }];
+        sessionManager.getCurrentSession().messages[1] = {
+            role: 'ai',
+            text: '',
+            generatedImages,
+        };
+        handler.markSessionRenderedFromStorage('session-1', 2);
+
+        handler.handleStreamUpdate({
+            action: 'GEMINI_STREAM_UPDATE',
+            sessionId: 'session-1',
+            text: '',
+        });
+        const streamingController = appendMessage.mock.results[0].value;
+        ui.historyDiv.appendChild(streamingController.div);
+
+        handler.handleGeminiReply({
+            action: 'GEMINI_REPLY',
+            sessionId: 'session-1',
+            status: 'success',
+            text: '',
+            images: generatedImages,
+        });
+
+        expect(streamingController.addImages).not.toHaveBeenCalled();
+        expect(streamingController.dispose).toHaveBeenCalled();
+        expect(ui.historyDiv.contains(streamingController.div)).toBe(false);
     });
 
     it('ignores replies for non-generating sessions', () => {

@@ -1,10 +1,6 @@
 // background/menus.js
 
-/**
- * Initializes Context Menus and attaches the click listener.
- * @param {ImageHandler} imageHandler - Instance of the ImageHandler.
- */
-export function setupContextMenus(imageHandler) {
+export function setupContextMenus() {
     // Create Context Menus with Localization check
     chrome.runtime.onInstalled.addListener(() => {
         const isZh = chrome.i18n.getUILanguage().startsWith('zh');

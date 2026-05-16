@@ -98,14 +98,6 @@ export class AppMessageBridge {
             return;
         }
 
-        // Note: RESTORE_CONNECTION_SETTINGS is handled by AppController to update Model List
-
-        if (action === 'RESTORE_BROWSER_LOOP_LIMIT') {
-            // Pass to app controller to store state
-            this.app.handleIncomingMessage(event);
-            return;
-        }
-
         // Forward general messages to App Controller
         this.app.handleIncomingMessage(event);
     }

@@ -12,8 +12,7 @@
 
         showToolbar(rect, mousePoint) {
             if (!this.elements.toolbar) return;
-            // Toolbar is never pinned, pass false
-            Utils.positionElement(this.elements.toolbar, rect, false, false, mousePoint);
+            Utils.positionElement(this.elements.toolbar, rect, false, mousePoint);
             this.elements.toolbar.classList.add('visible');
         }
 

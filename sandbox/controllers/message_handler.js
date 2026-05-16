@@ -129,26 +129,9 @@ export class MessageHandler {
             return;
         }
 
-        // 4. Mode Sync (from Context Menu)
-        if (request.action === 'SET_SIDEBAR_CAPTURE_MODE') {
-            this.app.setCaptureMode(request.mode);
-            let statusText = t('selectSnip');
-            if (request.mode === 'ocr') statusText = t('selectOcr');
-            if (request.mode === 'screenshot_translate') statusText = t('selectTranslate');
-
-            this.ui.updateStatus(statusText);
-            return;
-        }
-
-        // 5. Quote Selection Result
+        // 4. Quote Selection Result
         if (request.action === 'SELECTION_RESULT') {
             this.handleSelectionResult(request);
-            return;
-        }
-
-        // 6. Page Context Toggle (from Context Menu)
-        if (request.action === 'TOGGLE_PAGE_CONTEXT') {
-            this.app.setPageContext(request.enable);
             return;
         }
     }
@@ -363,6 +346,11 @@ export class MessageHandler {
 
             // Update UI
             if (this.streamingBubble) {
+                if (this.hasStorageRenderedAiReply(session, request)) {
+                    this.resetStream({ remove: true });
+                    return;
+                }
+
                 // Finalize the streaming bubble with complete text and thoughts
                 this.streamingBubble.finalize(request.text, request.thoughts, {
                     thoughtsDurationSeconds: request.thoughtsDurationSeconds,

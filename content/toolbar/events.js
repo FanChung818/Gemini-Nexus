@@ -62,6 +62,13 @@
                     this.controller.actions.triggerAction(e, 'image_extract');
                 });
             }
+            if (buttons.imageTranslate) {
+                this._add(buttons.imageTranslate, 'click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.controller.actions.triggerAction(e, 'image_translate');
+                });
+            }
 
             // --- Image Edit Actions ---
             if (buttons.imageRemoveBg) {
@@ -122,18 +129,6 @@
                 this._add(buttons.replace, 'click', (e) =>
                     this.controller.actions.replaceResult(e)
                 );
-            }
-
-            // --- Browser Control (UI Toggle) ---
-            const browserControlBtn = askWindow
-                ? askWindow.querySelector('#browser-control-btn')
-                : null;
-            if (browserControlBtn) {
-                this._add(browserControlBtn, 'click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    browserControlBtn.classList.toggle('active');
-                });
             }
 
             // --- Input ---

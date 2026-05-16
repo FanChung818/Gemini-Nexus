@@ -83,12 +83,11 @@ class ToolbarActions {
         this.ui.showLoading(loadingMsg);
         this.ui.setInputValue(inputVal);
 
-        const targetModel =
-            window.GeminiWebModels?.resolveImagePromptModel?.({
-                provider: this.ui.provider || 'web',
-                mode,
-                model,
-            }) || model;
+        const targetModel = window.GeminiWebModels.resolveImagePromptModel({
+            provider: this.ui.provider || 'web',
+            mode,
+            model,
+        });
 
         const msg = {
             action: 'QUICK_ASK_IMAGE',
@@ -191,11 +190,11 @@ class ToolbarActions {
         if (currentModel) {
             retryRequest.model =
                 retryRequest.action === 'QUICK_ASK_IMAGE'
-                    ? window.GeminiWebModels?.resolveImagePromptModel?.({
+                    ? window.GeminiWebModels.resolveImagePromptModel({
                           provider: this.ui.provider || 'web',
                           mode: retryRequest.imageMode,
                           model: currentModel,
-                      }) || currentModel
+                      })
                     : currentModel;
         }
 

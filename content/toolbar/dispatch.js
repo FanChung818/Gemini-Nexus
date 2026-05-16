@@ -68,6 +68,20 @@
                     }
                     break;
 
+                case 'image_translate':
+                    {
+                        const img = this.imageDetector.getCurrentImage();
+                        if (!img) return;
+
+                        const imgUrl = img.src;
+                        const rect = img.getBoundingClientRect();
+
+                        this.ui.hideImageButton();
+                        this.controller.lastSessionId = null;
+                        this.actions.handleImagePrompt(imgUrl, rect, 'translate', currentModel);
+                    }
+                    break;
+
                 case 'image_remove_bg':
                 case 'image_remove_text':
                 case 'image_remove_watermark':

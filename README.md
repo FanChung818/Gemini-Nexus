@@ -61,12 +61,12 @@ Gemini Nexus 当前围绕浏览器内 AI 工作流提供以下能力：
 
 基于 `background/control/` 模块和 Chrome DevTools Protocol 实现，AI 可以通过本地工具循环执行复杂的 Agent 任务：
 
-| 分类         | 核心指令                                                                           | 代码实现逻辑                                      |
-| :----------- | :--------------------------------------------------------------------------------- | :------------------------------------------------ |
-| **导航控制** | `navigate_page`, `new_page`, `close_page`, `list_pages`, `select_page`             | 调用 `chrome.tabs` 进行页面生命周期管理           |
-| **页面交互** | `click`, `fill`, `press_key`, `attach_file`, `handle_dialog`                       | 基于 **Accessibility Tree** 生成 UID 进行精准操控 |
-| **数据观测** | `take_snapshot`                                                                    | 提取页面无障碍树并生成可复用 UID                  |
-| **脚本执行** | `evaluate_script`                                                                  | 在网页 Context 中运行自定义 JavaScript            |
+| 分类         | 核心指令                                                               | 代码实现逻辑                                      |
+| :----------- | :--------------------------------------------------------------------- | :------------------------------------------------ |
+| **导航控制** | `navigate_page`, `new_page`, `close_page`, `list_pages`, `select_page` | 调用 `chrome.tabs` 进行页面生命周期管理           |
+| **页面交互** | `click`, `fill`, `press_key`, `attach_file`                            | 基于 **Accessibility Tree** 生成 UID 进行精准操控 |
+| **数据观测** | `take_snapshot`                                                        | 提取页面无障碍树并生成可复用 UID                  |
+| **脚本执行** | `evaluate_script`                                                      | 在网页 Context 中运行自定义 JavaScript            |
 
 浏览器控制启用后会锁定一个目标标签页，并用 Chrome 原生标签组展示当前任务标题。`select_page` 默认只在受控标签组内切换；`new_page` 的普通标签页会加入该组，`background: true` 则会打开独立 popup 窗口以减少焦点干扰。
 

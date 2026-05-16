@@ -41,7 +41,7 @@ const WEB_MODEL_HEADER_CONFIGS = {
     },
 };
 
-export function normalizeWebModel(model) {
+function normalizeWebModel(model) {
     const normalized = String(model || DEFAULT_WEB_MODEL).trim();
     return LEGACY_WEB_MODEL_ALIASES[normalized] || normalized;
 }

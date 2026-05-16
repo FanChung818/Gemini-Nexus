@@ -11,7 +11,7 @@ export function hasNativeFunctionCalls(result) {
     );
 }
 
-export function createOfficialFunctionResponsePart(toolResult) {
+function createOfficialFunctionResponsePart(toolResult) {
     const name = typeof toolResult?.toolName === 'string' ? toolResult.toolName : '';
     if (!name) return null;
 

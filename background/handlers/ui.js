@@ -72,36 +72,6 @@ export class UIMessageHandler {
             return true;
         }
 
-        if (request.action === 'CAPTURE_SCREENSHOT') {
-            (async () => {
-                try {
-                    // Determine correct Window ID
-                    let windowId = sender.tab ? sender.tab.windowId : null;
-                    if (!windowId) {
-                        // Fallback: If triggered from sidepanel, find last focused window
-                        const [tab] = await chrome.tabs.query({
-                            active: true,
-                            lastFocusedWindow: true,
-                        });
-                        if (tab) windowId = tab.windowId;
-                    }
-
-                    const result = await this.imageHandler.captureScreenshot(windowId);
-                    chrome.runtime
-                        .sendMessage({
-                            ...result,
-                            tabId: this._getTargetSidePanelTabId(request, sender),
-                        })
-                        .catch(() => {});
-                } catch (e) {
-                    console.error('Screenshot error', e);
-                } finally {
-                    sendResponse({ status: 'completed' });
-                }
-            })();
-            return true;
-        }
-
         // --- SIDEPANEL & SELECTION ---
 
         if (request.action === 'OPEN_SIDE_PANEL') {

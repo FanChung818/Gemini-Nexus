@@ -43,6 +43,7 @@
             chatWithImage: isZh ? '带图片聊天' : 'Chat with image',
             describeImage: isZh ? '描述图片' : 'Describe image',
             extractText: isZh ? '提取文本' : 'Extract text',
+            translateImageText: isZh ? '翻译图片文本' : 'Translate image text',
             imageTools: isZh ? '图像工具' : 'Image tools',
             removeBg: isZh ? '背景移除' : 'Remove background',
             removeText: isZh ? '文字移除' : 'Remove text',

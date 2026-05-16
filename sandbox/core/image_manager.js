@@ -4,7 +4,6 @@ export class ImageManager {
     constructor(elements, callbacks = {}) {
         this.imageInput = elements.imageInput;
         this.imagePreview = elements.imagePreview;
-        // previewThumb and removeImgBtn are removed/deprecated in multi-file UI
         this.inputWrapper = elements.inputWrapper;
         this.inputFn = elements.inputFn;
 

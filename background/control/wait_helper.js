@@ -7,28 +7,16 @@
 export class WaitForHelper {
     constructor(connection, cpuMultiplier = 1, networkMultiplier = 1) {
         this.connection = connection;
-        this.updateMultipliers(cpuMultiplier, networkMultiplier);
-    }
-
-    /**
-     * Updates timeout multipliers for emulation.
-     * @param {number} cpu - CPU throttling multiplier (default 1)
-     * @param {number} network - Network latency multiplier (default 1)
-     */
-    updateMultipliers(cpu = 1, network = 1) {
-        this.cpuMultiplier = cpu;
-        this.networkMultiplier = network;
-
         // Constants derived from MCP implementation logic
         this.timeouts = {
             // Max time to wait for DOM to stabilize
-            stableDom: 3000 * cpu,
+            stableDom: 3000 * cpuMultiplier,
             // Duration of no mutations to consider DOM stable
-            stableDomFor: 100 * cpu,
+            stableDomFor: 100 * cpuMultiplier,
             // Time to wait for a navigation to potentially start after an action
-            expectNavigationIn: 500 * cpu,
+            expectNavigationIn: 500 * cpuMultiplier,
             // Max time to wait for navigation to complete
-            navigation: 15000 * network,
+            navigation: 15000 * networkMultiplier,
         };
     }
 

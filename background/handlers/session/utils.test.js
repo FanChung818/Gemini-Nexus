@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
     createOfficialFunctionResponseMessage,
-    createOfficialFunctionResponsePart,
     createOfficialModelMessage,
     hasNativeFunctionCalls,
     parseToolCommand,
@@ -50,26 +49,13 @@ describe('session tool utilities', () => {
         expect(hasNativeFunctionCalls({ functionCalls: [{ name: '   ' }] })).toBe(false);
 
         expect(
-            createOfficialFunctionResponsePart({
-                id: 'call-1',
-                toolName: 'take_snapshot',
-                output: 'snapshot',
-                status: 'completed',
-            })
-        ).toEqual({
-            functionResponse: {
-                id: 'call-1',
-                name: 'take_snapshot',
-                response: {
+            createOfficialFunctionResponseMessage([
+                {
+                    id: 'call-1',
+                    toolName: 'take_snapshot',
                     output: 'snapshot',
                     status: 'completed',
                 },
-            },
-        });
-
-        expect(
-            createOfficialFunctionResponseMessage([
-                { toolName: 'take_snapshot', output: 'snapshot' },
             ])
         ).toEqual({
             role: 'user',
@@ -79,6 +65,7 @@ describe('session tool utilities', () => {
                 parts: [
                     {
                         functionResponse: {
+                            id: 'call-1',
                             name: 'take_snapshot',
                             response: {
                                 output: 'snapshot',

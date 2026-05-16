@@ -10,6 +10,7 @@ class KeepAliveManager {
         this.lastRotation = 0;
         this.isRotating = false;
         this.consecutiveErrors = 0;
+        this.boundOnAlarm = this._onAlarm.bind(this);
     }
 
     init() {
@@ -21,8 +22,8 @@ class KeepAliveManager {
         });
 
         // Add listener (ensure single binding)
-        if (!chrome.alarms.onAlarm.hasListener(this._onAlarm.bind(this))) {
-            chrome.alarms.onAlarm.addListener(this._onAlarm.bind(this));
+        if (!chrome.alarms.onAlarm.hasListener(this.boundOnAlarm)) {
+            chrome.alarms.onAlarm.addListener(this.boundOnAlarm);
         }
 
         // Perform initial check immediately on load
