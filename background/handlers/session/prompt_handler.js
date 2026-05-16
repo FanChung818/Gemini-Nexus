@@ -325,10 +325,7 @@ export class PromptHandler {
                         // --- AUTO-SNAPSHOT INJECTION ---
                         // Automatically inject the Accessibility Tree if the tool implies a state change.
                         // We skip purely observational tools to save processing/tokens if they don't change state.
-                        const skipSnapshotTools = [
-                            'take_snapshot',
-                            'list_pages',
-                        ];
+                        const skipSnapshotTools = ['take_snapshot', 'list_pages'];
 
                         if (
                             toolResult.source === 'browser_control' &&

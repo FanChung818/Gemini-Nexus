@@ -78,5 +78,4 @@ export class ScriptActions extends BaseActionHandler {
             return `Error evaluating script: ${e.message}`;
         }
     }
-
 }

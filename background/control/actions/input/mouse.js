@@ -150,5 +150,4 @@ export class MouseActions extends BaseActionHandler {
             return `Clicked element ${uid} (${isOccluded ? 'Occluded, ' : ''}JS Fallback)`;
         }
     }
-
 }
