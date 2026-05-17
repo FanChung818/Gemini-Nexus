@@ -1,4 +1,3 @@
-// services/providers/web.js
 import { fetchRequestParams } from '../auth.js';
 import { uploadFile } from '../upload.js';
 import { parseGeminiLine } from '../parser.js';
@@ -7,18 +6,19 @@ import {
     getSupportedWebModelValues,
     getWebModelHeaderConfig,
 } from '../../shared/models/web_models.js';
+import { debugLog } from '../../shared/logging/debug.js';
 
 async function handleFileUploads(files, signal, uploadContext) {
     if (!files || files.length === 0) return [];
 
-    console.debug(`[Gemini Web] Uploading ${files.length} files...`);
+    debugLog(`[Gemini Web] Uploading ${files.length} files...`);
     // Upload in parallel
     const fileList = await Promise.all(
         files.map((file) =>
             uploadFile(file, signal, uploadContext).then((url) => [[url], file.name])
         )
     );
-    console.debug('[Gemini Web] Files uploaded successfully');
+    debugLog('[Gemini Web] Files uploaded successfully');
     return fileList;
 }
 
@@ -115,11 +115,10 @@ async function fetchStream(endpoint, atValue, fReq, headers, signal) {
  * Sends a message using the Reverse Engineered Web Client.
  */
 export async function sendWebMessage(prompt, context, model, files, signal, onUpdate) {
-    console.debug(`[Gemini Web] Requesting model: ${model}`);
+    debugLog(`[Gemini Web] Requesting model: ${model}`);
     const requestId = generateUUID();
     const modelHeader = buildModelHeader(model, requestId);
 
-    // 1. Ensure Auth (Context)
     if (!context || !context.atValue) {
         // Fallback: This should ideally be handled by SessionManager before calling,
         // but acts as a safety net.
@@ -138,10 +137,8 @@ export async function sendWebMessage(prompt, context, model, files, signal, onUp
 
     assertRequiredAuthTokens(context);
 
-    // 2. Prepare Uploads
     const fileList = await handleFileUploads(files, signal, context);
 
-    // 3. Construct Payload
     // Current Gemini Web rejects the legacy three-id continuation payload without
     // the extra UI-only context token, so Web continuity is handled by the caller.
     const fReq = constructPayload(prompt, fileList, ['', '', '']);
@@ -168,11 +165,9 @@ export async function sendWebMessage(prompt, context, model, files, signal, onUp
 
     const endpoint = buildEndpoint(context.authUser, queryParams);
 
-    // 4. Execute Request
-    console.debug(`[Gemini Web] Sending request to ${endpoint}`);
+    debugLog(`[Gemini Web] Sending request to ${endpoint}`);
     const reader = await fetchStream(endpoint, context.atValue, fReq, headers, signal);
 
-    // 5. Handle Stream Parsing
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
     let finalResult = null;
@@ -213,10 +208,10 @@ export async function sendWebMessage(prompt, context, model, files, signal, onUp
                 }
             }
         }
-    } catch (e) {
-        if (e.name === 'AbortError') throw e;
-        if (e.message.includes('未登录')) throw e;
-        console.error('Stream reading error:', e);
+    } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        if (error.message.includes('未登录')) throw error;
+        console.error('Stream reading error:', error);
     }
 
     // Process remaining buffer
@@ -229,12 +224,11 @@ export async function sendWebMessage(prompt, context, model, files, signal, onUp
         if (buffer.includes('<!DOCTYPE html>')) {
             throw new Error('未登录 (Session expired)');
         }
-        console.debug('Invalid response buffer sample:', buffer.substring(0, 200));
+        debugLog('Invalid response buffer sample:', buffer.substring(0, 200));
         throw new Error('No valid response found. Check network.');
     }
 
-    // 6. Return Result with Updated Context
-    console.debug('[Gemini Web] Request completed successfully');
+    debugLog('[Gemini Web] Request completed successfully');
 
     return {
         text: finalResult.text,

@@ -6,7 +6,6 @@ import { MessageHandler } from './message_handler.js';
 import { appendMessage } from '../render/message.js';
 
 vi.mock('../render/message.js', () => ({
-    appendContextCompressionNotice: vi.fn(),
     appendMessage: vi.fn(() => ({
         addImages: vi.fn(),
         addSources: vi.fn(),
@@ -15,6 +14,10 @@ vi.mock('../render/message.js', () => ({
         finalize: vi.fn(),
         update: vi.fn(),
     })),
+}));
+
+vi.mock('../render/context_compression.js', () => ({
+    appendContextCompressionNotice: vi.fn(),
 }));
 
 vi.mock('../../shared/dom/crop_utils.js', () => ({

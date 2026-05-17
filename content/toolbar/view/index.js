@@ -1,4 +1,3 @@
-// content/toolbar/view/index.js
 (function () {
     /**
      * Main View Facade
@@ -157,18 +156,18 @@
             if (!select) return;
 
             select.innerHTML = '';
-            options.forEach((o) => {
+            options.forEach((option) => {
                 const opt = document.createElement('option');
-                opt.value = o.val;
-                opt.textContent = o.txt;
+                opt.value = option.value;
+                opt.textContent = option.label;
                 select.appendChild(opt);
             });
 
             // Select value if valid, otherwise first option
-            if (selectedValue && options.some((o) => o.val === selectedValue)) {
+            if (selectedValue && options.some((option) => option.value === selectedValue)) {
                 select.value = selectedValue;
             } else if (options.length > 0) {
-                select.value = options[0].val;
+                select.value = options[0].value;
             }
 
             const Utils = window.GeminiViewUtils;

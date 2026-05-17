@@ -1,4 +1,3 @@
-// sandbox/boot/events.js
 import { sendToBackground } from '../../shared/messaging/index.js';
 import { t } from '../core/i18n.js';
 

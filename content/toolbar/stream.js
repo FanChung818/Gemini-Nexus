@@ -1,5 +1,3 @@
-// content/toolbar/stream.js
-
 (function () {
     class GeminiStreamHandler {
         constructor(uiController, callbacks) {

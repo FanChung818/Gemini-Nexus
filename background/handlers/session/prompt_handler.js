@@ -1,4 +1,3 @@
-// background/handlers/session/prompt_handler.js
 import {
     appendAiMessage,
     appendAiMessageIfDisplayable,
@@ -17,7 +16,7 @@ import {
     splitToolCallFromText,
 } from './utils.js';
 
-// Helper to prevent rapid-fire requests that trigger rate limits
+// Spaces out looped requests to avoid rate-limit bursts.
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const REQUEST_CANCELLED_TEXT = 'Request cancelled.';
 
@@ -29,7 +28,7 @@ async function getStoredProvider() {
 async function sendRuntimeMessage(message) {
     try {
         await chrome.runtime.sendMessage(message);
-    } catch (_) {}
+    } catch {}
 }
 
 function createIntermediateAiResult(result) {
@@ -76,6 +75,10 @@ function buildToolContinuationPrompt(toolName, output, language) {
     }
 
     return `[Tool Output from ${toolName}]:\n\`\`\`\n${output}\n\`\`\`\n\n${languageInstruction}\n\n(Proceed with the next step or confirm completion)`;
+}
+
+export function hasInlinePageSnapshot(output) {
+    return typeof output === 'string' && output.includes('## Latest page snapshot');
 }
 
 function getBrowserControlTaskTitle(text) {
@@ -230,7 +233,7 @@ export class PromptHandler {
                     }
                 }
 
-                // 1. Build Initial Prompt (with Preamble/Context separated)
+                // Build the user prompt and separate system instruction.
                 const buildResult = await this.builder.build(request);
                 const systemInstruction = buildResult.systemInstruction;
                 let currentPromptText = buildResult.userPrompt;
@@ -250,7 +253,6 @@ export class PromptHandler {
                 while (keepLooping && loopCount < MAX_LOOPS) {
                     if (this.isRunCancelled(run)) break;
 
-                    // 2. Send to Gemini
                     const result = await this.sessionManager.handleSendPrompt(
                         {
                             ...request,
@@ -270,7 +272,6 @@ export class PromptHandler {
                         break;
                     }
 
-                    // 3. Process Tool Execution (if any)
                     let toolResult = null;
                     const toolsEnabled = request.enableBrowserControl || request.enableMcpTools;
                     const pendingNativeCalls = toolsEnabled && hasNativeFunctionCalls(result);
@@ -311,9 +312,8 @@ export class PromptHandler {
 
                     if (this.isRunCancelled(run)) break;
 
-                    // 5. Decide Next Step
                     if (toolResult) {
-                        // Tool executed, feed back to model (Loop continues)
+                        // Feed tool output back to the model and continue the loop.
                         loopCount++;
                         const allToolFiles = getToolResultsFiles(
                             toolResult.results || [toolResult]
@@ -322,7 +322,6 @@ export class PromptHandler {
 
                         let outputForModel = toolResult.outputForModel;
 
-                        // --- AUTO-SNAPSHOT INJECTION ---
                         // Automatically inject the Accessibility Tree if the tool implies a state change.
                         // We skip purely observational tools to save processing/tokens if they don't change state.
                         const skipSnapshotTools = ['take_snapshot', 'list_pages'];
@@ -331,17 +330,17 @@ export class PromptHandler {
                             toolResult.source === 'browser_control' &&
                             request.enableBrowserControl &&
                             this.controlManager &&
-                            !skipSnapshotTools.includes(toolResult.toolName)
+                            !skipSnapshotTools.includes(toolResult.toolName) &&
+                            !hasInlinePageSnapshot(outputForModel)
                         ) {
                             try {
-                                // Inject current URL and Accessibility Tree
                                 const targetTabId = this.controlManager.getTargetTabId();
                                 let urlInfo = '';
                                 if (targetTabId) {
                                     try {
                                         const tab = await chrome.tabs.get(targetTabId);
                                         urlInfo = `[Current URL]: ${tab.url}\n`;
-                                    } catch (e) {}
+                                    } catch {}
                                 }
 
                                 const snapshot = await this.controlManager.getSnapshot();
@@ -352,8 +351,8 @@ export class PromptHandler {
                                 ) {
                                     outputForModel += `\n\n${urlInfo}[Updated Page Accessibility Tree]:\n\`\`\`text\n${snapshot}\n\`\`\`\n`;
                                 }
-                            } catch (e) {
-                                console.warn('Auto-snapshot injection failed:', e);
+                            } catch (error) {
+                                console.warn('Auto-snapshot injection failed:', error);
                             }
                         }
 
@@ -515,14 +514,14 @@ export class PromptHandler {
                         keepLooping = false;
                     }
                 }
-            } catch (e) {
-                console.error('Prompt loop error:', e);
+            } catch (error) {
+                console.error('Prompt loop error:', error);
                 if (!this.isRunCancelled(run)) {
                     chrome.runtime
                         .sendMessage({
                             action: 'GEMINI_REPLY',
                             sessionId: request.sessionId || null,
-                            text: 'Error: ' + e.message,
+                            text: 'Error: ' + error.message,
                             status: 'error',
                         })
                         .catch(() => {});

@@ -1,5 +1,3 @@
-// content/selection.js
-
 (function () {
     class SelectionObserver {
         constructor(callbacks) {

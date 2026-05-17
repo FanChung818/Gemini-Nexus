@@ -1,4 +1,3 @@
-// sandbox/boot/renderer.js
 import { loadLibs } from './loader.js';
 import { transformMarkdown } from '../render/pipeline.js';
 import { WatermarkRemover } from '../../shared/media/watermark_remover.js';
@@ -16,93 +15,88 @@ function escapeAttribute(value) {
 export function initRendererMode() {
     document.body.innerHTML = ''; // Clear UI
 
-    // Load libs immediately
     loadLibs();
 
-    window.addEventListener('message', async (e) => {
-        // 1. Text & Image Rendering (Unified)
-        if (e.data.action === 'RENDER') {
-            const { text, reqId, images } = e.data;
+    window.addEventListener('message', async (event) => {
+        if (event.data.action === 'RENDER') {
+            const { text, reqId, images } = event.data;
 
             try {
-                // Use shared pipeline
                 let html = transformMarkdown(text);
 
                 // Process KaTeX if available
                 if (typeof katex !== 'undefined') {
-                    html = html.replace(/\$\$([\s\S]+?)\$\$/g, (m, c) => {
+                    html = html.replace(/\$\$([\s\S]+?)\$\$/g, (match, content) => {
                         try {
-                            return katex.renderToString(c, {
+                            return katex.renderToString(content, {
                                 displayMode: true,
                                 throwOnError: false,
                             });
-                        } catch (err) {
-                            return m;
+                        } catch {
+                            return match;
                         }
                     });
-                    html = html.replace(/(?<!\$)\$(?!\$)([^$\n]+?)(?<!\$)\$/g, (m, c) => {
+                    html = html.replace(/(?<!\$)\$(?!\$)([^$\n]+?)(?<!\$)\$/g, (match, content) => {
                         try {
-                            return katex.renderToString(c, {
+                            return katex.renderToString(content, {
                                 displayMode: false,
                                 throwOnError: false,
                             });
-                        } catch (err) {
-                            return m;
+                        } catch {
+                            return match;
                         }
                     });
                 }
 
-                // Process Generated Images (if passed from content script)
                 const fetchTasks = [];
                 if (images && Array.isArray(images) && images.length > 0) {
                     let imageHtml = '<div class="generated-images-grid">';
                     const displayImages = images.filter(
-                        (imgData) =>
-                            imgData &&
-                            typeof imgData === 'object' &&
-                            typeof imgData.url === 'string'
+                        (imageData) =>
+                            imageData &&
+                            typeof imageData === 'object' &&
+                            typeof imageData.url === 'string'
                     );
 
-                    displayImages.forEach((imgData) => {
-                        const imgReqId =
+                    displayImages.forEach((imageData) => {
+                        const imageRequestId =
                             'gen_img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                        const targetUrl = getHighResImageUrl(imgData.url);
-                        const alt = escapeAttribute(imgData.alt || t('generatedImage'));
+                        const targetUrl = getHighResImageUrl(imageData.url);
+                        const alt = escapeAttribute(imageData.alt || t('generatedImage'));
 
-                        imageHtml += `<img class="generated-image loading" alt="${alt}" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxIDEiPjwvc3ZnPg==" data-req-id="${imgReqId}">`;
+                        imageHtml += `<img class="generated-image loading" alt="${alt}" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxIDEiPjwvc3ZnPg==" data-req-id="${imageRequestId}">`;
 
-                        fetchTasks.push({ reqId: imgReqId, url: targetUrl });
+                        fetchTasks.push({ reqId: imageRequestId, url: targetUrl });
                     });
                     imageHtml += '</div>';
                     html += imageHtml;
                 }
 
-                e.source.postMessage(
-                    { action: 'RENDER_RESULT', html: html, reqId, fetchTasks },
+                event.source.postMessage(
+                    { action: 'RENDER_RESULT', html, reqId, fetchTasks },
                     { targetOrigin: '*' }
                 );
-            } catch (err) {
-                console.error('Render error', err);
-                e.source.postMessage(
+            } catch (error) {
+                console.error('Render error', error);
+                event.source.postMessage(
                     { action: 'RENDER_RESULT', html: text, reqId },
                     { targetOrigin: '*' }
                 );
             }
         }
 
-        // 2. Image Processing (Watermark Removal)
-        if (e.data.action === 'PROCESS_IMAGE') {
-            const { base64, reqId } = e.data;
+        if (event.data.action === 'PROCESS_IMAGE') {
+            const { base64, reqId } = event.data;
             try {
                 const result = await WatermarkRemover.process(base64);
-                e.source.postMessage(
+                event.source.postMessage(
                     { action: 'PROCESS_IMAGE_RESULT', base64: result, reqId },
                     { targetOrigin: '*' }
                 );
-            } catch (err) {
-                console.warn('Watermark removal failed in renderer', err);
-                e.source.postMessage(
-                    { action: 'PROCESS_IMAGE_RESULT', base64: base64, reqId, error: err.message },
+            } catch (error) {
+                console.warn('Watermark removal failed in renderer', error);
+                event.source.postMessage(
+                    { action: 'PROCESS_IMAGE_RESULT', base64, reqId, error: error.message },
                     { targetOrigin: '*' }
                 );
             }

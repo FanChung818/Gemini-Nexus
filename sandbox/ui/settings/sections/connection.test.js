@@ -47,3 +47,41 @@ describe('ConnectionSection MCP tool cache', () => {
         expect(list.textContent).not.toContain('old.tool');
     });
 });
+
+describe('ConnectionSection provider visibility', () => {
+    it('toggles provider panels with hidden attributes', () => {
+        const section = Object.create(ConnectionSection.prototype);
+        section.elements = {
+            apiKeyContainer: document.createElement('div'),
+            officialFields: document.createElement('div'),
+            openaiFields: document.createElement('div'),
+        };
+
+        section.updateVisibility('official');
+
+        expect(section.elements.apiKeyContainer.hidden).toBe(false);
+        expect(section.elements.officialFields.hidden).toBe(false);
+        expect(section.elements.openaiFields.hidden).toBe(true);
+        expect(section.elements.apiKeyContainer.style.display).toBe('');
+
+        section.updateVisibility('web');
+
+        expect(section.elements.apiKeyContainer.hidden).toBe(true);
+    });
+
+    it('toggles MCP settings with a hidden attribute', () => {
+        const section = Object.create(ConnectionSection.prototype);
+        section.elements = {
+            mcpFields: document.createElement('div'),
+        };
+
+        section.updateMcpVisibility(true);
+
+        expect(section.elements.mcpFields.hidden).toBe(false);
+        expect(section.elements.mcpFields.style.display).toBe('');
+
+        section.updateMcpVisibility(false);
+
+        expect(section.elements.mcpFields.hidden).toBe(true);
+    });
+});

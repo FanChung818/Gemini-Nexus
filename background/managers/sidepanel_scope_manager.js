@@ -1,4 +1,3 @@
-// background/managers/sidepanel_scope_manager.js
 import { DEFAULT_SIDE_PANEL_SCOPE } from '../../shared/config/constants.js';
 
 const DEFAULT_PANEL_PATH = 'sidepanel/index.html';

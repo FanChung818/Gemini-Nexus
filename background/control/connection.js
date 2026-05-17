@@ -1,4 +1,4 @@
-// background/control/connection.js
+import { debugLog } from '../../shared/logging/debug.js';
 
 /**
  * Manages the connection to the Chrome Debugger API.
@@ -27,7 +27,7 @@ export class BrowserConnection {
     _onDebuggerDetached(source, reason) {
         // If the browser detached our current session, clean up state immediately
         if (this.currentTabId === source.tabId) {
-            // console.debug("[BrowserConnection] Debugger detached by browser:", reason);
+            debugLog('[BrowserConnection] Debugger detached by browser:', reason);
             this._cleanupState();
         }
     }
@@ -73,7 +73,7 @@ export class BrowserConnection {
                         msg.includes('Cannot access') ||
                         msg.includes('Attach to webui')
                     ) {
-                        console.debug('[BrowserConnection] Attach skipped (restricted):', msg);
+                        debugLog('[BrowserConnection] Attach skipped (restricted):', msg);
                     } else {
                         console.warn('[BrowserConnection] Attach failed:', msg);
                     }
@@ -96,8 +96,8 @@ export class BrowserConnection {
                             waitForDebuggerOnStart: false,
                             flatten: true,
                         });
-                    } catch (e) {
-                        console.warn('Failed to enable collection domains:', e);
+                    } catch (error) {
+                        console.warn('Failed to enable collection domains:', error);
                     }
 
                     resolve();
@@ -113,7 +113,10 @@ export class BrowserConnection {
                 // IMPORTANT: Consume lastError to prevent "Unchecked runtime.lastError"
                 // if the tab was already closed or detached externally.
                 if (chrome.runtime.lastError) {
-                    // console.debug("[BrowserConnection] Detach ignored:", chrome.runtime.lastError.message);
+                    debugLog(
+                        '[BrowserConnection] Detach ignored:',
+                        chrome.runtime.lastError.message
+                    );
                 }
 
                 this._cleanupState();

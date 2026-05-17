@@ -1,4 +1,3 @@
-// sandbox/ui/settings/sections/general.js
 import {
     DEFAULT_CONTEXT_MODE,
     DEFAULT_CONTEXT_RECENT_TURNS,
@@ -31,26 +30,30 @@ export class GeneralSection {
             this.elements;
 
         if (textSelectionToggle) {
-            textSelectionToggle.addEventListener('change', (e) =>
-                this.fire('onTextSelectionChange', e.target.checked)
+            textSelectionToggle.addEventListener('change', (event) =>
+                this.fire('onTextSelectionChange', event.target.checked)
             );
         }
         if (imageToolsToggle) {
-            imageToolsToggle.addEventListener('change', (e) =>
-                this.fire('onImageToolsChange', e.target.checked)
+            imageToolsToggle.addEventListener('change', (event) =>
+                this.fire('onImageToolsChange', event.target.checked)
             );
         }
         if (sidebarRadios) {
             sidebarRadios.forEach((radio) => {
-                radio.addEventListener('change', (e) => {
-                    if (e.target.checked) this.fire('onSidebarBehaviorChange', e.target.value);
+                radio.addEventListener('change', (event) => {
+                    if (event.target.checked) {
+                        this.fire('onSidebarBehaviorChange', event.target.value);
+                    }
                 });
             });
         }
         if (sidePanelScopeRadios) {
             sidePanelScopeRadios.forEach((radio) => {
-                radio.addEventListener('change', (e) => {
-                    if (e.target.checked) this.fire('onSidePanelScopeChange', e.target.value);
+                radio.addEventListener('change', (event) => {
+                    if (event.target.checked) {
+                        this.fire('onSidePanelScopeChange', event.target.value);
+                    }
                 });
             });
         }
@@ -62,15 +65,16 @@ export class GeneralSection {
         if (this.elements.imageToolsToggle) this.elements.imageToolsToggle.checked = imageTools;
     }
 
-    setAccountIndices(val) {
-        if (this.elements.accountIndicesInput) this.elements.accountIndicesInput.value = val || '0';
+    setAccountIndices(value) {
+        if (this.elements.accountIndicesInput)
+            this.elements.accountIndicesInput.value = value || '0';
     }
 
     setSidebarBehavior(behavior) {
         if (this.elements.sidebarRadios) {
-            const val = behavior || 'auto';
+            const selectedValue = behavior || 'auto';
             this.elements.sidebarRadios.forEach((radio) => {
-                radio.checked = radio.value === val;
+                radio.checked = radio.value === selectedValue;
             });
         }
     }
@@ -80,9 +84,9 @@ export class GeneralSection {
             const availableValues = new Set(
                 Array.from(this.elements.sidePanelScopeRadios).map((radio) => radio.value)
             );
-            const val = availableValues.has(scope) ? scope : DEFAULT_SIDE_PANEL_SCOPE;
+            const selectedValue = availableValues.has(scope) ? scope : DEFAULT_SIDE_PANEL_SCOPE;
             this.elements.sidePanelScopeRadios.forEach((radio) => {
-                radio.checked = radio.value === val;
+                radio.checked = radio.value === selectedValue;
             });
         }
     }

@@ -1,4 +1,3 @@
-// background/control/actions/index.js
 import { NavigationActions } from './navigation.js';
 import { InputActions } from './input/index.js';
 import { ObservationActions } from './observation/index.js';
@@ -43,18 +42,35 @@ export class BrowserActions {
     async clickElement(args) {
         return this.input.clickElement(args);
     }
+    async hoverElement(args) {
+        return this.input.hoverElement(args);
+    }
     async fillElement(args) {
         return this.input.fillElement(args);
     }
+    async fillForm(args) {
+        return this.input.fillForm(args);
+    }
     async pressKey(args) {
         return this.input.pressKey(args);
+    }
+    async typeText(args) {
+        return this.input.typeText(args);
     }
     async attachFile(args) {
         return this.input.attachFile(args);
     }
 
     // --- Observation Delegates ---
+    async waitFor(args) {
+        return this.observation.waitFor(args);
+    }
+
     async evaluateScript(args) {
         return this.observation.evaluateScript(args);
+    }
+
+    async handleDialog(args) {
+        return this.observation.handleDialog(args);
     }
 }

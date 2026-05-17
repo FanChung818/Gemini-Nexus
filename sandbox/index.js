@@ -1,4 +1,3 @@
-// sandbox/index.js
 import { initRendererMode } from './boot/renderer.js';
 import { initAppMode } from './boot/app.js';
 

@@ -1,15 +1,12 @@
-// background/control/actions/base.js
 import { WaitForHelper } from '../wait_helper.js';
 
 export class BaseActionHandler {
     constructor(connection, snapshotManager, waitHelper) {
         this.connection = connection;
         this.snapshotManager = snapshotManager;
-        // Use injected waitHelper or create new one (fallback)
         this.waitHelper = waitHelper || new WaitForHelper(connection);
     }
 
-    // Helper: Send command via connection
     cmd(method, params) {
         return this.connection.sendCommand(method, params);
     }
@@ -23,12 +20,11 @@ export class BaseActionHandler {
             throw new Error(`Node with uid ${uid} has no backend ID. It might be a virtual node.`);
         }
 
-        // Helper to resolve to RemoteObject
         const resolveNode = async (backendId) => {
             try {
                 const { object } = await this.cmd('DOM.resolveNode', { backendNodeId: backendId });
                 return object ? object.objectId : null;
-            } catch (e) {
+            } catch {
                 // DOM.resolveNode fails if node is detached from document
                 return null;
             }
@@ -65,7 +61,7 @@ export class BaseActionHandler {
             setTimeout(() => {
                 this.cmd('Overlay.hideHighlight').catch(() => {});
             }, 1500);
-        } catch (e) {
+        } catch {
             // Ignore highlight errors
         }
     }

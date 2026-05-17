@@ -27,8 +27,8 @@ describe('connection settings helpers', () => {
             openaiUseResponsesApi: false,
             openaiWebSearch: false,
             mcpEnabled: false,
-            mcpTransport: 'sse',
-            mcpServerUrl: 'http://127.0.0.1:3006/sse',
+            mcpTransport: 'streamable-http',
+            mcpServerUrl: 'http://127.0.0.1:3006/mcp',
             mcpServers: null,
             mcpActiveServerId: null,
         });
@@ -71,8 +71,8 @@ describe('connection settings helpers', () => {
         expect(createDefaultMcpServer('srv_test')).toEqual({
             id: 'srv_test',
             name: 'Local Proxy',
-            transport: 'sse',
-            url: 'http://127.0.0.1:3006/sse',
+            transport: 'streamable-http',
+            url: 'http://127.0.0.1:3006/mcp',
             headers: {},
             enabled: true,
             toolMode: 'all',

@@ -1,9 +1,9 @@
-// background/managers/control_manager.js
 import { BrowserConnection } from '../control/connection.js';
 import { SnapshotManager } from '../control/snapshot/index.js';
 import { BrowserActions } from '../control/actions/index.js';
 import { ToolDispatcher } from '../control/dispatcher.js';
 import { getTabControlAvailability, toControlTabSummary } from '../control/tabs.js';
+import { debugLog } from '../../shared/logging/debug.js';
 
 /**
  * Main Controller handling Chrome DevTools MCP functionalities.
@@ -51,7 +51,7 @@ export class BrowserControlManager {
     setTargetTab(tabId, options = {}) {
         this.lockedTabId = tabId;
         this.connection.targetTabId = Number.isInteger(tabId) && tabId > 0 ? tabId : null;
-        console.log(`[ControlManager] Target tab locked to: ${tabId}`);
+        debugLog(`[ControlManager] Target tab locked to: ${tabId}`);
 
         if (tabId) {
             // Fetch tab info to broadcast state immediately
@@ -174,7 +174,7 @@ export class BrowserControlManager {
                 this.controlGroupTabId = null;
                 this.controlGroupId = null;
             }
-            console.debug('[ControlManager] Could not apply tab group indicator:', error);
+            debugLog('[ControlManager] Could not apply tab group indicator:', error);
         }
     }
 
@@ -200,7 +200,7 @@ export class BrowserControlManager {
                 await chrome.tabs.ungroup(tabIds.length === 1 ? tabIds[0] : tabIds);
             }
         } catch (error) {
-            console.debug('[ControlManager] Could not clear tab group indicator:', error);
+            debugLog('[ControlManager] Could not clear tab group indicator:', error);
         } finally {
             this.controlGroupTabId = null;
             this.controlGroupId = null;
@@ -297,8 +297,8 @@ export class BrowserControlManager {
             // Verify if locked tab still exists
             try {
                 await chrome.tabs.get(tabId);
-            } catch (e) {
-                console.warn('[ControlManager] Locked tab not found, clearing lock.', e);
+            } catch (error) {
+                console.warn('[ControlManager] Locked tab not found, clearing lock.', error);
                 this.lockedTabId = null;
                 tabId = null;
             }
@@ -314,7 +314,7 @@ export class BrowserControlManager {
         let tabObj;
         try {
             tabObj = await chrome.tabs.get(tabId);
-        } catch (e) {
+        } catch {
             return false;
         }
 
@@ -338,8 +338,8 @@ export class BrowserControlManager {
                 this.connection.targetTabId = tabId;
                 this._rememberControlledWindow(tab);
                 return true;
-            } catch (e) {
-                console.warn('[ControlManager] Locked tab not found, clearing lock.', e);
+            } catch (error) {
+                console.warn('[ControlManager] Locked tab not found, clearing lock.', error);
                 this.lockedTabId = null;
                 this.connection.targetTabId = null;
                 tabId = null;
@@ -377,7 +377,7 @@ export class BrowserControlManager {
                 return 'Error: No active tab found, restricted URL, or debugger disconnected.';
             }
 
-            console.log(`[MCP] Running tool: ${name}`, args);
+            debugLog(`[MCP] Running tool: ${name}`, args);
 
             // Delegate to dispatcher
             const result = await this.dispatcher.dispatch(name, args);
@@ -386,7 +386,6 @@ export class BrowserControlManager {
 
             // Handle metadata objects returned by tools (e.g. NavigationActions)
             if (result && typeof result === 'object') {
-                // 1. Process State Updates
                 if (result._meta && result._meta.switchTabId) {
                     const nextTabId = result._meta.switchTabId;
                     if (
@@ -400,7 +399,6 @@ export class BrowserControlManager {
                     });
                 }
 
-                // 2. Unwrap Output
                 // If it has an 'output' property (standardized wrapper), return that string.
                 // Otherwise return the object as is (e.g. screenshot { text, image }).
                 if ('output' in result) {
@@ -409,9 +407,9 @@ export class BrowserControlManager {
             }
 
             return finalOutput;
-        } catch (e) {
-            console.error(`[MCP] Tool execution error:`, e);
-            return `Error executing ${toolCall.name}: ${e.message}`;
+        } catch (error) {
+            console.error(`[MCP] Tool execution error:`, error);
+            return `Error executing ${toolCall.name}: ${error.message}`;
         }
     }
 }

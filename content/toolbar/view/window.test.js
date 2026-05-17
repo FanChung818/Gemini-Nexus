@@ -26,6 +26,7 @@ describe('WindowView', () => {
             positionElement: vi.fn(),
         };
         window.GeminiToolbarIcons = { COPY: 'copy' };
+        await import('./image_preview.js');
         await import('./window.js');
     });
 
@@ -44,6 +45,19 @@ describe('WindowView', () => {
 
         expect(elements.resultText.querySelector('img')).toBeNull();
         expect(elements.resultText.textContent).toContain('<img src=x onerror="alert(1)">Boom');
+    });
+
+    it('renders the error shell with semantic classes instead of inline styles', () => {
+        const elements = createElements();
+        elements.askWindow.classList.add('visible');
+        const view = new window.GeminiViewWindow(elements);
+
+        view.showError('Boom');
+
+        expect(elements.resultText.querySelector('.gemini-error-card')).not.toBeNull();
+        expect(elements.resultText.querySelector('.gemini-error-title')).not.toBeNull();
+        expect(elements.resultText.querySelector('.gemini-error-text')).not.toBeNull();
+        expect(elements.resultText.querySelector('[style]')).toBeNull();
     });
 
     it('renders loading messages as text', () => {
@@ -105,5 +119,32 @@ describe('WindowView', () => {
         ).resolves.toBeUndefined();
 
         expect(elements.askWindow.classList.contains('visible')).toBe(true);
+    });
+
+    it('opens generated result images in a zoomable preview', () => {
+        const elements = createElements();
+        document.body.appendChild(elements.askWindow);
+        const view = new window.GeminiViewWindow(elements);
+
+        view.showResult(
+            '<div class="generated-images-grid"><img class="generated-image" src="data:image/png;base64,AAAA" alt="Generated"></div>',
+            null,
+            false
+        );
+
+        elements.resultText.querySelector('.generated-image').click();
+
+        const preview = document.body.querySelector('.gemini-image-preview');
+        const previewImage = preview.querySelector('.gemini-image-preview-img');
+        expect(preview.classList.contains('visible')).toBe(true);
+        expect(previewImage.src).toBe('data:image/png;base64,AAAA');
+
+        preview.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, bubbles: true }));
+
+        expect(previewImage.style.transform).toContain('scale(1.1)');
+
+        preview.querySelector('.gemini-image-preview-close').click();
+
+        expect(preview.classList.contains('visible')).toBe(false);
     });
 });

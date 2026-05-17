@@ -4,15 +4,35 @@ import {
     hasHeaders,
     inferTransport,
     mergeHeaders,
-    mergeHttpTransportHeaders,
     normalizeHeaders,
     stableHeadersKey,
 } from './mcp/transport.js';
 import { normalizeMcpToolResult } from './mcp/tool_result.js';
 import { filterToolsForPreamble, formatToolsPreamble } from './mcp/preamble.js';
 import { getActiveMcpServers, parseToolId, tagToolsForServer } from './mcp/server_tools.js';
+import { readSseStream } from './mcp/sse_stream.js';
+import {
+    clearListCache,
+    listPromptsForConnection,
+    listResourceTemplatesForConnection,
+    listResourcesForConnection,
+    listToolsForConnection,
+} from './mcp/tool_listing.js';
+import {
+    handleIncomingRpcMessage,
+    sendNotification,
+    terminateStreamableHttpSession,
+} from './mcp/rpc_messages.js';
+import { isStreamableHttpFallbackError, sendStreamableHttpRpc } from './mcp/streamable_http.js';
 
-const DEFAULT_PROTOCOL_VERSIONS = ['2024-11-05', '2024-10-07', '2024-06-20'];
+const DEFAULT_PROTOCOL_VERSIONS = [
+    '2025-11-25',
+    '2025-06-18',
+    '2025-03-26',
+    '2024-11-05',
+    '2024-10-07',
+    '2024-06-20',
+];
 
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -36,8 +56,7 @@ export class McpRemoteManager {
             configKey: null,
             pending: new Map(),
             initialized: false,
-            toolsCache: null,
-            toolsCacheAt: 0,
+            listCaches: new Map(),
             idleCloseTimer: null,
             sseAbort: null,
             ssePostUrl: null,
@@ -46,6 +65,9 @@ export class McpRemoteManager {
             headers: {},
             sessionId: null,
             protocolVersion: null,
+            serverCapabilities: {},
+            serverInfo: null,
+            instructions: '',
             _resolveSseEndpoint: null,
         };
     }
@@ -86,8 +108,8 @@ export class McpRemoteManager {
             conn.idleCloseTimer = null;
         }
         this._clearPending(conn, new Error('MCP connection closed'));
-        conn.toolsCache = null;
-        conn.toolsCacheAt = 0;
+        clearListCache(conn);
+        terminateStreamableHttpSession(conn);
         conn.initialized = false;
         conn.configKey = null;
         conn.transport = null;
@@ -111,6 +133,9 @@ export class McpRemoteManager {
         conn.headers = {};
         conn.sessionId = null;
         conn.protocolVersion = null;
+        conn.serverCapabilities = {};
+        conn.serverInfo = null;
+        conn.instructions = '';
     }
 
     _resolvePendingRpcMessage(conn, msg) {
@@ -149,7 +174,14 @@ export class McpRemoteManager {
 
     async _sendRpc(conn, method, params) {
         if (conn.transport === 'streamable-http') {
-            return await this._sendRpcStreamableHttp(conn, method, params);
+            return sendStreamableHttpRpc(conn, method, params, {
+                nextId: () => this.nextId++,
+                initializeHandshake: () => this._initializeHandshake(conn),
+                onMessage: (msg) =>
+                    handleIncomingRpcMessage(conn, msg, (state, rpcMessage) =>
+                        this._resolvePendingRpcMessage(state, rpcMessage)
+                    ),
+            });
         }
 
         if (conn.transport === 'ws') {
@@ -172,7 +204,7 @@ export class McpRemoteManager {
             params: params || {},
         };
 
-        const p = new Promise((resolve, reject) => {
+        const requestPromise = new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
                 conn.pending.delete(id);
                 reject(new Error(`MCP request timeout: ${method}`));
@@ -188,47 +220,16 @@ export class McpRemoteManager {
                 method: 'POST',
                 headers: mergeHeaders({ 'Content-Type': 'application/json' }, conn.headers),
                 body: JSON.stringify(msg),
-            }).catch((err) => {
+            }).catch((error) => {
                 const entry = conn.pending.get(id);
                 if (entry) {
                     clearTimeout(entry.timeout);
                     conn.pending.delete(id);
-                    entry.reject(new Error(`MCP POST failed: ${err?.message || String(err)}`));
+                    entry.reject(new Error(`MCP POST failed: ${error?.message || String(error)}`));
                 }
             });
         }
-        return p;
-    }
-
-    _sendNotification(conn, method, params) {
-        const msg = { jsonrpc: '2.0', method, params: params || {} };
-        if (conn.transport === 'ws') {
-            if (!conn.ws || conn.ws.readyState !== WebSocket.OPEN) return;
-            conn.ws.send(JSON.stringify(msg));
-            return;
-        }
-
-        if (conn.transport === 'sse') {
-            if (!conn.ssePostUrl) return;
-            fetch(conn.ssePostUrl, {
-                method: 'POST',
-                headers: mergeHeaders({ 'Content-Type': 'application/json' }, conn.headers),
-                body: JSON.stringify(msg),
-            }).catch(() => {});
-            return;
-        }
-
-        if (conn.transport === 'streamable-http') {
-            if (!conn.httpPostUrl) return;
-            fetch(conn.httpPostUrl, {
-                method: 'POST',
-                headers: mergeHttpTransportHeaders(conn, {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json, text/event-stream',
-                }),
-                body: JSON.stringify(msg),
-            }).catch(() => {});
-        }
+        return requestPromise;
     }
 
     // Get or create connection for a server
@@ -295,7 +296,9 @@ export class McpRemoteManager {
                 const onMessage = (event) => {
                     try {
                         const msg = JSON.parse(event.data);
-                        this._resolvePendingRpcMessage(conn, msg);
+                        handleIncomingRpcMessage(conn, msg, (state, rpcMessage) =>
+                            this._resolvePendingRpcMessage(state, rpcMessage)
+                        );
                     } catch {}
                 };
 
@@ -342,10 +345,10 @@ export class McpRemoteManager {
             const key = `streamable-http:${httpUrl}:${headerKey}`;
 
             if (
-                conn.transport === 'streamable-http' &&
                 conn.initialized &&
                 conn.configKey === key &&
-                conn.httpPostUrl
+                ((conn.transport === 'streamable-http' && conn.httpPostUrl) ||
+                    (conn.transport === 'sse' && conn.ssePostUrl))
             ) {
                 this._bumpIdleClose(conn, serverId);
                 return conn;
@@ -359,7 +362,18 @@ export class McpRemoteManager {
             conn.sessionId = null;
             conn.protocolVersion = null;
 
-            await this._initializeHandshake(conn);
+            try {
+                await this._initializeHandshake(conn);
+            } catch (error) {
+                if (!isStreamableHttpFallbackError(error)) throw error;
+
+                this._disconnectState(conn);
+                conn.configKey = key;
+                conn.transport = 'sse';
+                conn.headers = normalizedHeaders;
+                await this._connectSse(conn, httpUrl);
+                await this._initializeHandshake(conn);
+            }
             this._bumpIdleClose(conn, serverId);
             return conn;
         }
@@ -379,68 +393,6 @@ export class McpRemoteManager {
             config.mcpServerUrl,
             config.mcpHeaders
         );
-    }
-
-    async _sendRpcStreamableHttp(conn, method, params) {
-        if (!conn.httpPostUrl) throw new Error('MCP Streamable HTTP not connected');
-
-        const id = this.nextId++;
-        const msg = {
-            jsonrpc: '2.0',
-            id,
-            method,
-            params: params || {},
-        };
-
-        const response = await fetch(conn.httpPostUrl, {
-            method: 'POST',
-            headers: mergeHttpTransportHeaders(conn, {
-                'Content-Type': 'application/json',
-                Accept: 'application/json, text/event-stream',
-            }),
-            body: JSON.stringify(msg),
-        });
-
-        const sessionId = response.headers.get('Mcp-Session-Id');
-        if (sessionId) conn.sessionId = sessionId;
-
-        const text = await response.text();
-
-        if (!response.ok) {
-            throw new Error(
-                `MCP Streamable HTTP error (${response.status}): ${text || response.statusText}`
-            );
-        }
-
-        try {
-            const parsed = JSON.parse(text);
-            if (parsed && parsed.error) throw new Error(parsed.error.message || 'MCP error');
-            if (parsed && parsed.result !== undefined) return parsed.result;
-            return parsed;
-        } catch (error) {
-            if (error instanceof SyntaxError) {
-                return this._parseStreamableHttpTextFallback(text);
-            }
-            throw error;
-        }
-    }
-
-    _parseStreamableHttpTextFallback(text) {
-        const trimmed = (text || '').trim();
-        const lastBrace = trimmed.lastIndexOf('}');
-        const firstBrace = trimmed.indexOf('{');
-        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-            const candidate = trimmed.slice(firstBrace, lastBrace + 1);
-            try {
-                const parsed = JSON.parse(candidate);
-                if (parsed && parsed.error) throw new Error(parsed.error.message || 'MCP error');
-                if (parsed && parsed.result !== undefined) return parsed.result;
-                return parsed;
-            } catch (error) {
-                if (!(error instanceof SyntaxError)) throw error;
-            }
-        }
-        return { content: [{ type: 'text', text: trimmed }] };
     }
 
     async _connectSse(conn, sseUrlStr) {
@@ -473,116 +425,60 @@ export class McpRemoteManager {
             throw new Error(`MCP SSE connect failed (${response.status}): ${response.statusText}`);
         if (!response.body) throw new Error('MCP SSE response has no body');
 
-        conn.sseReaderTask = this._readSseStream(conn, response.body.getReader(), sseUrl).catch(
-            () => {}
-        );
+        conn.sseReaderTask = readSseStream(conn, response.body.getReader(), sseUrl, {
+            resolvePendingRpcMessage: (msg) =>
+                handleIncomingRpcMessage(conn, msg, (state, rpcMessage) =>
+                    this._resolvePendingRpcMessage(state, rpcMessage)
+                ),
+            clearPending: (error) => this._clearPending(conn, error),
+        }).catch(() => {});
 
         const postUrl = await endpointPromise;
         conn.ssePostUrl = postUrl;
-    }
-
-    async _readSseStream(conn, reader, baseUrl) {
-        const decoder = new TextDecoder('utf-8');
-        let buffer = '';
-        let eventType = 'message';
-        let dataLines = [];
-
-        const dispatch = () => {
-            const data = dataLines.join('\n');
-            const type = eventType || 'message';
-            eventType = 'message';
-            dataLines = [];
-
-            const payload = data.trim();
-            if (!payload) return;
-
-            if (type === 'endpoint') {
-                let endpoint = payload;
-                try {
-                    const parsed = JSON.parse(payload);
-                    if (
-                        parsed &&
-                        typeof parsed === 'object' &&
-                        typeof parsed.endpoint === 'string'
-                    ) {
-                        endpoint = parsed.endpoint;
-                    }
-                } catch {}
-
-                try {
-                    const url = new URL(endpoint, baseUrl).toString();
-                    if (!conn.ssePostUrl) {
-                        conn.ssePostUrl = url;
-                        if (conn._resolveSseEndpoint) conn._resolveSseEndpoint(url);
-                    }
-                } catch {}
-                return;
-            }
-
-            if (type === 'message' || type === 'mcp' || type === 'data') {
-                try {
-                    const msg = JSON.parse(payload);
-                    this._resolvePendingRpcMessage(conn, msg);
-                } catch {}
-            }
-        };
-
-        try {
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-                let idx;
-                while ((idx = buffer.indexOf('\n')) !== -1) {
-                    const line = buffer.slice(0, idx);
-                    buffer = buffer.slice(idx + 1);
-                    const trimmed = line.replace(/\r$/, '');
-
-                    if (trimmed === '') {
-                        dispatch();
-                        continue;
-                    }
-                    if (trimmed.startsWith(':')) continue;
-                    if (trimmed.startsWith('event:')) {
-                        eventType = trimmed.slice('event:'.length).trim() || 'message';
-                        continue;
-                    }
-                    if (trimmed.startsWith('data:')) {
-                        dataLines.push(trimmed.slice('data:'.length).trimStart());
-                        continue;
-                    }
-                }
-            }
-        } finally {
-            try {
-                reader.releaseLock();
-            } catch {}
-            this._clearPending(conn, new Error('MCP SSE stream closed'));
-            conn.initialized = false;
-            conn.transport = null;
-            conn.configKey = null;
-            conn.sseAbort = null;
-            conn.ssePostUrl = null;
-        }
     }
 
     async _initializeHandshake(conn) {
         let lastError = null;
         for (const protocolVersion of DEFAULT_PROTOCOL_VERSIONS) {
             try {
-                await this._sendRpc(conn, 'initialize', {
+                const result = await this._sendRpc(conn, 'initialize', {
                     protocolVersion,
                     capabilities: {},
                     clientInfo: { name: this.clientName, version: this.clientVersion },
                 });
 
-                conn.protocolVersion = protocolVersion;
-                this._sendNotification(conn, 'notifications/initialized', {});
+                const selectedProtocolVersion =
+                    result && typeof result.protocolVersion === 'string'
+                        ? result.protocolVersion
+                        : protocolVersion;
+                if (!DEFAULT_PROTOCOL_VERSIONS.includes(selectedProtocolVersion)) {
+                    throw new Error(`Unsupported MCP protocol version: ${selectedProtocolVersion}`);
+                }
+
+                conn.protocolVersion = selectedProtocolVersion;
+                conn.serverCapabilities =
+                    result && result.capabilities && typeof result.capabilities === 'object'
+                        ? result.capabilities
+                        : {};
+                conn.serverInfo =
+                    result && result.serverInfo && typeof result.serverInfo === 'object'
+                        ? result.serverInfo
+                        : null;
+                conn.instructions =
+                    result && typeof result.instructions === 'string' ? result.instructions : '';
+                sendNotification(conn, 'notifications/initialized', {});
                 conn.initialized = true;
                 return;
-            } catch (e) {
-                lastError = e;
+            } catch (error) {
+                lastError = error;
+                if (isStreamableHttpFallbackError(error)) throw error;
+                if (
+                    error &&
+                    typeof error.message === 'string' &&
+                    error.message.startsWith('Unsupported MCP protocol version:')
+                ) {
+                    throw error;
+                }
                 await sleep(150);
             }
         }
@@ -590,22 +486,58 @@ export class McpRemoteManager {
     }
 
     async _listToolsForConnection(conn) {
-        const now = Date.now();
-        if (conn.toolsCache && now - conn.toolsCacheAt < 5 * 60 * 1000) {
-            return conn.toolsCache;
-        }
+        return listToolsForConnection(conn, (method, params) =>
+            this._sendRpc(conn, method, params)
+        );
+    }
 
-        const result = await this._sendRpc(conn, 'tools/list', {});
-        const tools = result && Array.isArray(result.tools) ? result.tools : [];
-        conn.toolsCache = tools;
-        conn.toolsCacheAt = now;
-        return tools;
+    async _listPromptsForConnection(conn) {
+        return listPromptsForConnection(conn, (method, params) =>
+            this._sendRpc(conn, method, params)
+        );
+    }
+
+    async _listResourcesForConnection(conn) {
+        return listResourcesForConnection(conn, (method, params) =>
+            this._sendRpc(conn, method, params)
+        );
+    }
+
+    async _listResourceTemplatesForConnection(conn) {
+        return listResourceTemplatesForConnection(conn, (method, params) =>
+            this._sendRpc(conn, method, params)
+        );
     }
 
     // List tools for a single server (legacy compatibility)
     async listTools(config) {
         const conn = await this._ensureConnected(config);
         return this._listToolsForConnection(conn);
+    }
+
+    async listPrompts(config) {
+        const conn = await this._ensureConnected(config);
+        return this._listPromptsForConnection(conn);
+    }
+
+    async getPrompt(config, name, args = {}) {
+        const conn = await this._ensureConnected(config);
+        return this._sendRpc(conn, 'prompts/get', { name, arguments: args || {} });
+    }
+
+    async listResources(config) {
+        const conn = await this._ensureConnected(config);
+        return this._listResourcesForConnection(conn);
+    }
+
+    async readResource(config, uri) {
+        const conn = await this._ensureConnected(config);
+        return this._sendRpc(conn, 'resources/read', { uri });
+    }
+
+    async listResourceTemplates(config) {
+        const conn = await this._ensureConnected(config);
+        return this._listResourceTemplatesForConnection(conn);
     }
 
     // List tools for a specific server by ID

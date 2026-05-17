@@ -1,11 +1,8 @@
-// content/messages.js
-
 (function () {
     class MessageRouter {
         constructor() {
             this.toolbarController = null;
             this.selectionOverlay = null;
-            // Track capture source
             this.captureSource = null;
             this.captureTargetSidePanelTabId = null;
         }
@@ -20,7 +17,6 @@
         }
 
         handle(request, sender, sendResponse) {
-            // Context Menu Actions
             if (request.action === 'CONTEXT_MENU_ACTION') {
                 if (this.toolbarController) {
                     this.toolbarController.handleContextAction(request.mode);
@@ -29,7 +25,6 @@
                 return true;
             }
 
-            // Start Selection Mode (Screenshot received)
             if (request.action === 'START_SELECTION') {
                 this.captureSource = request.source;
                 this.captureTargetSidePanelTabId = request.targetSidePanelTabId || null;
@@ -47,7 +42,6 @@
                 return true;
             }
 
-            // Crop Result (Area selected)
             if (request.action === 'CROP_SCREENSHOT') {
                 if (this.captureSource === 'sidepanel') {
                     // Forward back to sidepanel via background
@@ -71,7 +65,6 @@
                 return true;
             }
 
-            // Generated Image Result
             if (request.action === 'GENERATED_IMAGE_RESULT') {
                 if (this.toolbarController) {
                     this.toolbarController.handleGeneratedImageResult(request);
@@ -80,13 +73,11 @@
                 return true;
             }
 
-            // Get Active Selection
             if (request.action === 'GET_SELECTION') {
                 sendResponse({ selection: window.getSelection().toString() });
                 return true;
             }
 
-            // Get Full Page Content
             if (request.action === 'GET_PAGE_CONTENT') {
                 this._getPageContent(sendResponse);
                 return true;
@@ -100,8 +91,8 @@
                 let text = document.body.innerText || '';
                 text = text.replace(/\n{3,}/g, '\n\n');
                 sendResponse({ content: text });
-            } catch (e) {
-                sendResponse({ content: '', error: e.message });
+            } catch (error) {
+                sendResponse({ content: '', error: error.message });
             }
         }
     }

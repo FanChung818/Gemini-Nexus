@@ -1,12 +1,9 @@
-// sidepanel/index.js - Bridge between Sandbox and Background
 import { FrameManager } from './core/frame.js';
 import { StateManager } from './core/state.js';
 import { MessageBridge } from './core/bridge.js';
 
-// Initialize Core Components
 const frameManager = new FrameManager();
 
-// Start Lifecycle
 frameManager.init();
 
 if (globalThis.chrome && chrome.runtime && chrome.storage && chrome.tabs) {

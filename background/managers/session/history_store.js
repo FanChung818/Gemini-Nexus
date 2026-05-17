@@ -1,5 +1,3 @@
-// background/managers/session/history_store.js
-
 export async function getHistory(sessionId) {
     if (!sessionId) return [];
     const { geminiSessions } = await chrome.storage.local.get(['geminiSessions']);

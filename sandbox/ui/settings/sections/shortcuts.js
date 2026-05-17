@@ -1,5 +1,3 @@
-// sandbox/ui/settings/sections/shortcuts.js
-
 export class ShortcutsSection {
     constructor() {
         this.elements = {};
@@ -24,20 +22,20 @@ export class ShortcutsSection {
 
     setupShortcutInput(inputEl) {
         if (!inputEl) return;
-        inputEl.addEventListener('keydown', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+        inputEl.addEventListener('keydown', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) return;
 
             const keys = [];
-            if (e.ctrlKey) keys.push('Ctrl');
-            if (e.altKey) keys.push('Alt');
-            if (e.shiftKey) keys.push('Shift');
-            if (e.metaKey) keys.push('Meta');
+            if (event.ctrlKey) keys.push('Ctrl');
+            if (event.altKey) keys.push('Alt');
+            if (event.shiftKey) keys.push('Shift');
+            if (event.metaKey) keys.push('Meta');
 
-            let k = e.key.toUpperCase();
-            if (k === ' ') k = 'Space';
-            keys.push(k);
+            let normalizedKey = event.key.toUpperCase();
+            if (normalizedKey === ' ') normalizedKey = 'Space';
+            keys.push(normalizedKey);
 
             inputEl.value = keys.join('+');
         });

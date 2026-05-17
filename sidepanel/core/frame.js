@@ -1,5 +1,3 @@
-// sidepanel/core/frame.js
-
 export class FrameManager {
     constructor() {
         this.iframe = document.getElementById('sandbox-frame');

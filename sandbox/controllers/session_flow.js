@@ -1,6 +1,7 @@
-// sandbox/controllers/session_flow.js
-import { appendContextCompressionNotice, appendMessage } from '../render/message.js';
+import { appendMessage } from '../render/message.js';
+import { appendContextCompressionNotice } from '../render/context_compression.js';
 import { sendToBackground, saveSessionsToStorage } from '../../shared/messaging/index.js';
+import { hasDisplayableText, hasDisplayableThoughts } from '../core/displayable_content.js';
 import { t } from '../core/i18n.js';
 
 export class SessionFlowController {
@@ -121,12 +122,15 @@ export class SessionFlowController {
     }
 
     hasDisplayableRestoredContent(message) {
-        const text = typeof message.text === 'string' ? message.text : '';
-        const thoughts = typeof message.thoughts === 'string' ? message.thoughts : '';
         const hasGeneratedImages =
             Array.isArray(message.generatedImages) && message.generatedImages.length > 0;
         const hasSources = Array.isArray(message.sources) && message.sources.length > 0;
-        return Boolean(text.trim() || thoughts.trim() || hasGeneratedImages || hasSources);
+        return (
+            hasDisplayableText(message.text) ||
+            hasDisplayableThoughts(message.thoughts) ||
+            hasGeneratedImages ||
+            hasSources
+        );
     }
 
     getMessageKind(message) {
@@ -187,7 +191,10 @@ export class SessionFlowController {
 
     handleDeleteSession(sessionId) {
         const switchNeeded = this.sessionManager.deleteSession(sessionId);
-        saveSessionsToStorage(this.sessionManager.getPersistableSessions());
+        saveSessionsToStorage(this.sessionManager.getPersistableSessions(), {
+            type: 'deleteSession',
+            sessionId,
+        });
 
         if (switchNeeded) {
             if (this.sessionManager.sessions.length > 0) {

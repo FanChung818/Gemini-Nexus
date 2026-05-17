@@ -1,4 +1,3 @@
-// background/managers/session/settings_store.js
 import {
     DEFAULT_CONTEXT_MODE,
     DEFAULT_CONTEXT_RECENT_TURNS,
@@ -11,6 +10,7 @@ import {
     getOpenAIWebSearchStorageKeys,
 } from '../../../shared/settings/connection.js';
 import { normalizeOpenAIWebSearchSettings } from '../../../shared/settings/openai.js';
+import { debugLog } from '../../../shared/logging/debug.js';
 
 export async function getConnectionSettings() {
     const stored = await chrome.storage.local.get([
@@ -58,7 +58,7 @@ export async function getConnectionSettings() {
             const nextPointer = (pointer + 1) % keys.length;
             await chrome.storage.local.set({ geminiApiKeyPointer: nextPointer });
 
-            console.log(`[Gemini Nexus] Rotating Official API Key (Index: ${pointer})`);
+            debugLog(`[Gemini Nexus] Rotating Official API Key (Index: ${pointer})`);
         }
     } else {
         // Trim single key just in case

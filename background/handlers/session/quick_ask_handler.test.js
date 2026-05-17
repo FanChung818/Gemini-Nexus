@@ -103,4 +103,96 @@ describe('QuickAskHandler', () => {
             result: { status: 'error', text: 'Failed to load image: not found' },
         });
     });
+
+    it('keeps only the primary generated image for image editing quick asks', async () => {
+        saveToHistory.mockResolvedValue({ id: 'saved-edit-session' });
+        const sessionManager = {
+            resetContext: vi.fn(),
+            handleSendPrompt: vi.fn(async () => ({
+                status: 'success',
+                text: '',
+                images: [
+                    { url: 'https://lh3.googleusercontent.com/generated-primary' },
+                    { url: 'https://lh3.googleusercontent.com/generated-duplicate' },
+                    { url: 'https://lh3.googleusercontent.com/original-reference' },
+                ],
+            })),
+        };
+        const imageHandler = {
+            fetchImage: vi.fn(async () => ({
+                base64: 'data:image/png;base64,AAAA',
+                type: 'image/png',
+                name: 'image.png',
+            })),
+        };
+        const handler = new QuickAskHandler(sessionManager, imageHandler);
+
+        await handler.handleQuickAskImage(
+            {
+                text: 'remove background',
+                url: 'data:image/png;base64,AAAA',
+                model: 'gemini-3-pro-image-preview-11-2025',
+                imageMode: 'remove_bg',
+            },
+            { tab: { id: 7 } }
+        );
+
+        const expectedResult = {
+            status: 'success',
+            text: '',
+            images: [{ url: 'https://lh3.googleusercontent.com/generated-primary' }],
+        };
+        expect(saveToHistory).toHaveBeenCalledWith('remove background', expectedResult, [
+            { base64: 'data:image/png;base64,AAAA' },
+        ]);
+        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(7, {
+            action: 'GEMINI_STREAM_DONE',
+            result: expectedResult,
+            sessionId: 'saved-edit-session',
+        });
+    });
+
+    it('removes parsed images from OCR quick ask results', async () => {
+        saveToHistory.mockResolvedValue({ id: 'saved-ocr-session' });
+        const sessionManager = {
+            resetContext: vi.fn(),
+            handleSendPrompt: vi.fn(async () => ({
+                status: 'success',
+                text: '音王到里雯\nAIHI MANGA',
+                images: [{ url: 'https://lh3.googleusercontent.com/original-reference' }],
+            })),
+        };
+        const imageHandler = {
+            fetchImage: vi.fn(async () => ({
+                base64: 'data:image/png;base64,AAAA',
+                type: 'image/png',
+                name: 'image.png',
+            })),
+        };
+        const handler = new QuickAskHandler(sessionManager, imageHandler);
+
+        await handler.handleQuickAskImage(
+            {
+                text: 'extract text',
+                url: 'data:image/png;base64,AAAA',
+                model: 'gemini-3-flash',
+                imageMode: 'ocr',
+            },
+            { tab: { id: 7 } }
+        );
+
+        const expectedResult = {
+            status: 'success',
+            text: '音王到里雯\nAIHI MANGA',
+            images: [],
+        };
+        expect(saveToHistory).toHaveBeenCalledWith('extract text', expectedResult, [
+            { base64: 'data:image/png;base64,AAAA' },
+        ]);
+        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(7, {
+            action: 'GEMINI_STREAM_DONE',
+            result: expectedResult,
+            sessionId: 'saved-ocr-session',
+        });
+    });
 });

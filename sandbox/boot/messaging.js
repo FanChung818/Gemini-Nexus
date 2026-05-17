@@ -1,5 +1,3 @@
-// sandbox/boot/messaging.js
-
 export class AppMessageBridge {
     constructor() {
         this.app = null;

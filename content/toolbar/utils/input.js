@@ -1,4 +1,3 @@
-// content/toolbar/utils/input.js
 (function () {
     class InputManager {
         constructor() {
@@ -101,8 +100,8 @@
                     element.dispatchEvent(new Event('input', { bubbles: true }));
                 }
                 return true;
-            } catch (err) {
-                console.error('Failed to insert text:', err);
+            } catch (error) {
+                console.error('Failed to insert text:', error);
                 return false;
             }
         }

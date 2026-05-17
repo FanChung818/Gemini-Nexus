@@ -1,4 +1,3 @@
-// background/managers/session/context_manager.js
 import { sendOfficialMessage } from '../../../services/providers/official.js';
 import { sendOpenAIMessage } from '../../../services/providers/openai_compatible.js';
 import {

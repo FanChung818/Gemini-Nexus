@@ -1,5 +1,3 @@
-// sandbox/core/image_manager.js
-
 export class ImageManager {
     constructor(elements, callbacks = {}) {
         this.imageInput = elements.imageInput;
@@ -25,7 +23,7 @@ export class ImageManager {
             }
         });
 
-        // Paste Support
+        // Paste can provide real files, HTML image references, and plain text together.
         document.addEventListener('paste', (e) => {
             const clipboardData = e.clipboardData || e.originalEvent.clipboardData;
             const items = clipboardData.items;
@@ -35,7 +33,6 @@ export class ImageManager {
             let handledFiles = false;
             let handledHtmlImages = false;
 
-            // 1. Check for Files (e.g. Screenshots, File Copy, Word Images)
             for (const item of items) {
                 if (item.kind === 'file') {
                     const file = item.getAsFile();
@@ -46,8 +43,7 @@ export class ImageManager {
                 }
             }
 
-            // 2. Check for HTML Images (e.g. Webpage Copy)
-            // Only if no files were found directly (to avoid duplicates for apps that provide both)
+            // Only inspect HTML images when no direct files were provided, avoiding duplicates.
             if (!handledFiles && html) {
                 const doc = new DOMParser().parseFromString(html, 'text/html');
                 const images = doc.querySelectorAll('img');
@@ -57,14 +53,12 @@ export class ImageManager {
                     if (!src) return;
 
                     if (src.startsWith('data:')) {
-                        // Direct Base64
                         const match = src.match(/^data:(.+);base64,(.+)$/);
                         if (match) {
                             this.addFile(src, match[1], 'pasted_image.png');
                             handledHtmlImages = true;
                         }
                     } else if (src.startsWith('http')) {
-                        // Remote URL
                         if (this.onUrlDrop) {
                             this.onUrlDrop(src);
                             handledHtmlImages = true;
@@ -73,8 +67,7 @@ export class ImageManager {
                 });
             }
 
-            // 3. If we intercepted images, we must manually handle the text insertion
-            // to prevent the default paste (which might insert double text or lose the text if we preventDefault globally)
+            // Preserve pasted text manually when image handling requires preventDefault().
             if (handledFiles || handledHtmlImages) {
                 e.preventDefault();
                 if (text) {
@@ -122,13 +115,11 @@ export class ImageManager {
             let handledFiles = false;
             let handledHtmlImages = false;
 
-            // 1. Files (System Drag)
             if (files && files.length > 0) {
                 Array.from(files).forEach((file) => this.handleFile(file));
                 handledFiles = true;
             }
 
-            // 2. Web Content (Images in HTML)
             if (!handledFiles && html) {
                 const doc = new DOMParser().parseFromString(html, 'text/html');
                 const images = doc.querySelectorAll('img');
@@ -156,7 +147,6 @@ export class ImageManager {
                 });
             }
 
-            // 3. Text Insertion (Mixed Content)
             if (text) {
                 // If we handled images, avoid inserting text if it looks like the URL of the image we just added
                 // (Browsers often provide the image URL as text/plain when dragging an image)

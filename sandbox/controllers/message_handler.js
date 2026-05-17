@@ -1,46 +1,22 @@
-// sandbox/controllers/message_handler.js
-import { appendContextCompressionNotice, appendMessage } from '../render/message.js';
-import { cropImage } from '../../shared/dom/crop_utils.js';
+import { appendMessage } from '../render/message.js';
+import { appendContextCompressionNotice } from '../render/context_compression.js';
 import { isToolCallOnlyText, splitToolCallFromText } from '../../shared/text/tool_call_text.js';
+import { hasDisplayableText, hasDisplayableThoughts } from '../core/displayable_content.js';
 import { t } from '../core/i18n.js';
-import { WatermarkRemover } from '../../shared/media/watermark_remover.js';
-
-function hasDisplayableThoughts(thoughts) {
-    return typeof thoughts === 'string' ? thoughts.trim().length > 0 : Boolean(thoughts);
-}
-
-function hasDisplayableText(text) {
-    return typeof text === 'string' ? text.trim().length > 0 : Boolean(text);
-}
-
-function normalizeListValue(value) {
-    if (typeof value === 'string') return value;
-    if (value && typeof value === 'object') {
-        return value.url || value.title || JSON.stringify(value);
-    }
-    return '';
-}
-
-function normalizeList(values) {
-    return Array.isArray(values) ? values.map(normalizeListValue).filter(Boolean) : [];
-}
-
-function listsMatch(expectedValues, actualValues) {
-    const expected = normalizeList(expectedValues);
-    if (expected.length === 0) return false;
-    const actual = normalizeList(actualValues);
-    return (
-        expected.length === actual.length &&
-        expected.every((value, index) => value === actual[index])
-    );
-}
-
-function hasMatchingReplyMedia(lastMessage, request) {
-    return (
-        listsMatch(request.images, lastMessage.generatedImages) ||
-        listsMatch(request.sources, lastMessage.sources)
-    );
-}
+import {
+    handleCropScreenshotResult,
+    handleGeneratedImageFetchResult,
+    handleImageFetchResult,
+    handleSelectionTextResult,
+} from './message_results.js';
+import { hasMatchingReplyMedia } from './message_matchers.js';
+import {
+    buildToolOutputHistoryText,
+    getToolOutputKey,
+    getToolOutputStatus,
+    getToolStatusKey,
+    hasPersistedToolOutput,
+} from './message_tools.js';
 
 export class MessageHandler {
     constructor(sessionManager, uiController, imageManager, appController) {
@@ -55,85 +31,63 @@ export class MessageHandler {
     }
 
     async handle(request) {
-        // MCP server test result
-        if (request.action === 'MCP_TEST_RESULT') {
-            if (
-                this.ui &&
-                this.ui.settings &&
-                typeof this.ui.settings.updateMcpTestResult === 'function'
-            ) {
-                this.ui.settings.updateMcpTestResult(request);
-            }
-            return;
+        switch (request.action) {
+            case 'MCP_TEST_RESULT':
+                this.handleMcpTestResult(request);
+                return;
+            case 'MCP_TOOLS_RESULT':
+                this.handleMcpToolsResult(request);
+                return;
+            case 'GEMINI_STREAM_UPDATE':
+                this.handleStreamUpdate(request);
+                return;
+            case 'GEMINI_CONTEXT_STATUS':
+                this.handleContextStatus(request);
+                return;
+            case 'GEMINI_REPLY':
+                this.handleGeminiReply(request);
+                return;
+            case 'TOOL_OUTPUT_MESSAGE':
+                this.handleToolOutputMessage(request);
+                return;
+            case 'TOOL_CALL_STATUS_MESSAGE':
+                this.handleToolCallStatusMessage(request);
+                return;
+            case 'FETCH_IMAGE_RESULT':
+                this.handleImageResult(request);
+                return;
+            case 'SCREEN_CAPTURE_ERROR':
+                this.handleScreenCaptureError(request);
+                return;
+            case 'GENERATED_IMAGE_RESULT':
+                await this.handleGeneratedImageResult(request);
+                return;
+            case 'CROP_SCREENSHOT':
+                await this.handleCropResult(request);
+                return;
+            case 'SELECTION_RESULT':
+                this.handleSelectionResult(request);
+                return;
+            default:
+                return;
         }
+    }
 
-        if (request.action === 'MCP_TOOLS_RESULT') {
-            if (
-                this.ui &&
-                this.ui.settings &&
-                typeof this.ui.settings.updateMcpToolsResult === 'function'
-            ) {
-                this.ui.settings.updateMcpToolsResult(request);
-            }
-            return;
+    handleMcpTestResult(request) {
+        if (typeof this.ui?.settings?.updateMcpTestResult === 'function') {
+            this.ui.settings.updateMcpTestResult(request);
         }
+    }
 
-        // 0. Stream Update
-        if (request.action === 'GEMINI_STREAM_UPDATE') {
-            this.handleStreamUpdate(request);
-            return;
+    handleMcpToolsResult(request) {
+        if (typeof this.ui?.settings?.updateMcpToolsResult === 'function') {
+            this.ui.settings.updateMcpToolsResult(request);
         }
+    }
 
-        if (request.action === 'GEMINI_CONTEXT_STATUS') {
-            this.handleContextStatus(request);
-            return;
-        }
-
-        // 1. AI Reply
-        if (request.action === 'GEMINI_REPLY') {
-            this.handleGeminiReply(request);
-            return;
-        }
-
-        if (request.action === 'TOOL_OUTPUT_MESSAGE') {
-            this.handleToolOutputMessage(request);
-            return;
-        }
-
-        if (request.action === 'TOOL_CALL_STATUS_MESSAGE') {
-            this.handleToolCallStatusMessage(request);
-            return;
-        }
-
-        // 2. Image Fetch Result (For User Uploads)
-        if (request.action === 'FETCH_IMAGE_RESULT') {
-            this.handleImageResult(request);
-            return;
-        }
-
-        if (request.action === 'SCREEN_CAPTURE_ERROR') {
-            this.ui.updateStatus(request.error || t('screenCaptureFailed'));
-            setTimeout(() => this.ui.updateStatus(''), 3000);
-            return;
-        }
-
-        // 2.1 Generated Image Result (Proxy Fetch for Display)
-        if (request.action === 'GENERATED_IMAGE_RESULT') {
-            await this.handleGeneratedImageResult(request);
-            return;
-        }
-
-        // 3. Capture Result (Crop & OCR)
-        if (request.action === 'CROP_SCREENSHOT') {
-            await this.handleCropResult(request);
-            return;
-        }
-
-        // 4. Quote Selection Result
-        if (request.action === 'SELECTION_RESULT') {
-            this.handleSelectionResult(request);
-            return;
-        }
+    handleScreenCaptureError(request) {
+        this.ui.updateStatus(request.error || t('screenCaptureFailed'));
+        setTimeout(() => this.ui.updateStatus(''), 3000);
     }
 
     isCurrentSessionMessage(request) {
@@ -365,10 +319,6 @@ export class MessageHandler {
                     this.streamingBubble.addSources(request.sources);
                 }
 
-                if (request.status !== 'success') {
-                    // Optionally style error
-                }
-
                 // Clear reference
                 this.streamingBubble = null;
             } else {
@@ -410,22 +360,22 @@ export class MessageHandler {
         this.clearStreamState(sessionId);
 
         const session = this.sessionManager.getCurrentSession();
-        const renderedKey = this.getToolOutputKey(request);
+        const renderedKey = getToolOutputKey(request);
         if (renderedKey && this.hasRenderedToolOutput(renderedKey)) {
-            this.removeRenderedToolStatus(this.getToolStatusKey(request));
+            this.removeRenderedToolStatus(getToolStatusKey(request));
             return;
         }
 
-        this.removeRenderedToolStatus(this.getToolStatusKey(request));
+        this.removeRenderedToolStatus(getToolStatusKey(request));
 
-        if (session && !this.hasPersistedToolOutput(session, request)) {
+        if (session && !hasPersistedToolOutput(session, request)) {
             session.messages.push({
                 role: 'user',
-                text: this.buildToolOutputHistoryText(request),
+                text: buildToolOutputHistoryText(request),
                 image: request.images || null,
                 kind: 'tool-output',
                 toolName: request.toolName || '',
-                toolStatus: request.status || this.getToolOutputStatus(request),
+                toolStatus: request.status || getToolOutputStatus(request),
                 toolCallText,
                 toolStep: request.step,
                 toolCallIndex: request.callIndex,
@@ -445,7 +395,7 @@ export class MessageHandler {
             {
                 kind: 'tool-output',
                 toolName: request.toolName || '',
-                toolStatus: request.status || this.getToolOutputStatus(request),
+                toolStatus: request.status || getToolOutputStatus(request),
                 toolCallText,
                 step: request.step,
                 callIndex: request.callIndex,
@@ -469,7 +419,7 @@ export class MessageHandler {
         });
         this.clearStreamState(sessionId);
 
-        const statusKey = request.statusKey || this.getToolStatusKey(request);
+        const statusKey = request.statusKey || getToolStatusKey(request);
         const existing = this.findRenderedToolStatus(statusKey);
         if (existing && typeof existing.update === 'function') {
             existing.update(request.text || '', null, {
@@ -577,42 +527,11 @@ export class MessageHandler {
         return this.getStreamToolCallText(sessionId);
     }
 
-    buildToolOutputHistoryText(request) {
-        const toolName = request.toolName || 'tool';
-        const step = Number.isFinite(request.step) ? request.step : '';
-        const suffix = step ? `\n\n[Proceeding to step ${step}]` : '';
-        return `[Tool Output: ${toolName}]\n${request.text || ''}${suffix}`;
-    }
-
-    getToolOutputKey(request) {
-        if (!request) return '';
-        return [
-            request.sessionId || '',
-            request.toolName || '',
-            Number.isFinite(request.step) ? request.step : '',
-            Number.isFinite(request.callIndex) ? request.callIndex : '',
-            request.text || '',
-        ].join('|');
-    }
-
     hasRenderedToolOutput(key) {
         if (!key || !this.ui || !this.ui.historyDiv) return false;
         return Array.from(this.ui.historyDiv.querySelectorAll('[data-tool-output-key]')).some(
             (element) => element.dataset.toolOutputKey === key
         );
-    }
-
-    getToolStatusKey(request) {
-        if (!request) return '';
-        const parts = [request.sessionId || '', request.toolName || ''];
-        if (
-            Number.isFinite(request.callIndex) &&
-            Number.isFinite(request.callCount) &&
-            request.callCount > 1
-        ) {
-            parts.push(String(request.callIndex));
-        }
-        return parts.join('|');
     }
 
     findRenderedToolStatus(key) {
@@ -634,93 +553,27 @@ export class MessageHandler {
         }
     }
 
-    hasPersistedToolOutput(session, request) {
-        if (!session || !Array.isArray(session.messages)) return false;
-        const expected = this.buildToolOutputHistoryText(request);
-        return session.messages.some((message) => {
-            return message && message.role === 'user' && message.text === expected;
+    handleImageResult(request) {
+        handleImageFetchResult(request, {
+            ui: this.ui,
+            imageManager: this.imageManager,
         });
     }
 
-    getToolOutputStatus(request) {
-        const text = typeof request?.text === 'string' ? request.text.trim() : '';
-        return text.startsWith('Error executing tool:') ? 'failed' : 'completed';
-    }
-
-    handleImageResult(request) {
-        this.ui.updateStatus('');
-        if (request.error) {
-            console.error('Image fetch failed', request.error);
-            this.ui.updateStatus(t('failedLoadImage'));
-            setTimeout(() => this.ui.updateStatus(''), 3000);
-        } else {
-            this.imageManager.setFile(request.base64, request.type, request.name);
-        }
-    }
-
     async handleGeneratedImageResult(request) {
-        // Find the placeholder image by ID
-        const img = document.querySelector(`img[data-req-id="${request.reqId}"]`);
-        if (img) {
-            if (request.base64) {
-                try {
-                    // Apply Watermark Removal
-                    const cleanedBase64 = await WatermarkRemover.process(request.base64);
-                    img.src = cleanedBase64;
-                } catch (e) {
-                    console.warn('Watermark removal failed, using original', e);
-                    img.src = request.base64;
-                }
-
-                img.classList.remove('loading');
-                img.style.minHeight = 'auto';
-            } else {
-                // Handle error visually
-                img.style.background = '#ffebee'; // Light red
-                img.alt = 'Failed to load image';
-                console.warn('Generated image load failed:', request.error);
-            }
-        }
+        await handleGeneratedImageFetchResult(request);
     }
 
     async handleCropResult(request) {
-        this.ui.updateStatus(t('processingImage'));
-        try {
-            const croppedBase64 = await cropImage(request.image, request.area);
-            this.imageManager.setFile(croppedBase64, 'image/png', 'snip.png');
-
-            if (this.app.captureMode === 'ocr') {
-                // Change prompt to localized OCR instructions
-                this.ui.inputFn.value = t('ocrPrompt');
-                // Auto-send via the main controller
-                this.app.handleSendMessage();
-            } else if (this.app.captureMode === 'screenshot_translate') {
-                // Change prompt to localized Translate instructions
-                this.ui.inputFn.value = t('screenshotTranslatePrompt');
-                this.app.handleSendMessage();
-            } else {
-                this.ui.updateStatus('');
-                this.ui.inputFn.focus();
-            }
-        } catch (e) {
-            console.error('Crop error', e);
-            this.ui.updateStatus(t('errorScreenshot'));
-        }
+        await handleCropScreenshotResult(request, {
+            ui: this.ui,
+            imageManager: this.imageManager,
+            app: this.app,
+        });
     }
 
     handleSelectionResult(request) {
-        if (request.text && request.text.trim()) {
-            const quote = `> ${request.text.trim()}\n\n`;
-            const input = this.ui.inputFn;
-            // Append to new line if text exists
-            input.value = input.value ? input.value + '\n\n' + quote : quote;
-            input.focus();
-            // Trigger resize
-            input.dispatchEvent(new Event('input'));
-        } else {
-            this.ui.updateStatus(t('noTextSelected'));
-            setTimeout(() => this.ui.updateStatus(''), 2000);
-        }
+        handleSelectionTextResult(request, { ui: this.ui });
     }
 
     // Called by AppController on cancel/switch

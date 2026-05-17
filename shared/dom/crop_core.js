@@ -1,4 +1,3 @@
-// shared/dom/crop_core.js
 (function () {
     function cropImage(base64, area) {
         return new Promise((resolve, reject) => {

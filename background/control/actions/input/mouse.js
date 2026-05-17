@@ -1,47 +1,75 @@
-// background/control/actions/input/mouse.js
 import { BaseActionHandler } from '../base.js';
 
+const MAX_LAYOUT_RETRIES = 3;
+const LAYOUT_RETRY_DELAY_MS = 150;
+
+function isTransientLayoutError(error) {
+    const message = error?.message || '';
+    return message.includes('layout object') || message.includes('Node is detached');
+}
+
+function delay(delayMs) {
+    return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
 export class MouseActions extends BaseActionHandler {
+    async hoverElement({ uid }) {
+        const objectId = await this.getObjectIdFromUid(uid);
+        const backendNodeId = this.snapshotManager.getBackendNodeId(uid);
+
+        try {
+            const { x, y } = await this._getElementCenter({ objectId, backendNodeId });
+
+            await this.waitHelper.execute(async () => {
+                await this.cmd('Input.dispatchMouseEvent', {
+                    type: 'mouseMoved',
+                    x,
+                    y,
+                });
+            });
+
+            return `Hovered element ${uid} at ${Math.round(x)},${Math.round(y)}`;
+        } catch (error) {
+            console.warn(
+                `Physical hover on ${uid} failed (${error.message}), attempting JS fallback.`
+            );
+
+            await this.waitHelper.execute(async () => {
+                await this.cmd('Runtime.callFunctionOn', {
+                    objectId,
+                    functionDeclaration: `function() {
+                        this.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
+                        const rect = this.getBoundingClientRect();
+                        const x = rect.left + (rect.width / 2);
+                        const y = rect.top + (rect.height / 2);
+
+                        ['mouseover', 'mouseenter', 'mousemove'].forEach(type => {
+                            this.dispatchEvent(new MouseEvent(type, {
+                                view: window,
+                                bubbles: type !== 'mouseenter',
+                                cancelable: true,
+                                composed: true,
+                                clientX: x,
+                                clientY: y
+                            }));
+                        });
+                    }`,
+                });
+            });
+
+            return `Hovered element ${uid} (JS Fallback)`;
+        }
+    }
+
     async clickElement({ uid, dblClick = false }) {
         const objectId = await this.getObjectIdFromUid(uid);
         const backendNodeId = this.snapshotManager.getBackendNodeId(uid);
 
         try {
-            let x, y;
+            const { x, y } = await this._getElementCenter({ objectId, backendNodeId });
 
-            // Retry loop for layout stability
-            // Frames/Layouts might be re-calculating (e.g. hydration)
-            const MAX_RETRIES = 3;
-            for (let i = 0; i < MAX_RETRIES; i++) {
-                try {
-                    // 1. Scroll element into view
-                    await this.cmd('DOM.scrollIntoViewIfNeeded', { objectId });
-
-                    // 2. Get box model
-                    const { model } = await this.cmd('DOM.getBoxModel', { backendNodeId });
-                    if (!model || !model.content) throw new Error('No box model');
-
-                    x = (model.content[0] + model.content[4]) / 2;
-                    y = (model.content[1] + model.content[5]) / 2;
-
-                    // If we got here, layout is present
-                    break;
-                } catch (e) {
-                    const isLayoutError =
-                        e.message.includes('layout object') ||
-                        e.message.includes('Node is detached');
-                    if (isLayoutError && i < MAX_RETRIES - 1) {
-                        // Wait and retry
-                        await new Promise((r) => setTimeout(r, 150));
-                        continue;
-                    }
-                    throw e;
-                }
-            }
-
-            // 3. Occlusion Check (Hit Test)
             const hitTestResult = await this.cmd('Runtime.callFunctionOn', {
-                objectId: objectId,
+                objectId,
                 functionDeclaration: `function(x, y) {
                     const el = document.elementFromPoint(x, y);
                     if (!el) return false;
@@ -55,11 +83,9 @@ export class MouseActions extends BaseActionHandler {
             // Instead of throwing an error that stops the action, throw a specific error
             // to trigger immediate JS fallback logic in the catch block.
             if (!hitTestResult.result || hitTestResult.result.value === false) {
-                // console.warn(`[MouseActions] Click at ${Math.round(x)},${Math.round(y)} is occluded.`);
                 throw new Error('OCCLUSION_DETECTED');
             }
 
-            // 4. Dispatch Trusted Input Events
             await this.waitHelper.execute(async () => {
                 await this.cmd('Input.dispatchMouseEvent', {
                     type: 'mouseMoved',
@@ -100,28 +126,21 @@ export class MouseActions extends BaseActionHandler {
             });
 
             return `Clicked element ${uid} at ${Math.round(x)},${Math.round(y)}${dblClick ? ' (Double Click)' : ''}`;
-        } catch (e) {
-            const isOccluded = e.message === 'OCCLUSION_DETECTED';
-            const reason = isOccluded ? 'Occluded' : e.message;
+        } catch (error) {
+            const isOccluded = error.message === 'OCCLUSION_DETECTED';
+            const reason = isOccluded ? 'Occluded' : error.message;
 
             console.warn(
                 `Physical click on ${uid} failed (${reason}), attempting Enhanced JS fallback.`
             );
 
-            // Enhanced JS Fallback:
-            // 1. Simulates complete event chain (mouseover -> mousedown -> mouseup -> click)
-            // 2. Forces bubbling to support frameworks (React, etc.)
-            // 3. Enables composed events to penetrate ShadowDOM
-
-            // We use waitHelper here too to catch navigation triggered by JS click
+            // The JS fallback mirrors the full mouse chain and lets waitHelper catch navigation.
             await this.waitHelper.execute(async () => {
                 await this.cmd('Runtime.callFunctionOn', {
-                    objectId: objectId,
+                    objectId,
                     functionDeclaration: `function() {
-                        // 1. Ensure visibility
                         this.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
 
-                        // 2. Dispatch complete event chain (bubbling + composed enabled)
                         const rect = this.getBoundingClientRect();
                         const x = rect.left + (rect.width / 2);
                         const y = rect.top + (rect.height / 2);
@@ -141,7 +160,6 @@ export class MouseActions extends BaseActionHandler {
                              this.dispatchEvent(event);
                         });
 
-                        // 3. Focus (if focusable)
                         if (this.focus) this.focus();
                     }`,
                 });
@@ -149,5 +167,30 @@ export class MouseActions extends BaseActionHandler {
 
             return `Clicked element ${uid} (${isOccluded ? 'Occluded, ' : ''}JS Fallback)`;
         }
+    }
+
+    async _getElementCenter({ objectId, backendNodeId }) {
+        for (let attempt = 0; attempt < MAX_LAYOUT_RETRIES; attempt++) {
+            try {
+                await this.cmd('DOM.scrollIntoViewIfNeeded', { objectId });
+
+                const { model } = await this.cmd('DOM.getBoxModel', { backendNodeId });
+                if (!model || !model.content) throw new Error('No box model');
+
+                return {
+                    x: (model.content[0] + model.content[4]) / 2,
+                    y: (model.content[1] + model.content[5]) / 2,
+                };
+            } catch (error) {
+                const hasRetryLeft = attempt < MAX_LAYOUT_RETRIES - 1;
+                if (isTransientLayoutError(error) && hasRetryLeft) {
+                    await delay(LAYOUT_RETRY_DELAY_MS);
+                    continue;
+                }
+                throw error;
+            }
+        }
+
+        throw new Error('Unable to resolve element center');
     }
 }

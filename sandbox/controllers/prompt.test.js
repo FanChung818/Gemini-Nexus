@@ -76,7 +76,10 @@ describe('PromptController.send', () => {
             null,
             expect.objectContaining({ onEdit: expect.any(Function) })
         );
-        expect(saveSessionsToStorage).toHaveBeenCalledWith([session]);
+        expect(saveSessionsToStorage).toHaveBeenCalledWith([session], {
+            type: 'upsertSession',
+            sessionId: session.id,
+        });
         expect(app.sessionFlow.switchToSession).toHaveBeenCalledWith(session.id);
         expect(app.isGenerating).toBe(true);
         expect(app.generatingSessionId).toBe(session.id);

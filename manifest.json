@@ -13,7 +13,7 @@
         "tabs",
         "tabGroups"
     ],
-    "host_permissions": ["https://gemini.google.com/*", "<all_urls>"],
+    "host_permissions": ["<all_urls>"],
     "background": {
         "service_worker": "background/index.js",
         "type": "module"
@@ -65,6 +65,7 @@
                 "content/toolbar/templates.js",
                 "content/toolbar/view/utils.js",
                 "content/toolbar/view/widget.js",
+                "content/toolbar/view/image_preview.js",
                 "content/toolbar/view/window.js",
                 "content/toolbar/view/dom.js",
                 "content/toolbar/view/index.js",
@@ -72,6 +73,7 @@
                 "content/toolbar/ui/grammar.js",
                 "content/toolbar/ui/renderer.js",
                 "content/toolbar/ui/actions_delegate.js",
+                "shared/ui/copy_feedback.js",
                 "content/toolbar/ui/code_copy.js",
                 "content/toolbar/ui/manager.js",
                 "content/toolbar/actions.js",

@@ -1,4 +1,3 @@
-// content/toolbar/view/dom.js
 (function () {
     const Templates = window.GeminiToolbarTemplates;
 
@@ -43,7 +42,6 @@
         }
 
         _loadMathLibs() {
-            // 1. Inject KaTeX CSS into Shadow DOM
             const link = document.createElement('link');
             link.rel = 'stylesheet';
             link.href = chrome.runtime.getURL('vendor/katex/katex.min.css');

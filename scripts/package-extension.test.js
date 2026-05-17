@@ -1,6 +1,10 @@
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
     createPackagedManifest,
+    findMissingPackagedAssetReferences,
     formatContentBundle,
     shouldExcludeFromPackage,
 } from './package-extension.mjs';
@@ -54,5 +58,40 @@ describe('package-extension', () => {
             bundle.indexOf('window.second = window.first;')
         );
         expect(bundle.endsWith('\n')).toBe(true);
+    });
+
+    it('reports missing packaged Vite assets referenced by extension HTML', async () => {
+        const packageRoot = await mkdtemp(path.join(tmpdir(), 'gemini-nexus-package-'));
+
+        try {
+            await mkdir(path.join(packageRoot, 'sidepanel'), { recursive: true });
+            await mkdir(path.join(packageRoot, 'assets'), { recursive: true });
+            await writeFile(
+                path.join(packageRoot, 'sidepanel/index.html'),
+                [
+                    '<link rel="stylesheet" href="/assets/sidepanel.css">',
+                    '<link rel="stylesheet" href="./assets/theme.css?v=1">',
+                    '<script type="module" src="/assets/sidepanel.js"></script>',
+                ].join('\n'),
+                'utf8'
+            );
+            await writeFile(path.join(packageRoot, 'assets/sidepanel.js'), '', 'utf8');
+
+            expect(
+                await findMissingPackagedAssetReferences(packageRoot, ['sidepanel/index.html'])
+            ).toEqual([
+                'sidepanel/index.html -> assets/sidepanel.css',
+                'sidepanel/index.html -> assets/theme.css',
+            ]);
+
+            await writeFile(path.join(packageRoot, 'assets/sidepanel.css'), '', 'utf8');
+            await writeFile(path.join(packageRoot, 'assets/theme.css'), '', 'utf8');
+
+            expect(
+                await findMissingPackagedAssetReferences(packageRoot, ['sidepanel/index.html'])
+            ).toEqual([]);
+        } finally {
+            await rm(packageRoot, { recursive: true, force: true });
+        }
     });
 });

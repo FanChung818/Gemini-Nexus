@@ -1,4 +1,3 @@
-// services/auth.js
 import { extractFromHTML } from '../shared/utils/index.js';
 
 // Get 'at' (SNlM0e), 'bl' (cfb2h), and user index values

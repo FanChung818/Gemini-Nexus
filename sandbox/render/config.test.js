@@ -55,7 +55,7 @@ describe('configureMarkdown', () => {
         expect(html).toContain('copy-code-btn');
         expect(html).toContain('复制');
         expect(html).toContain('aria-label="复制代码"');
-        expect(html).toContain('{&quot;ok&quot;:true}');
+        expect(html).toContain('{"ok":true}');
         setLanguagePreference('en');
     });
 });

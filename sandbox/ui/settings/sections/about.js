@@ -1,5 +1,3 @@
-// sandbox/ui/settings/sections/about.js
-
 export class AboutSection {
     constructor(callbacks) {
         this.callbacks = callbacks || {};
@@ -78,8 +76,16 @@ export class AboutSection {
         const { updateStatusEl } = this.elements;
         if (!updateStatusEl) return;
 
+        updateStatusEl.replaceChildren();
+        updateStatusEl.style.color = '';
+
         if (isUpdateAvailable) {
-            updateStatusEl.innerHTML = `<a href="https://github.com/yeahhe365/Gemini-Nexus/releases" target="_blank" style="color: #d93025; text-decoration: none; border-bottom: 1px dashed;">Update available: ${latest}</a>`;
+            const link = document.createElement('a');
+            link.href = 'https://github.com/yeahhe365/Gemini-Nexus/releases';
+            link.target = '_blank';
+            link.className = 'app-update-link';
+            link.textContent = `Update available: ${latest}`;
+            updateStatusEl.appendChild(link);
         } else {
             updateStatusEl.textContent = `(Latest: ${latest})`;
             updateStatusEl.style.color = 'var(--text-tertiary)';

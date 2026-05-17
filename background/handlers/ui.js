@@ -1,4 +1,3 @@
-// background/handlers/ui.js
 import { getActiveTabContent } from './session/utils.js';
 import { getPanelPathForTab } from '../managers/sidepanel_scope_manager.js';
 import { toControlTabSummary } from '../control/tabs.js';
@@ -23,8 +22,8 @@ export class UIMessageHandler {
                             tabId: this._getTargetSidePanelTabId(request, sender),
                         })
                         .catch(() => {});
-                } catch (e) {
-                    console.error('Fetch image error', e);
+                } catch (error) {
+                    console.error('Fetch image error', error);
                 } finally {
                     sendResponse({ status: 'completed' });
                 }
@@ -46,25 +45,16 @@ export class UIMessageHandler {
                         error: result.error,
                     };
 
-                    // Send back to the specific sender (Tab or Extension Page)
-                    if (sender.tab) {
-                        chrome.tabs.sendMessage(sender.tab.id, payload).catch(() => {});
-                    } else {
-                        chrome.runtime.sendMessage(payload).catch(() => {});
-                    }
-                } catch (e) {
-                    console.error('Fetch generated image error', e);
+                    this._sendToRequestSource(sender, payload);
+                } catch (error) {
+                    console.error('Fetch generated image error', error);
                     const payload = {
                         action: 'GENERATED_IMAGE_RESULT',
                         tabId: this._getTargetSidePanelTabId(request, sender),
                         reqId: request.reqId,
-                        error: e.message,
+                        error: error.message,
                     };
-                    if (sender.tab) {
-                        chrome.tabs.sendMessage(sender.tab.id, payload).catch(() => {});
-                    } else {
-                        chrome.runtime.sendMessage(payload).catch(() => {});
-                    }
+                    this._sendToRequestSource(sender, payload);
                 } finally {
                     sendResponse({ status: 'completed' });
                 }
@@ -119,8 +109,8 @@ export class UIMessageHandler {
                         // Send specifically to the tab that initiated the selection
                         chrome.tabs.sendMessage(sender.tab.id, result).catch(() => {});
                     }
-                } catch (e) {
-                    console.error('Area capture error', e);
+                } catch (error) {
+                    console.error('Area capture error', error);
                 } finally {
                     sendResponse({ status: 'completed' });
                 }
@@ -155,7 +145,7 @@ export class UIMessageHandler {
                                 text: response ? response.selection : '',
                             })
                             .catch(() => {});
-                    } catch (e) {
+                    } catch {
                         chrome.runtime
                             .sendMessage({
                                 action: 'SELECTION_RESULT',
@@ -194,14 +184,14 @@ export class UIMessageHandler {
                         url,
                         toolsCount: Array.isArray(tools) ? tools.length : 0,
                     });
-                } catch (e) {
+                } catch (error) {
                     sendResponse({
                         action: 'MCP_TEST_RESULT',
                         ok: false,
                         serverId: request.serverId || null,
                         transport: request.transport || 'sse',
                         url: request.url || '',
-                        error: e.message || String(e),
+                        error: error.message || String(error),
                     });
                 }
             })();
@@ -222,7 +212,7 @@ export class UIMessageHandler {
                         url,
                         tools: this._toSafeMcpTools(tools),
                     });
-                } catch (e) {
+                } catch (error) {
                     sendResponse({
                         action: 'MCP_TOOLS_RESULT',
                         ok: false,
@@ -230,7 +220,7 @@ export class UIMessageHandler {
                         requestKey: request.requestKey || null,
                         transport: request.transport || 'sse',
                         url: request.url || '',
-                        error: e.message || String(e),
+                        error: error.message || String(error),
                         tools: [],
                     });
                 }
@@ -320,6 +310,15 @@ export class UIMessageHandler {
         return false;
     }
 
+    _sendToRequestSource(sender, payload) {
+        if (sender.tab) {
+            chrome.tabs.sendMessage(sender.tab.id, payload).catch(() => {});
+            return;
+        }
+
+        chrome.runtime.sendMessage(payload).catch(() => {});
+    }
+
     async _loadMcpTools(request, fallbackServerId) {
         if (!this.mcpManager) throw new Error('MCP manager not available');
 
@@ -369,9 +368,9 @@ export class UIMessageHandler {
                         windowId: sender.tab.windowId,
                     });
                 }
-            } catch (e) {
-                console.error('Could not start side panel open flow:', e);
-                openPromise = Promise.reject(e);
+            } catch (error) {
+                console.error('Could not start side panel open flow:', error);
+                openPromise = Promise.reject(error);
             }
 
             const updateOps = {};
@@ -389,8 +388,8 @@ export class UIMessageHandler {
 
             try {
                 await openPromise;
-            } catch (e) {
-                console.error('Could not open side panel:', e);
+            } catch (error) {
+                console.error('Could not open side panel:', error);
             }
 
             // If immediate execution needed after open (panel might already be open)
@@ -426,14 +425,10 @@ export class UIMessageHandler {
         const isControlActive = currentLock === tabId;
 
         if (isControlActive) {
-            // --- TOGGLE OFF ---
-
-            // 1. Disable Control (Detach debugger)
             if (this.controlManager) {
                 await this.controlManager.disableControl();
             }
 
-            // 2. Close Side Panel (Workaround: disable then enable)
             try {
                 // This effectively closes the side panel for this tab
                 await chrome.sidePanel.setOptions({ tabId, enabled: false });
@@ -446,11 +441,10 @@ export class UIMessageHandler {
                         path: getPanelPathForTab(tabId),
                     });
                 }, 250);
-            } catch (e) {
-                console.error('Failed to toggle side panel close:', e);
+            } catch (error) {
+                console.error('Failed to toggle side panel close:', error);
             }
         } else {
-            // --- TOGGLE ON ---
             if (this.controlManager) {
                 this.controlManager.setOwnerSidePanelTabId(
                     this._getTargetSidePanelTabId(request, sender)

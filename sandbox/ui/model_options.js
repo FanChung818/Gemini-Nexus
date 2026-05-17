@@ -23,15 +23,15 @@ export function createModelOptions(settings) {
     if (provider === 'official') {
         const models = parseConfiguredModels(settings.officialModel);
         return models.length > 0
-            ? models.map((model) => ({ val: model, txt: model }))
-            : [{ val: DEFAULT_OFFICIAL_MODEL, txt: DEFAULT_OFFICIAL_MODEL }];
+            ? models.map((model) => ({ value: model, label: model }))
+            : [{ value: DEFAULT_OFFICIAL_MODEL, label: DEFAULT_OFFICIAL_MODEL }];
     }
 
     if (provider === 'openai') {
         const models = parseConfiguredModels(settings.openaiModel);
         return models.length > 0
-            ? models.map((model) => ({ val: model, txt: model }))
-            : [{ val: DEFAULT_OPENAI_MODEL, txt: t('customModel') }];
+            ? models.map((model) => ({ value: model, label: model }))
+            : [{ value: DEFAULT_OPENAI_MODEL, label: t('customModel') }];
     }
 
     return createWebModelOptions();

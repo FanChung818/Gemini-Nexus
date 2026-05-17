@@ -1,118 +1,98 @@
-// content/toolbar/view/utils.js
 (function () {
     /**
-     * Shared Utility for Positioning Elements
+     * Shared utilities for positioning toolbar elements.
      */
     window.GeminiViewUtils = {
-        positionElement: function (el, rect, isLargerWindow, mousePoint) {
+        positionElement: function (element, rect, isLargerWindow, mousePoint) {
             const scrollX = window.scrollX || window.pageXOffset;
             const scrollY = window.scrollY || window.pageYOffset;
-            const vw = window.innerWidth;
-            const vh = window.innerHeight;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
 
-            // 1. Get Dimensions
-            let width = el.offsetWidth;
-            let height = el.offsetHeight;
+            let width = element.offsetWidth;
+            let height = element.offsetHeight;
 
-            // Fallback for hidden elements (estimate dimensions)
+            // Hidden elements report zero size, so estimate their rendered footprint.
             if (width === 0 || height === 0) {
                 width = isLargerWindow ? 400 : 220;
                 height = isLargerWindow ? 300 : 40;
             }
 
-            const padding = 10;
-            const offset = 12; // Gap between mouse/selection and toolbar
+            const edgePadding = 10;
+            const cursorOffset = 12;
 
-            // Determine Anchor Point
-            // Prioritize Mouse Point for "Bottom Right of Mouse" style
             let anchorX, anchorY;
 
             if (mousePoint) {
                 anchorX = mousePoint.x;
                 anchorY = mousePoint.y;
             } else if (rect) {
-                // Fallback to rect bottom-right if no mouse point provided
                 anchorX = rect.right;
                 anchorY = rect.bottom;
             } else {
-                anchorX = vw / 2;
-                anchorY = vh / 2;
+                anchorX = viewportWidth / 2;
+                anchorY = viewportHeight / 2;
             }
 
-            // --- Calculate Visual Position (Top-Left corner of Element) ---
+            let visualLeft = anchorX + cursorOffset;
+            let visualTop = anchorY + cursorOffset;
 
-            // Default Preference: Bottom-Right of Cursor
-            let visualLeft = anchorX + offset;
-            let visualTop = anchorY + offset;
+            if (visualLeft + width > viewportWidth - edgePadding) {
+                visualLeft = anchorX - width - cursorOffset;
 
-            // --- Horizontal Boundary Logic ---
-            // If toolbar extends past right edge
-            if (visualLeft + width > vw - padding) {
-                // Flip to Left of Cursor
-                visualLeft = anchorX - width - offset;
-
-                // If flipping left pushes it off left screen (e.g. huge element or very left cursor)
-                if (visualLeft < padding) {
-                    visualLeft = vw - width - padding; // Pin to right edge of screen
+                if (visualLeft < edgePadding) {
+                    visualLeft = viewportWidth - width - edgePadding;
                 }
             }
 
-            // --- Vertical Boundary Logic ---
-            // If toolbar extends past bottom edge
-            if (visualTop + height > vh - padding) {
-                // Flip to Top of Cursor
-                visualTop = anchorY - height - offset;
+            if (visualTop + height > viewportHeight - edgePadding) {
+                visualTop = anchorY - height - cursorOffset;
 
-                // Update arrow classes for Small Toolbar
                 if (!isLargerWindow) {
-                    el.classList.remove('placed-bottom');
-                    el.classList.add('placed-top');
+                    element.classList.remove('placed-bottom');
+                    element.classList.add('placed-top');
                 }
 
-                // If flipping top pushes it off top screen
-                if (visualTop < padding) {
-                    visualTop = vh - height - padding; // Pin to bottom edge of screen
+                if (visualTop < edgePadding) {
+                    visualTop = viewportHeight - height - edgePadding;
                 }
             } else {
-                // Default: Placed Bottom
                 if (!isLargerWindow) {
-                    el.classList.remove('placed-top');
-                    el.classList.add('placed-bottom');
+                    element.classList.remove('placed-top');
+                    element.classList.add('placed-bottom');
                 }
             }
-
-            // --- Apply Coordinates ---
 
             if (!isLargerWindow) {
                 // Small Toolbar: CSS has transform: translateY(10px) (no horizontal transform)
                 // So style.left is exact position.
-                el.style.left = `${visualLeft + scrollX}px`;
-                el.style.top = `${visualTop + scrollY}px`;
+                element.style.left = `${visualLeft + scrollX}px`;
+                element.style.top = `${visualTop + scrollY}px`;
             } else {
                 // Ask Window: Fixed positioning, no transform centering.
-                el.style.left = `${visualLeft}px`;
-                el.style.top = `${visualTop}px`;
+                element.style.left = `${visualLeft}px`;
+                element.style.top = `${visualTop}px`;
             }
         },
 
         resizeSelect: function (select) {
             if (!select) return;
-            const span = document.createElement('span');
-            span.style.visibility = 'hidden';
-            span.style.position = 'absolute';
-            span.style.fontSize = '13px'; // Match CSS
-            span.style.fontWeight = '500'; // Match CSS
-            span.style.fontFamily = window.getComputedStyle(select).fontFamily;
-            span.style.whiteSpace = 'nowrap';
-            span.textContent = select.options[select.selectedIndex].text;
+            const measurementSpan = document.createElement('span');
+            measurementSpan.style.visibility = 'hidden';
+            measurementSpan.style.position = 'absolute';
+            measurementSpan.style.fontSize = '13px'; // Match CSS
+            measurementSpan.style.fontWeight = '500'; // Match CSS
+            measurementSpan.style.fontFamily = window.getComputedStyle(select).fontFamily;
+            measurementSpan.style.whiteSpace = 'nowrap';
+            measurementSpan.textContent = select.options[select.selectedIndex].text;
 
             if (select.parentNode) {
-                select.parentNode.appendChild(span);
-                const width = span.getBoundingClientRect().width;
-                select.parentNode.removeChild(span);
+                select.parentNode.appendChild(measurementSpan);
+                const measuredWidth = measurementSpan.getBoundingClientRect().width;
+                select.parentNode.removeChild(measurementSpan);
 
-                // Add padding (12px * 2 = 24px) + increased buffer (10px) = 34px
-                select.style.width = `${width + 34}px`;
+                const horizontalPaddingAndBuffer = 34;
+                select.style.width = `${measuredWidth + horizontalPaddingAndBuffer}px`;
             }
         },
     };

@@ -1,5 +1,12 @@
-// background/handlers/session/quick_ask_handler.js
 import { appendTurnToHistory, saveToHistory } from '../../managers/history_manager.js';
+
+const IMAGE_EDIT_MODES = new Set([
+    'upscale',
+    'expand',
+    'remove_text',
+    'remove_bg',
+    'remove_watermark',
+]);
 
 export class QuickAskHandler {
     constructor(sessionManager, imageHandler) {
@@ -100,9 +107,29 @@ export class QuickAskHandler {
 
         const onUpdate = this._createStreamUpdateHandler(tabId);
         const result = await this.sessionManager.handleSendPrompt(promptRequest, onUpdate);
-        const savedSession = await this._saveSuccessfulResult(request.text, result, [
+        const normalizedResult = this._normalizeImageQuickAskResult(request, result);
+        const savedSession = await this._saveSuccessfulResult(request.text, normalizedResult, [
             { base64: imgRes.base64 },
         ]);
-        this._sendStreamDone(tabId, result, savedSession);
+        this._sendStreamDone(tabId, normalizedResult, savedSession);
+    }
+
+    _normalizeImageQuickAskResult(request, result) {
+        if (!result) return result;
+
+        if (!IMAGE_EDIT_MODES.has(request.imageMode)) {
+            if (!Array.isArray(result.images) || result.images.length === 0) return result;
+            return {
+                ...result,
+                images: [],
+            };
+        }
+
+        if (!Array.isArray(result.images) || result.images.length <= 1) return result;
+
+        return {
+            ...result,
+            images: result.images.slice(0, 1),
+        };
     }
 }

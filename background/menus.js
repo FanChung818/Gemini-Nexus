@@ -1,5 +1,3 @@
-// background/menus.js
-
 export function setupContextMenus() {
     // Create Context Menus with Localization check
     chrome.runtime.onInstalled.addListener(() => {

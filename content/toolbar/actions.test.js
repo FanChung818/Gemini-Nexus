@@ -61,6 +61,9 @@ function installToolbarStrings() {
             grammar: 'input grammar',
             explain: 'input explain',
         },
+        errors: {
+            imageEditWebOnly: 'Image editing requires Gemini Web.',
+        },
     };
 }
 
@@ -124,5 +127,60 @@ describe('ToolbarActions', () => {
                 model: 'gemini-3-pro-image-preview-11-2025',
             })
         );
+    });
+
+    it('waits for user text before sending image chat', async () => {
+        const ui = {
+            provider: 'web',
+            showAskWindow: vi.fn(async () => {}),
+            showLoading: vi.fn(),
+            setInputValue: vi.fn(),
+            getSelectedModel: vi.fn(() => 'gemini-3-pro'),
+        };
+        const actions = new window.GeminiToolbarActions(ui);
+
+        await actions.handleImageChat('data:image/png;base64,AAA', { x: 1, y: 2 });
+
+        expect(ui.showAskWindow).toHaveBeenCalledWith({ x: 1, y: 2 }, null, 'Analyze');
+        expect(ui.setInputValue).toHaveBeenCalledWith('');
+        expect(ui.showLoading).not.toHaveBeenCalled();
+        expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
+
+        actions.handleSubmitAsk('What is this?', '', null, 'gemini-3-pro');
+
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledTimes(1);
+        expect(chrome.runtime.sendMessage.mock.lastCall[0]).toEqual({
+            action: 'QUICK_ASK_IMAGE',
+            url: 'data:image/png;base64,AAA',
+            text: 'What is this?',
+            model: 'gemini-3-pro',
+            imageMode: 'chat',
+            sessionId: null,
+        });
+    });
+
+    it('shows an error instead of sending image editing requests outside Gemini Web', async () => {
+        const ui = {
+            provider: 'official',
+            showAskWindow: vi.fn(async () => {}),
+            showLoading: vi.fn(),
+            showError: vi.fn(),
+            setInputValue: vi.fn(),
+            getSelectedModel: vi.fn(() => 'gemini-3.1-pro-preview'),
+        };
+        const actions = new window.GeminiToolbarActions(ui);
+
+        await actions.handleImagePrompt(
+            'data:image/png;base64,AAA',
+            { x: 1, y: 2 },
+            'remove_bg',
+            'gemini-3.1-pro-preview'
+        );
+
+        expect(ui.showAskWindow).toHaveBeenCalledWith({ x: 1, y: 2 }, null, 'Remove background');
+        expect(ui.setInputValue).toHaveBeenCalledWith('input remove background');
+        expect(ui.showLoading).not.toHaveBeenCalled();
+        expect(ui.showError).toHaveBeenCalledWith('Image editing requires Gemini Web.');
+        expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
     });
 });

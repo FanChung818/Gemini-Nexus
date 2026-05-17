@@ -1,4 +1,3 @@
-// content/toolbar/styles/index.js
 (function () {
     const s = window.GeminiStyles || {};
     window.GeminiToolbarStyles =

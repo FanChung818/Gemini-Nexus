@@ -74,6 +74,64 @@ export function formatContentBundle(segments) {
 }
 
 /**
+ * @param {string} html
+ * @returns {string[]}
+ */
+export function collectPackagedAssetReferences(html) {
+    const references = new Set();
+    const attributePattern = /\b(?:href|src)=["']([^"']+)["']/g;
+
+    for (const match of html.matchAll(attributePattern)) {
+        const cleanReference = match[1].split(/[?#]/)[0].replace(/^\/+/, '').replace(/^\.\//, '');
+        if (cleanReference.startsWith('assets/')) {
+            references.add(cleanReference);
+        }
+    }
+
+    return [...references].sort();
+}
+
+/**
+ * @param {string} packageRoot
+ * @param {string[]} htmlRelativePaths
+ * @returns {Promise<string[]>}
+ */
+export async function findMissingPackagedAssetReferences(packageRoot, htmlRelativePaths) {
+    const missingReferences = [];
+
+    for (const htmlRelativePath of htmlRelativePaths) {
+        const html = await readFile(path.join(packageRoot, htmlRelativePath), 'utf8');
+        const assetReferences = collectPackagedAssetReferences(html);
+
+        for (const assetReference of assetReferences) {
+            try {
+                await stat(path.join(packageRoot, assetReference));
+            } catch {
+                missingReferences.push(`${htmlRelativePath} -> ${assetReference}`);
+            }
+        }
+    }
+
+    return missingReferences;
+}
+
+async function ensurePackagedHtmlAssetReferences() {
+    const missingReferences = await findMissingPackagedAssetReferences(packageDir, [
+        'sidepanel/index.html',
+        'sandbox/index.html',
+    ]);
+
+    if (missingReferences.length > 0) {
+        throw new Error(
+            [
+                'Packaged HTML references missing asset files:',
+                ...missingReferences.map((reference) => `- ${reference}`),
+            ].join('\n')
+        );
+    }
+}
+
+/**
  * @param {string} relativePath
  */
 async function ensureExists(relativePath) {
@@ -183,6 +241,7 @@ async function main() {
     ]);
 
     await removeJunkFiles(packageDir);
+    await ensurePackagedHtmlAssetReferences();
 
     const packageJson = JSON.parse(await readFile(path.join(rootDir, 'package.json'), 'utf8'));
     await writeFile(

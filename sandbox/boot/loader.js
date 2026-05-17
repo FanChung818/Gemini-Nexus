@@ -1,6 +1,6 @@
-// sandbox/boot/loader.js
 import 'katex/dist/katex.min.css';
 import 'highlight.js/styles/atom-one-dark.css';
+import { debugLog } from '../../shared/logging/debug.js';
 import { configureMarkdown } from '../render/config.js';
 
 export const MARKDOWN_READY_EVENT = 'gemini-markdown-ready';
@@ -71,7 +71,7 @@ export async function loadLibs() {
             console.warn('Markdown dependency load issue:', 'Initialization timeout');
         }
 
-        console.log('Lazy dependencies loading...');
+        debugLog('Lazy dependencies loading...');
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.warn('Deferred loading failed', message);

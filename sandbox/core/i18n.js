@@ -1,5 +1,3 @@
-// sandbox/core/i18n.js
-
 const translations = {
     en: {
         searchPlaceholder: 'Search for chats',
@@ -440,7 +438,7 @@ let currentLang = resolveLanguage(savedPreference);
 // Apply initial lang attribute for CSS/DOM consistency
 try {
     document.documentElement.lang = currentLang;
-} catch (e) {}
+} catch {}
 
 export function setLanguagePreference(pref) {
     savedPreference = pref;
@@ -463,7 +461,6 @@ export function formatT(key, values = {}) {
 }
 
 export function applyTranslations() {
-    // 1. Text Content
     const elements = document.querySelectorAll('[data-i18n]');
     elements.forEach((el) => {
         const key = el.getAttribute('data-i18n');
@@ -471,7 +468,6 @@ export function applyTranslations() {
         if (text) el.textContent = text;
     });
 
-    // 2. Placeholders
     const placeholders = document.querySelectorAll('[data-i18n-placeholder]');
     placeholders.forEach((el) => {
         const key = el.getAttribute('data-i18n-placeholder');
@@ -479,7 +475,6 @@ export function applyTranslations() {
         if (text) el.placeholder = text;
     });
 
-    // 3. Titles (Tooltips)
     const titles = document.querySelectorAll('[data-i18n-title]');
     titles.forEach((el) => {
         const key = el.getAttribute('data-i18n-title');

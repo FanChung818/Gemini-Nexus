@@ -1,4 +1,3 @@
-// services/providers/official.js
 import {
     DEFAULT_OFFICIAL_BASE_URL,
     DEFAULT_OFFICIAL_MODEL,
@@ -8,6 +7,7 @@ import {
     attachmentToInlineData,
     normalizeUserAttachments,
 } from '../../shared/attachments/index.js';
+import { debugLog } from '../../shared/logging/debug.js';
 import { readSseJson } from './sse.js';
 
 function extractGroundingSources(groundingMetadata) {
@@ -26,7 +26,7 @@ function extractGroundingSources(groundingMetadata) {
             if (!web.title) {
                 title = new URL(web.uri).hostname;
             }
-        } catch (_) {}
+        } catch {}
 
         sources.push({
             title,
@@ -244,15 +244,13 @@ export async function sendOfficialMessage(
     // Explicit Mapping logic
     targetModel = normalizeOfficialModel(targetModel);
 
-    console.debug(`[Gemini Official API] Requesting ${targetModel} (Original: ${modelName})...`);
+    debugLog(`[Gemini Official API] Requesting ${targetModel} (Original: ${modelName})...`);
 
     const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
     const url = `${normalizedBaseUrl}/models/${targetModel}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
-    // 1. Build Contents Array (History + Current Prompt)
     const contents = [];
 
-    // Add History
     if (history && Array.isArray(history)) {
         history.forEach((msg) => {
             const content = buildMessageContent(msg, targetModel);

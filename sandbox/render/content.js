@@ -1,4 +1,3 @@
-// sandbox/render/content.js
 import { transformMarkdown } from './pipeline.js';
 import { formatT, t } from '../core/i18n.js';
 

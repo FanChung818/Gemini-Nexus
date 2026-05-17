@@ -1,4 +1,3 @@
-// sidepanel/core/state.js
 import {
     DEFAULT_CONTEXT_MODE,
     DEFAULT_CONTEXT_RECENT_TURNS,
@@ -132,17 +131,14 @@ export class StateManager {
         this.hasInitialized = true;
         this.frame.reveal();
 
-        const win = this.frame.getWindow();
-        if (!win) return;
+        const frameWindow = this.frame.getWindow();
+        if (!frameWindow) return;
 
-        // --- Push Data ---
         const connectionSettings = createConnectionSettingsPayload(this.data);
         const provider = connectionSettings.provider;
         const selectedModel = connectionSettings.selectedModel;
 
-        // 1. Preferences
-
-        // Settings first to establish model list environment
+        // Restore settings first so the model list is ready before model selection.
         this.frame.postMessage({
             action: 'RESTORE_CONNECTION_SETTINGS',
             payload: connectionSettings,
@@ -173,7 +169,6 @@ export class StateManager {
             payload: this.data.geminiShortcuts || null,
         });
 
-        // Model restore should happen after connection settings to ensure the correct list is active
         this.frame.postMessage({ action: 'RESTORE_MODEL', payload: selectedModel });
 
         this.frame.postMessage({
@@ -193,7 +188,7 @@ export class StateManager {
             payload: `v${chrome.runtime.getManifest().version}`,
         });
 
-        // 2. Pending Actions (Session Switch)
+        // Replay deferred actions captured before the side panel was ready.
         if (this.data.pendingSessionId) {
             this.frame.postMessage({
                 action: 'BACKGROUND_MESSAGE',
@@ -203,7 +198,6 @@ export class StateManager {
             delete this.data.pendingSessionId;
         }
 
-        // 3. Pending Actions (Image)
         if (this.data.pendingImage) {
             this.frame.postMessage({
                 action: 'BACKGROUND_MESSAGE',
@@ -213,7 +207,6 @@ export class StateManager {
             delete this.data.pendingImage;
         }
 
-        // 4. Pending Actions (Browser Control Mode)
         if (this.data.pendingMode === 'browser_control') {
             this.frame.postMessage({
                 action: 'BACKGROUND_MESSAGE',
@@ -223,7 +216,7 @@ export class StateManager {
             delete this.data.pendingMode;
         }
 
-        // 5. LocalStorage Sync (Theme/Lang)
+        // Theme and language are mirrored in localStorage for early paint.
         const cachedTheme = localStorage.getItem('geminiTheme') || 'system';
         const cachedLang = localStorage.getItem('geminiLanguage') || 'system';
 
@@ -231,24 +224,18 @@ export class StateManager {
         this.frame.postMessage({ action: 'RESTORE_THEME', payload: cachedTheme });
     }
 
-    // --- State Accessors & Updaters ---
-
     updateSessions(sessions) {
         if (this.data) this.data.geminiSessions = sessions;
         // Note: No need to save to storage here, usually comes from background broadcast
     }
 
-    // Generic save handler
     save(key, value) {
-        // Update local cache
         if (this.data) this.data[key] = value;
 
-        // Update Chrome Storage
         const update = {};
         update[key] = value;
         chrome.storage.local.set(update);
 
-        // Special handling for localStorage items
         if (key === 'geminiTheme') localStorage.setItem('geminiTheme', value);
         if (key === 'geminiLanguage') localStorage.setItem('geminiLanguage', value);
     }

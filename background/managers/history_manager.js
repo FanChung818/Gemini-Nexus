@@ -1,4 +1,3 @@
-// background/managers/history_manager.js
 import { generateUUID } from '../../shared/utils/index.js';
 import {
     getImageAttachmentDataUrls,
@@ -68,7 +67,7 @@ export async function saveToHistory(text, result, filesObj = null) {
             messages: [
                 {
                     role: 'user',
-                    text: text,
+                    text,
                     image: storedImages,
                     attachments: storedAttachments,
                 },
@@ -81,8 +80,8 @@ export async function saveToHistory(text, result, filesObj = null) {
         await saveSessionsAndNotify(geminiSessions);
 
         return newSession;
-    } catch (e) {
-        console.error('Error saving history:', e);
+    } catch (error) {
+        console.error('Error saving history:', error);
         return null;
     }
 }
@@ -110,8 +109,8 @@ export async function appendAiMessage(sessionId, result) {
             return true;
         }
         return false;
-    } catch (e) {
-        console.error('Error appending history:', e);
+    } catch (error) {
+        console.error('Error appending history:', error);
         return false;
     }
 }
@@ -140,8 +139,8 @@ export async function appendTurnToHistory(sessionId, text, result, filesObj = nu
         await moveSessionToTopAndSave(geminiSessions, sessionIndex, session);
 
         return session;
-    } catch (e) {
-        console.error('Error appending turn history:', e);
+    } catch (error) {
+        console.error('Error appending turn history:', error);
         return null;
     }
 }
@@ -166,8 +165,8 @@ export async function appendRawMessages(sessionId, messages) {
         await moveSessionToTopAndSave(geminiSessions, sessionIndex, session);
 
         return true;
-    } catch (e) {
-        console.error('Error appending raw history messages:', e);
+    } catch (error) {
+        console.error('Error appending raw history messages:', error);
         return false;
     }
 }
@@ -212,7 +211,7 @@ export async function appendUserMessage(sessionId, text, images = null, metadata
             const attachments = normalizeUserAttachments(images);
             const message = {
                 role: 'user',
-                text: text,
+                text,
                 image: images, // Store image array if present
             };
             if (attachments.length > 0) {
@@ -235,8 +234,8 @@ export async function appendUserMessage(sessionId, text, images = null, metadata
             return true;
         }
         return false;
-    } catch (e) {
-        console.error('Error appending user message:', e);
+    } catch (error) {
+        console.error('Error appending user message:', error);
         return false;
     }
 }
@@ -267,8 +266,8 @@ export async function replaceSessionSnapshot(sessionSnapshot) {
         await saveSessionsAndNotify(geminiSessions);
 
         return true;
-    } catch (e) {
-        console.error('Error replacing session snapshot:', e);
+    } catch (error) {
+        console.error('Error replacing session snapshot:', error);
         return false;
     }
 }
@@ -280,8 +279,8 @@ export async function getSessionContextSummary(sessionId) {
         const { geminiSessions = [] } = await chrome.storage.local.get(['geminiSessions']);
         const session = geminiSessions.find((s) => s.id === sessionId);
         return session?.contextSummary || null;
-    } catch (e) {
-        console.error('Error reading context summary:', e);
+    } catch (error) {
+        console.error('Error reading context summary:', error);
         return null;
     }
 }
@@ -297,8 +296,8 @@ export async function updateSessionContextSummary(sessionId, contextSummary) {
         geminiSessions[sessionIndex].contextSummary = contextSummary;
         await chrome.storage.local.set({ geminiSessions });
         return true;
-    } catch (e) {
-        console.error('Error updating context summary:', e);
+    } catch (error) {
+        console.error('Error updating context summary:', error);
         return false;
     }
 }

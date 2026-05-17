@@ -1,13 +1,18 @@
-// content/toolbar/controller.js
-
 (function () {
+    const TOOLBAR_MODEL_STORAGE_KEYS = [
+        'geminiModel',
+        'geminiProvider',
+        'geminiUseOfficialApi',
+        'geminiOfficialModel',
+        'geminiOpenaiModel',
+        'geminiOpenaiSelectedModel',
+    ];
+
     class ToolbarController {
         constructor() {
-            // Dependencies
             this.ui = new window.GeminiToolbarUI();
             this.actions = new window.GeminiToolbarActions(this.ui);
 
-            // Sub-Modules
             this.imageDetector = new window.GeminiImageDetector({
                 onShow: (rect) => this.ui.showImageButton(rect),
                 onHide: () => this.ui.hideImageButton(),
@@ -22,7 +27,6 @@
 
             this.inputManager = new window.GeminiInputManager();
 
-            // Initialize Dispatcher with reference to this controller
             this.dispatcher = new window.GeminiToolbarDispatcher(this);
 
             new window.GeminiSelectionObserver({
@@ -31,23 +35,20 @@
                 onClick: this.handleClick.bind(this),
             });
 
-            // State
             this.visible = false;
             this.currentSelection = '';
             this.lastRect = null;
             this.lastMousePoint = null;
             this.lastSessionId = null;
-            this.currentMode = 'ask'; // 默认模式
+            this.currentMode = 'ask';
             this.isSelectionEnabled = true;
 
-            // Bind Action Handler
             this.handleAction = this.handleAction.bind(this);
 
             this.init();
         }
 
         init() {
-            // Initialize UI
             this.ui.build();
             this.ui.setCallbacks({
                 onAction: this.handleAction,
@@ -61,27 +62,16 @@
                 },
             });
 
-            // Sync Settings (Model & Provider) with Global State
             this.syncSettings();
 
-            // Listen for global setting changes to keep toolbar in sync
             chrome.storage.onChanged.addListener((changes, area) => {
                 if (area === 'local') {
-                    const keys = [
-                        'geminiModel',
-                        'geminiProvider',
-                        'geminiUseOfficialApi',
-                        'geminiOfficialModel',
-                        'geminiOpenaiModel',
-                        'geminiOpenaiSelectedModel',
-                    ];
-                    if (keys.some((k) => changes[k])) {
+                    if (TOOLBAR_MODEL_STORAGE_KEYS.some((key) => changes[key])) {
                         this.syncSettings();
                     }
                 }
             });
 
-            // Initialize Modules
             this.imageDetector.init();
 
             window.addEventListener('gemini-toolbar-language-changed', () => {
@@ -91,14 +81,7 @@
         }
 
         async syncSettings() {
-            const result = await chrome.storage.local.get([
-                'geminiModel',
-                'geminiProvider',
-                'geminiUseOfficialApi',
-                'geminiOfficialModel',
-                'geminiOpenaiModel',
-                'geminiOpenaiSelectedModel',
-            ]);
+            const result = await chrome.storage.local.get(TOOLBAR_MODEL_STORAGE_KEYS);
 
             const settings = {
                 provider: result.geminiProvider,
@@ -107,7 +90,6 @@
                 openaiModel: result.geminiOpenaiModel,
             };
 
-            // Update UI options and selection
             const provider = settings.provider || (settings.useOfficialApi ? 'official' : 'web');
             const selectedModel =
                 provider === 'openai'
@@ -127,27 +109,19 @@
             this.imageDetector.setEnabled(enabled);
         }
 
-        /**
-         * 处理来自右键菜单的动作指令
-         */
         handleContextAction(mode) {
             this.currentMode = mode;
 
             if (mode === 'ask') {
                 this.showGlobalInput(false);
             } else if (mode === 'page_chat') {
-                this.showGlobalInput(true); // 带网页上下文打开
+                this.showGlobalInput(true);
             } else {
-                // 需要截图的操作模式：ocr, snip, screenshot_translate
                 chrome.runtime.sendMessage({ action: 'INITIATE_CAPTURE' });
             }
         }
 
-        /**
-         * 处理截图完成后的结果
-         */
         async handleCropResult(request) {
-            // 截图已经由 background 完成并发送到了这里
             const rect = {
                 left: window.innerWidth / 2 - 200,
                 top: 100,
@@ -159,13 +133,12 @@
 
             const model = this.ui.getSelectedModel();
 
-            // Client-side Cropping
             let finalImage = request.image;
             if (window.GeminiImageCropper && request.area) {
                 try {
                     finalImage = await window.GeminiImageCropper.crop(request.image, request.area);
-                } catch (e) {
-                    console.error('Crop failed in content script', e);
+                } catch (error) {
+                    console.error('Crop failed in content script', error);
                 }
             }
 
@@ -177,22 +150,18 @@
                 this.actions.handleImagePrompt(finalImage, rect, 'snip', model);
             }
 
-            this.currentMode = 'ask'; // 重置模式
-            this.visible = true; // Ensure logic knows window is visible
+            this.currentMode = 'ask';
+            this.visible = true;
         }
 
         handleGeneratedImageResult(request) {
             if (request.base64 && this.ui) {
-                // Delegate to the bridge in UI Manager to process image (remove watermark)
-                // This reuses the logic loaded in the sandbox iframe
                 this.ui
                     .processImage(request.base64)
                     .then((cleaned) => {
-                        // Pass cleaned image to UI
                         this.ui.handleGeneratedImageResult({ ...request, base64: cleaned });
                     })
-                    .catch((e) => {
-                        // Fallback to original on error
+                    .catch(() => {
                         this.ui.handleGeneratedImageResult(request);
                     });
                 return;
@@ -200,11 +169,8 @@
             this.ui.handleGeneratedImageResult(request);
         }
 
-        // --- Event Handlers (Delegated from SelectionObserver) ---
-
-        handleClick(e) {
-            // If clicking inside our toolbar/window, do nothing
-            if (this.ui.isHost(e.target)) return;
+        handleClick(event) {
+            if (this.ui.isHost(event.target)) return;
 
             this.hide();
         }
@@ -217,26 +183,20 @@
             this.lastRect = rect;
             this.lastMousePoint = mousePoint;
 
-            // Capture source input element for potential grammar fix
             this.inputManager.capture();
 
-            // Show/hide grammar button based on whether selection is in editable element
             this.ui.showGrammarButton(this.inputManager.hasSource());
 
-            // Show Toolbar
             this.show(rect, mousePoint);
         }
 
         handleSelectionClear() {
-            // Only hide if we aren't currently interacting with the Ask Window
             if (!this.ui.isWindowVisible()) {
                 this.currentSelection = '';
                 this.inputManager.reset();
                 this.hide();
             }
         }
-
-        // --- Action Dispatcher ---
 
         handleModelChange(model) {
             const provider = this.ui.getProvider ? this.ui.getProvider() : 'web';
@@ -251,8 +211,6 @@
         handleAction(actionType, data) {
             this.dispatcher.dispatch(actionType, data);
         }
-
-        // --- Helper Methods ---
 
         show(rect, mousePoint) {
             this.lastRect = rect;
@@ -273,27 +231,26 @@
         }
 
         showGlobalInput(withPageContext = false) {
-            const viewportW = window.innerWidth;
-            const viewportH = window.innerHeight;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
             const width = 400;
             const height = 100;
 
-            const left = (viewportW - width) / 2;
-            const top = viewportH / 2 - 200;
+            const left = (viewportWidth - width) / 2;
+            const top = viewportHeight / 2 - 200;
 
             const rect = {
-                left: left,
-                top: top,
+                left,
+                top,
                 right: left + width,
                 bottom: top + height,
-                width: width,
-                height: height,
+                width,
+                height,
             };
 
             this.ui.hide();
             const strings = window.GeminiToolbarStrings || {};
 
-            // 如果带网页上下文，修改标题
             let title = strings.ask || 'Ask Gemini';
             if (withPageContext) {
                 title = strings.chatWithPage || 'Chat with Page';
@@ -306,13 +263,11 @@
             this.lastSessionId = null;
             this.visible = true;
 
-            // 如果指定了网页上下文模式，在后续发送时包含上下文
             if (withPageContext) {
                 this.currentSelection = '__PAGE_CONTEXT_FORCE__';
             }
         }
     }
 
-    // Export to Window
     window.GeminiToolbarController = ToolbarController;
 })();

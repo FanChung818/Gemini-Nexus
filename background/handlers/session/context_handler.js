@@ -1,5 +1,3 @@
-// background/handlers/session/context_handler.js
-
 export class ContextHandler {
     constructor(sessionManager) {
         this.sessionManager = sessionManager;

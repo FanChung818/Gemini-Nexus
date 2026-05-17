@@ -1,6 +1,6 @@
 import {
     DEFAULT_MCP_HTTP_URL,
-    DEFAULT_MCP_SERVER_URL,
+    DEFAULT_MCP_SSE_URL,
     DEFAULT_MCP_TRANSPORT,
     DEFAULT_MCP_WS_URL,
     DEFAULT_OFFICIAL_BASE_URL,
@@ -94,7 +94,7 @@ export function createConnectionSettingsPayload(data = {}, options = {}) {
         openaiWebSearch: openaiSettings.webSearch,
         mcpEnabled: data.geminiMcpEnabled === true,
         mcpTransport: data.geminiMcpTransport || DEFAULT_MCP_TRANSPORT,
-        mcpServerUrl: data.geminiMcpServerUrl || DEFAULT_MCP_SERVER_URL,
+        mcpServerUrl: data.geminiMcpServerUrl || DEFAULT_MCP_HTTP_URL,
         mcpServers: Array.isArray(data.geminiMcpServers) ? data.geminiMcpServers : null,
         mcpActiveServerId: data.geminiMcpActiveServerId || null,
     };
@@ -106,7 +106,7 @@ export function getDefaultMcpUrlForTransport(transport) {
     if (normalized === 'streamable-http' || normalized === 'streamablehttp') {
         return DEFAULT_MCP_HTTP_URL;
     }
-    return DEFAULT_MCP_SERVER_URL;
+    return DEFAULT_MCP_SSE_URL;
 }
 
 export function createDefaultMcpServer(id = `srv_${Date.now()}`) {
@@ -114,7 +114,7 @@ export function createDefaultMcpServer(id = `srv_${Date.now()}`) {
         id,
         name: 'Local Proxy',
         transport: DEFAULT_MCP_TRANSPORT,
-        url: DEFAULT_MCP_SERVER_URL,
+        url: DEFAULT_MCP_HTTP_URL,
         headers: {},
         enabled: true,
         toolMode: 'all',

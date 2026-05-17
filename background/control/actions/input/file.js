@@ -1,4 +1,3 @@
-// background/control/actions/input/file.js
 import { BaseActionHandler } from '../base.js';
 
 export class FileActions extends BaseActionHandler {
@@ -10,19 +9,18 @@ export class FileActions extends BaseActionHandler {
         const backendNodeId = this.snapshotManager.getBackendNodeId(uid);
         if (!backendNodeId) return `Error: UID ${uid} not found. Call take_snapshot first.`;
 
-        // Ensure DOM is enabled
         await this.cmd('DOM.enable');
 
         try {
             await this.waitHelper.execute(async () => {
                 await this.cmd('DOM.setFileInputFiles', {
                     files: paths,
-                    backendNodeId: backendNodeId,
+                    backendNodeId,
                 });
             });
             return `Successfully attached ${paths.length} files to element ${uid}.`;
-        } catch (e) {
-            return `Error attaching files: ${e.message}`;
+        } catch (error) {
+            return `Error attaching files: ${error.message}`;
         }
     }
 }

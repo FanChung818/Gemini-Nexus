@@ -1,4 +1,3 @@
-// background/managers/session_manager.js
 import { AuthManager } from './auth_manager.js';
 import { getConnectionSettings } from './session/settings_store.js';
 import { RequestDispatcher } from './session/request_dispatcher.js';

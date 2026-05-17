@@ -1,5 +1,3 @@
-// sandbox/render/config.js
-
 import { t } from '../core/i18n.js';
 
 export function configureMarkdown() {
@@ -7,7 +5,6 @@ export function configureMarkdown() {
 
     const renderer = new marked.Renderer();
 
-    // Helper to escape HTML safely (used when syntax highlighting fails or for plaintext)
     const escapeHtml = (text) => {
         return text
             .replace(/&/g, '&amp;')
@@ -38,7 +35,7 @@ export function configureMarkdown() {
         if (typeof hljs !== 'undefined' && validLang !== 'plaintext') {
             try {
                 highlighted = hljs.highlight(code, { language: validLang }).value;
-            } catch (e) {
+            } catch {
                 // Fallback to manual escape if highlight fails
                 highlighted = escapeHtml(code);
             }

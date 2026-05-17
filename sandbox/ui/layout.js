@@ -1,4 +1,3 @@
-// sandbox/ui/layout.js
 import {
     SidebarTemplate,
     HeaderTemplate,

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PromptHandler } from './prompt_handler.js';
+import { hasInlinePageSnapshot, PromptHandler } from './prompt_handler.js';
 import { appendAiMessage } from '../../managers/history_manager.js';
 
 vi.mock('../../managers/history_manager.js', () => ({
@@ -168,5 +168,14 @@ describe('PromptHandler concurrency', () => {
             expect(controlManager.setControlTaskTitle).toHaveBeenCalledWith('Scroll OpenAI news')
         );
         expect(controlManager.setTargetTab).toHaveBeenCalledWith(88);
+    });
+});
+
+describe('PromptHandler browser-control snapshot detection', () => {
+    it('detects inline snapshots already returned by browser-control tools', () => {
+        expect(
+            hasInlinePageSnapshot('Clicked element 1_2\n\n## Latest page snapshot\nuid=2_1')
+        ).toBe(true);
+        expect(hasInlinePageSnapshot('Clicked element 1_2')).toBe(false);
     });
 });

@@ -1,20 +1,18 @@
-// sharedmessaging.js
-
 export function sendToBackground(payload) {
     window.parent.postMessage(
         {
             action: 'FORWARD_TO_BACKGROUND',
-            payload: payload,
+            payload,
         },
         '*'
     );
 }
 
-export function saveSessionsToStorage(sessions) {
+export function saveSessionsToStorage(sessions, mutation = null) {
     window.parent.postMessage(
         {
             action: 'SAVE_SESSIONS',
-            payload: sessions,
+            payload: mutation ? { sessions, mutation } : sessions,
         },
         '*'
     );

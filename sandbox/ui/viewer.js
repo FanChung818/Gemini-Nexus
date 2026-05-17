@@ -1,8 +1,13 @@
-// sandbox/ui/viewer.js
-
 export class ViewerController {
     constructor() {
-        this.state = {
+        this.state = this.createInitialState();
+
+        this.queryElements();
+        this.initListeners();
+    }
+
+    createInitialState() {
+        return {
             scale: 1,
             panning: false,
             pointX: 0,
@@ -10,9 +15,6 @@ export class ViewerController {
             startX: 0,
             startY: 0,
         };
-
-        this.queryElements();
-        this.initListeners();
     }
 
     queryElements() {
@@ -22,54 +24,49 @@ export class ViewerController {
         this.container = document.getElementById('viewer-container');
         this.fullImage = document.getElementById('full-image');
 
-        // Controls
-        this.btnZoomIn = document.getElementById('viewer-zoom-in');
-        this.btnZoomOut = document.getElementById('viewer-zoom-out');
-        this.btnReset = document.getElementById('viewer-reset');
-        this.btnDownload = document.getElementById('viewer-download');
-        this.btnClose = document.getElementById('viewer-close');
-        this.lblZoom = document.getElementById('viewer-zoom-level');
+        this.zoomInButton = document.getElementById('viewer-zoom-in');
+        this.zoomOutButton = document.getElementById('viewer-zoom-out');
+        this.resetButton = document.getElementById('viewer-reset');
+        this.downloadButton = document.getElementById('viewer-download');
+        this.closeButton = document.getElementById('viewer-close');
+        this.zoomLabel = document.getElementById('viewer-zoom-level');
     }
 
     initListeners() {
         if (!this.viewer) return;
 
-        // --- Mouse / Wheel Interactions ---
-        this.container.addEventListener('mousedown', (e) => this.startPan(e));
-        document.addEventListener('mousemove', (e) => this.pan(e));
+        this.container.addEventListener('mousedown', (event) => this.startPan(event));
+        document.addEventListener('mousemove', (event) => this.pan(event));
         document.addEventListener('mouseup', () => this.endPan());
-        this.container.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
-        this.container.addEventListener('dblclick', (e) => {
-            if (e.target === this.fullImage || e.target === this.container) {
+        this.container.addEventListener('wheel', (event) => this.handleWheel(event), {
+            passive: false,
+        });
+        this.container.addEventListener('dblclick', (event) => {
+            if (event.target === this.fullImage || event.target === this.container) {
                 this.resetTransform();
             }
         });
 
-        // --- Toolbar Buttons ---
-        this.btnZoomIn.addEventListener('click', () => this.zoomIn());
-        this.btnZoomOut.addEventListener('click', () => this.zoomOut());
-        this.btnReset.addEventListener('click', () => this.resetTransform());
-        this.btnClose.addEventListener('click', () => this.close());
-        this.btnDownload.addEventListener('click', () => this.downloadImage());
+        this.zoomInButton.addEventListener('click', () => this.zoomIn());
+        this.zoomOutButton.addEventListener('click', () => this.zoomOut());
+        this.resetButton.addEventListener('click', () => this.resetTransform());
+        this.closeButton.addEventListener('click', () => this.close());
+        this.downloadButton.addEventListener('click', () => this.downloadImage());
 
-        // --- Backdrop Click to Close ---
-        this.viewer.addEventListener('click', (e) => {
-            if (e.target === this.viewer) this.close();
+        this.viewer.addEventListener('click', (event) => {
+            if (event.target === this.viewer) this.close();
         });
 
-        // --- Global Events ---
-        document.addEventListener('gemini-view-image', (e) => {
-            this.open(e.detail);
+        document.addEventListener('gemini-view-image', (event) => {
+            this.open(event.detail);
         });
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.viewer.classList.contains('visible')) {
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.viewer.classList.contains('visible')) {
                 this.close();
             }
         });
     }
-
-    // --- State Management ---
 
     open(src) {
         if (this.fullImage) {
@@ -90,7 +87,7 @@ export class ViewerController {
     }
 
     resetState() {
-        this.state = { scale: 1, panning: false, pointX: 0, pointY: 0, startX: 0, startY: 0 };
+        this.state = this.createInitialState();
     }
 
     resetTransform() {
@@ -103,14 +100,12 @@ export class ViewerController {
     updateTransform() {
         if (!this.fullImage) return;
         this.fullImage.style.transform = `translate(${this.state.pointX}px, ${this.state.pointY}px) scale(${this.state.scale})`;
-        this.lblZoom.textContent = `${Math.round(this.state.scale * 100)}%`;
+        this.zoomLabel.textContent = `${Math.round(this.state.scale * 100)}%`;
     }
 
-    // --- Actions ---
-
-    handleWheel(e) {
-        e.preventDefault();
-        const delta = -Math.sign(e.deltaY);
+    handleWheel(event) {
+        event.preventDefault();
+        const delta = -Math.sign(event.deltaY);
         const step = 0.1;
         const newScale = this.state.scale + delta * step;
         this.setScale(newScale);
@@ -125,27 +120,26 @@ export class ViewerController {
     }
 
     setScale(scale) {
-        // Clamp scale
         const min = 0.1;
         const max = 5;
         this.state.scale = Math.min(Math.max(scale, min), max);
         this.updateTransform();
     }
 
-    startPan(e) {
-        if (e.button !== 0) return; // Only left click
-        e.preventDefault();
+    startPan(event) {
+        if (event.button !== 0) return;
+        event.preventDefault();
         this.state.panning = true;
-        this.state.startX = e.clientX - this.state.pointX;
-        this.state.startY = e.clientY - this.state.pointY;
+        this.state.startX = event.clientX - this.state.pointX;
+        this.state.startY = event.clientY - this.state.pointY;
         this.container.style.cursor = 'grabbing';
     }
 
-    pan(e) {
+    pan(event) {
         if (!this.state.panning) return;
-        e.preventDefault();
-        this.state.pointX = e.clientX - this.state.startX;
-        this.state.pointY = e.clientY - this.state.startY;
+        event.preventDefault();
+        this.state.pointX = event.clientX - this.state.startX;
+        this.state.pointY = event.clientY - this.state.startY;
         this.updateTransform();
     }
 
@@ -158,7 +152,6 @@ export class ViewerController {
         const src = this.fullImage.src;
         if (!src) return;
 
-        // Delegate to parent (Sidepanel) to bypass Sandbox restrictions
         window.parent.postMessage(
             {
                 action: 'DOWNLOAD_IMAGE',

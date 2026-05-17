@@ -7,8 +7,11 @@ import { appendMessage } from '../render/message.js';
 import { saveSessionsToStorage, sendToBackground } from '../../shared/messaging/index.js';
 
 vi.mock('../render/message.js', () => ({
-    appendContextCompressionNotice: vi.fn(),
     appendMessage: vi.fn(),
+}));
+
+vi.mock('../render/context_compression.js', () => ({
+    appendContextCompressionNotice: vi.fn(),
 }));
 
 vi.mock('../../shared/messaging/index.js', () => ({
@@ -260,7 +263,10 @@ describe('SessionFlowController', () => {
 
         controller.handleDeleteSession('session-1');
 
-        expect(saveSessionsToStorage).toHaveBeenCalledWith([]);
+        expect(saveSessionsToStorage).toHaveBeenCalledWith([], {
+            type: 'deleteSession',
+            sessionId: 'session-1',
+        });
         expect(sessionManager.sessions).toEqual([]);
         expect(sessionManager.currentSessionId).toBeNull();
         expect(app.saveCurrentTabSessionBinding).toHaveBeenCalledWith(null);

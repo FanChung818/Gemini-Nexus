@@ -1,10 +1,8 @@
-// background/control/actions/input/keyboard/fill.js
-
 export async function handleFillElement(handler, { uid, value }) {
     const objectId = await handler.getObjectIdFromUid(uid);
 
     await handler.waitHelper.execute(async () => {
-        // 1. Focus element and detect type
+        // Focus first so browser-level input behavior matches user interaction.
         const info = await handler.cmd('Runtime.callFunctionOn', {
             objectId: objectId,
             functionDeclaration: `function() {
@@ -30,28 +28,41 @@ export async function handleFillElement(handler, { uid, value }) {
     return `Filled element ${uid}`;
 }
 
+export async function handleFillForm(handler, { elements = [] }) {
+    if (!Array.isArray(elements) || elements.length === 0) {
+        return "Error: 'elements' must be a non-empty array.";
+    }
+
+    for (const element of elements) {
+        if (!element || typeof element.uid !== 'string') {
+            return "Error: Each form element requires a 'uid'.";
+        }
+        if (typeof element.value !== 'string') {
+            return "Error: Each form element requires a string 'value'.";
+        }
+        await handleFillElement(handler, element);
+    }
+
+    return `Filled form (${elements.length} elements)`;
+}
+
 async function handleSelect(handler, objectId, uid, value) {
-    // MCP Enhancement: Use AXTree to find the option instead of JS loop injection
-    // This reduces context switching overhead and improves reliability
     const axNode = handler.snapshotManager.getAXNode(uid);
 
-    // Helper to safely get value from AX prop
-    const getVal = (prop) => prop && prop.value;
+    const getPropertyValue = (property) => property && property.value;
     const isCombobox =
-        axNode && (getVal(axNode.role) === 'combobox' || getVal(axNode.role) === 'PopUpButton');
+        axNode &&
+        (getPropertyValue(axNode.role) === 'combobox' ||
+            getPropertyValue(axNode.role) === 'PopUpButton');
 
     if (isCombobox) {
-        // Find option node node in snapshot with matching text (name)
         const optionUid = handler.snapshotManager.findDescendant(uid, (node) => {
-            const role = getVal(node.role);
-            const name = getVal(node.name);
-            // Match role 'option' and name equals value
-            // Or if name matches, assume it's the right option
+            const role = getPropertyValue(node.role);
+            const name = getPropertyValue(node.name);
             return (role === 'option' || role === 'MenuListOption') && name === value;
         });
 
         if (optionUid) {
-            // Found the option in the tree!
             const optionBackendId = handler.snapshotManager.getBackendNodeId(optionUid);
             if (optionBackendId) {
                 try {
@@ -59,7 +70,6 @@ async function handleSelect(handler, objectId, uid, value) {
                         backendNodeId: optionBackendId,
                     });
                     if (optionObj) {
-                        // Set the select value to this option's value
                         await handler.cmd('Runtime.callFunctionOn', {
                             objectId: objectId,
                             arguments: [{ objectId: optionObj.objectId }],
@@ -71,43 +81,38 @@ async function handleSelect(handler, objectId, uid, value) {
                                 }
                             }`,
                         });
-                        return; // Success
+                        return;
                     }
-                } catch (e) {
-                    // Fallback if resolution fails
-                    console.warn('AXTree option resolution failed, falling back to JS', e);
+                } catch (error) {
+                    console.warn('AXTree option resolution failed, falling back to JS', error);
                 }
             }
         }
     }
 
-    // Fallback: Robust JS Simulation if AXTree lookup failed
+    // Fall back to JS simulation if AXTree lookup failed.
     await handler.cmd('Runtime.callFunctionOn', {
         objectId: objectId,
-        functionDeclaration: `function(val) {
+        functionDeclaration: `function(targetValue) {
             let found = false;
-            // 1. Try matching by value
             for (let i = 0; i < this.options.length; i++) {
-                if (this.options[i].value === val) {
+                if (this.options[i].value === targetValue) {
                     this.selectedIndex = i;
                     found = true;
                     break;
                 }
             }
-            // 2. Try matching by visible text
             if (!found) {
                 for (let i = 0; i < this.options.length; i++) {
-                    if (this.options[i].text === val) {
+                    if (this.options[i].text === targetValue) {
                         this.selectedIndex = i;
                         found = true;
                         break;
                     }
                 }
             }
-            // 3. Fallback
-            if (!found) this.value = val;
+            if (!found) this.value = targetValue;
 
-            // Dispatch standard events
             this.dispatchEvent(new Event('input', { bubbles: true }));
             this.dispatchEvent(new Event('change', { bubbles: true }));
             this.dispatchEvent(new Event('click', { bubbles: true }));
@@ -117,10 +122,7 @@ async function handleSelect(handler, objectId, uid, value) {
 }
 
 async function handleInput(handler, objectId, value) {
-    // For Inputs / Textareas / ContentEditable
-    // Use Trusted CDP Input Events for maximum compatibility (React, etc.)
-
-    // 1. Select All Text
+    // Use trusted CDP input events for maximum compatibility with app frameworks.
     await handler.cmd('Runtime.callFunctionOn', {
         objectId: objectId,
         functionDeclaration: `function() {
@@ -137,7 +139,6 @@ async function handleInput(handler, objectId, value) {
         }`,
     });
 
-    // 2. Clear (Backspace)
     // Sending key events ensures frameworks detect the deletion
     await handler.cmd('Input.dispatchKeyEvent', {
         type: 'keyDown',
@@ -154,13 +155,12 @@ async function handleInput(handler, objectId, value) {
         code: 'Backspace',
     });
 
-    // 3. Type New Value
     // Input.insertText simulates typing (fires input events automatically)
     if (value) {
         await handler.cmd('Input.insertText', { text: value });
     }
 
-    // 4. Dispatch Change (often only fired on blur by browsers)
+    // Some browsers only fire change on blur, so dispatch it explicitly.
     await handler.cmd('Runtime.callFunctionOn', {
         objectId: objectId,
         functionDeclaration: `function() {

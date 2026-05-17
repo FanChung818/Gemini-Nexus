@@ -103,21 +103,24 @@
 
         /* The trigger button (AI Tools) */
         .ai-tool-trigger {
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
             background: #232429;
             color: #fff;
-            width: 34px;
-            height: 34px;
-            border-radius: 8px;
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+            box-sizing: border-box;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.22);
+            border: none;
+            transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.1s;
         }
         .ai-tool-trigger:hover {
             background: #2f3036;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.28);
         }
         .ai-tool-trigger:active {
             transform: scale(0.95);
@@ -188,7 +191,7 @@
         .submenu {
             position: absolute;
             left: 100%;
-            top: 0;
+            top: var(--submenu-offset-y, 0px);
             margin-left: 8px;
             background: #232429;
             border-radius: 8px;
@@ -211,6 +214,18 @@
             left: -10px; /* Bridge the 8px margin gap + overlap */
             width: 10px;
             background: transparent;
+        }
+
+        .menu-item.has-submenu.submenu-open-left .submenu {
+            left: auto;
+            right: 100%;
+            margin-left: 0;
+            margin-right: 8px;
+        }
+
+        .menu-item.has-submenu.submenu-open-left .submenu::before {
+            left: auto;
+            right: -10px;
         }
 
         .menu-item.has-submenu:hover .submenu {

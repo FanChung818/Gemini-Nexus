@@ -23,7 +23,7 @@ async function listJavaScriptFiles(directory) {
     return files.flat().sort();
 }
 
-const classicContentSupportFiles = ['shared/dom/crop_core.js'];
+const classicContentSupportFiles = ['shared/dom/crop_core.js', 'shared/ui/copy_feedback.js'];
 
 describe('manifest content scripts', () => {
     it('declares the native tab group permission used by browser control', async () => {
@@ -36,6 +36,13 @@ describe('manifest content scripts', () => {
         const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
 
         expect(manifest.permissions).not.toContain('downloads');
+    });
+
+    it('does not repeat host permissions already covered by all urls', async () => {
+        const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
+
+        expect(manifest.host_permissions).toContain('<all_urls>');
+        expect(manifest.host_permissions).not.toContain('https://gemini.google.com/*');
     });
 
     it('lists every runtime content script file exactly once', async () => {

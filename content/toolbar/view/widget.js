@@ -1,4 +1,3 @@
-// content/toolbar/view/widget.js
 (function () {
     const Utils = window.GeminiViewUtils;
 

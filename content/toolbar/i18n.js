@@ -1,5 +1,3 @@
-// content/toolbar/i18n.js
-
 (function () {
     function resolveLanguagePreference(pref) {
         if (pref === 'zh' || pref === 'en') return pref;
@@ -37,6 +35,14 @@
             copyResult: isZh ? '复制结果' : 'Copy Result',
             customModel: isZh ? '自定义模型' : 'Custom Model',
             stopGenerating: isZh ? '停止生成' : 'Stop generating',
+            errors: {
+                imageEditWebOnly: isZh
+                    ? '图片编辑功能目前仅支持 Gemini Web。请切换到 Gemini Web 后重试。'
+                    : 'Image editing is currently only available with Gemini Web. Switch to Gemini Web and try again.',
+                imageLoadFailed: isZh
+                    ? '无法读取这张图片，请尝试打开原图或换一张图片。'
+                    : 'Could not read this image. Try opening the original image or choose another one.',
+            },
 
             // AI Tools Menu
             aiTools: isZh ? 'AI 工具' : 'AI Tools',
@@ -47,7 +53,7 @@
             imageTools: isZh ? '图像工具' : 'Image tools',
             removeBg: isZh ? '背景移除' : 'Remove background',
             removeText: isZh ? '文字移除' : 'Remove text',
-            removeWatermark: isZh ? '去水印' : 'Remove Watermark',
+            removeWatermark: isZh ? '去水印' : 'Remove watermark',
             upscale: isZh ? '画质提升' : 'Upscale',
             expand: isZh ? '扩图' : 'Expand',
 
@@ -133,7 +139,7 @@
                 snip: isZh ? '正在分析截图...' : 'Analyzing snip...',
                 explain: isZh ? '正在解释...' : 'Explaining...',
                 summarize: isZh ? '正在总结...' : 'Summarizing...',
-                grammar: isZh ? '正在修正...' : 'Fixing grammar...',
+                grammar: isZh ? '正在修正...' : 'Fixing...',
                 regenerate: isZh ? '正在重新生成...' : 'Regenerating...',
             },
 
@@ -146,12 +152,12 @@
                 expand: isZh ? '扩图' : 'Expand Image',
                 removeText: isZh ? '文字移除' : 'Remove Text',
                 removeBg: isZh ? '背景移除' : 'Remove Background',
-                removeWatermark: isZh ? '去水印' : 'Remove Watermark',
+                removeWatermark: isZh ? '去水印' : 'Remove watermark',
                 snip: isZh ? '截图分析' : 'Analyze Snip',
                 explain: isZh ? '解释选中内容' : 'Explain selected text',
                 textTranslate: isZh ? '翻译选中内容' : 'Translate selected text',
                 summarize: isZh ? '总结选中内容' : 'Summarize selected text',
-                grammar: isZh ? '修正语法' : 'Fixing grammar',
+                grammar: isZh ? '修正语法' : 'Fix grammar',
             },
 
             titles: {
@@ -162,7 +168,7 @@
                 expand: isZh ? '扩图' : 'Image Expansion',
                 removeText: isZh ? '文字移除' : 'Remove Text',
                 removeBg: isZh ? '背景移除' : 'Remove Background',
-                removeWatermark: isZh ? '去水印' : 'Remove Watermark',
+                removeWatermark: isZh ? '去水印' : 'Remove watermark',
                 snip: isZh ? '截图分析' : 'Snip Analysis',
                 explain: isZh ? '解释' : 'Explain',
                 textTranslate: isZh ? '翻译' : 'Translate',

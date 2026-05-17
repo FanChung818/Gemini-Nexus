@@ -1,11 +1,11 @@
-// sandbox/render/message.js
 import { renderContent } from './content.js';
 import { createCopyButton } from './copy_button.js';
+import { createMessageEditControl } from './message_edit.js';
 import { createGeneratedImagesGrid, createUserImagesGrid } from './message_media.js';
 import { cleanupStructuredSourceText, createSourcesElement } from './sources.js';
+import { hasDisplayableThoughts, hasDisplayableText } from '../core/displayable_content.js';
 import { t } from '../core/i18n.js';
 
-const THOUGHTS_REGION_PREFIX = 'thoughts-content';
 const TOOL_MESSAGE_KINDS = new Set(['tool-output', 'tool-status']);
 
 function formatThoughtDuration(seconds) {
@@ -14,17 +14,11 @@ function formatThoughtDuration(seconds) {
     return String(Math.max(0, Math.round(seconds)));
 }
 
-function hasDisplayableThoughts(thoughts) {
-    return typeof thoughts === 'string' ? thoughts.trim().length > 0 : Boolean(thoughts);
-}
-
-function hasDisplayableText(text) {
-    return typeof text === 'string' ? text.trim().length > 0 : Boolean(text);
-}
-
 function isToolMessageKind(kind) {
     return TOOL_MESSAGE_KINDS.has(kind);
 }
+
+const THOUGHTS_REGION_PREFIX = 'thoughts-content';
 
 function getThoughtsStartedAtFromOptions(options) {
     if (Number.isFinite(options.thoughtsStartedAt)) {
@@ -34,61 +28,6 @@ function getThoughtsStartedAtFromOptions(options) {
         return Date.now() - Math.max(0, options.thoughtsElapsedSeconds) * 1000;
     }
     return null;
-}
-
-export function appendContextCompressionNotice(container, text, options = {}) {
-    const div = document.createElement('div');
-    div.className = 'context-compression-notice';
-    div.setAttribute('role', 'status');
-
-    const lineStart = document.createElement('span');
-    lineStart.className = 'context-compression-line';
-
-    const label = document.createElement('span');
-    label.className = 'context-compression-label';
-
-    const icon = document.createElement('span');
-    icon.className = 'context-compression-icon';
-    icon.setAttribute('aria-hidden', 'true');
-    icon.innerHTML =
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 12h4"></path><path d="M10 16h4"></path></svg>';
-
-    const textSpan = document.createElement('span');
-    textSpan.className = 'context-compression-text';
-    textSpan.textContent = text;
-
-    const lineEnd = document.createElement('span');
-    lineEnd.className = 'context-compression-line';
-
-    label.appendChild(icon);
-    label.appendChild(textSpan);
-    div.appendChild(lineStart);
-    div.appendChild(label);
-    div.appendChild(lineEnd);
-    if (options.complete) {
-        div.classList.add('context-compression-complete');
-    }
-    container.appendChild(div);
-
-    if (options.scroll !== false) {
-        setTimeout(() => {
-            container.scrollTo({
-                top: div.offsetTop - 20,
-                behavior: 'smooth',
-            });
-        }, 10);
-    }
-
-    return {
-        div,
-        update: (nextText) => {
-            textSpan.textContent = nextText;
-            div.classList.add('context-compression-complete');
-        },
-        dispose: () => {
-            div.remove();
-        },
-    };
 }
 
 // Appends a message to the chat history and returns an update controller
@@ -115,7 +54,7 @@ export function appendMessage(
     let currentText = text || '';
     let currentThoughts = thoughts || '';
 
-    // 1. User Uploaded Images
+    // User-uploaded images render before message text.
     if (role === 'user' && attachment) {
         const imagesContainer = createUserImagesGrid(attachment);
         if (imagesContainer) {
@@ -136,7 +75,7 @@ export function appendMessage(
     let thoughtsFinished = Boolean(options.isFinal);
     let thoughtsStatusTimer = null;
     let sourcesDiv = null;
-    let editCancel = null;
+    let editController = null;
     let copyBtn = null;
     let currentSources = Array.isArray(sources) ? sources : [];
 
@@ -391,8 +330,7 @@ export function appendMessage(
             }
         }
 
-        // 2. AI Generated Images (Array of objects {url, alt})
-        // Note: AI images are distinct from user attachments
+        // AI-generated images are distinct from user attachments.
         if (role === 'ai') {
             const grid = createGeneratedImagesGrid(attachment);
             if (grid) div.appendChild(grid);
@@ -406,137 +344,15 @@ export function appendMessage(
             !isToolMessageKind(options.kind) &&
             typeof options.onEdit === 'function'
         ) {
-            const editBtn = document.createElement('button');
-            editBtn.className = 'edit-btn';
-            editBtn.title = t('editMessage');
-            editBtn.setAttribute('aria-label', t('editMessage'));
-            editBtn.innerHTML =
-                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>';
-
-            editBtn.addEventListener('click', (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (editCancel) return;
-
-                div.classList.add('editing');
-                contentDiv.style.display = 'none';
-                if (copyBtn) copyBtn.style.display = 'none';
-                editBtn.style.display = 'none';
-
-                const editor = document.createElement('div');
-                editor.className = 'message-edit';
-
-                const textarea = document.createElement('textarea');
-                textarea.className = 'message-edit-input';
-                textarea.value = currentText;
-                textarea.rows = Math.max(2, Math.min(8, currentText.split('\n').length));
-
-                const actions = document.createElement('div');
-                actions.className = 'message-edit-actions';
-
-                const cancelBtn = document.createElement('button');
-                cancelBtn.type = 'button';
-                cancelBtn.className = 'message-edit-cancel';
-                cancelBtn.textContent = t('cancelEdit');
-                cancelBtn.title = t('cancelEdit');
-
-                const saveBtn = document.createElement('button');
-                saveBtn.type = 'button';
-                saveBtn.className = 'message-edit-save';
-                saveBtn.title = t('saveEdit');
-                saveBtn.setAttribute('aria-label', t('saveEdit'));
-                saveBtn.innerHTML =
-                    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>';
-
-                actions.appendChild(cancelBtn);
-                actions.appendChild(saveBtn);
-                editor.appendChild(textarea);
-                editor.appendChild(actions);
-                div.insertBefore(editor, copyBtn || editBtn);
-
-                const cleanup = () => {
-                    document.removeEventListener('pointerdown', handleOutsidePointer, true);
-                    document.removeEventListener('keydown', handleDocumentKey, true);
-                    editor.remove();
-                    contentDiv.style.display = '';
-                    if (copyBtn) copyBtn.style.display = '';
-                    editBtn.style.display = '';
-                    div.classList.remove('editing');
-                    editCancel = null;
-                };
-
-                const cancel = () => {
-                    cleanup();
-                };
-
-                let isSaving = false;
-
-                const save = async () => {
-                    if (isSaving) return;
-                    const nextText = textarea.value.trim();
-                    isSaving = true;
-                    saveBtn.disabled = true;
-
-                    try {
-                        const accepted = await options.onEdit(nextText);
-                        if (accepted !== false) {
-                            cleanup();
-                            return;
-                        }
-                    } catch (err) {
-                        console.error('Failed to edit message:', err);
-                    } finally {
-                        isSaving = false;
-                        saveBtn.disabled = false;
-                    }
-                };
-
-                function handleOutsidePointer(pointerEvent) {
-                    if (!div.contains(pointerEvent.target)) {
-                        cancel();
-                    }
-                }
-
-                function handleDocumentKey(keyEvent) {
-                    if (keyEvent.key === 'Escape') {
-                        keyEvent.preventDefault();
-                        cancel();
-                    }
-                    if ((keyEvent.metaKey || keyEvent.ctrlKey) && keyEvent.key === 'Enter') {
-                        keyEvent.preventDefault();
-                        save();
-                    }
-                }
-
-                cancelBtn.addEventListener('click', (clickEvent) => {
-                    clickEvent.preventDefault();
-                    clickEvent.stopPropagation();
-                    cancel();
-                });
-
-                saveBtn.addEventListener('click', (clickEvent) => {
-                    clickEvent.preventDefault();
-                    clickEvent.stopPropagation();
-                    save();
-                });
-
-                textarea.addEventListener('input', () => {
-                    textarea.style.height = 'auto';
-                    textarea.style.height = `${textarea.scrollHeight}px`;
-                });
-
-                editCancel = cancel;
-
-                setTimeout(() => {
-                    document.addEventListener('pointerdown', handleOutsidePointer, true);
-                    document.addEventListener('keydown', handleDocumentKey, true);
-                    textarea.focus();
-                    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-                    textarea.dispatchEvent(new Event('input'));
-                }, 0);
+            editController = createMessageEditControl({
+                messageEl: div,
+                contentEl: contentDiv,
+                getCopyButton: () => copyBtn,
+                getCurrentText: () => currentText,
+                onEdit: options.onEdit,
             });
 
-            div.appendChild(editBtn);
+            div.appendChild(editController.button);
         }
     }
 
@@ -558,7 +374,6 @@ export function appendMessage(
         }, 10);
     }
 
-    // Return controller
     const controller = {
         div,
         update: (newText, newThoughts, state = {}) => {
@@ -616,8 +431,9 @@ export function appendMessage(
         getThoughtsDurationSeconds: () => thoughtsDurationSeconds,
         dispose: () => {
             stopThoughtsStatusTimer();
+            editController?.cancel();
         },
-        // Function to update images if they arrive late (though mostly synchronous in final reply)
+        // Add generated images if they arrive after the text response.
         addImages: (images) => {
             if (
                 Array.isArray(images) &&

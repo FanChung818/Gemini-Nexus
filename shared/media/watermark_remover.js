@@ -1,5 +1,3 @@
-// shared/media/watermark_remover.js
-
 const SMALL_WATERMARK_SIZE = 48;
 const SMALL_WATERMARK_MARGIN = 32;
 const LARGE_WATERMARK_SIZE = 96;

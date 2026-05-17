@@ -1,4 +1,3 @@
-// services/upload.js
 import { dataUrlToBlob } from '../shared/utils/index.js';
 
 const CURRENT_UPLOAD_ENDPOINT = 'https://push.clients6.google.com/upload/';
@@ -75,10 +74,8 @@ async function finalizeResumableUpload(uploadUrl, blob, uploadRequest, signal) {
 
 // Upload file to the endpoint used by the current Gemini Web client.
 export async function uploadFile(fileObj, signal, uploadContext = {}) {
-    // 1. Prepare Blob
     const blob = await dataUrlToBlob(fileObj.base64);
 
-    // 2. Execute current Gemini Web resumable upload flow.
     const request = buildUploadRequest(uploadContext);
     const uploadUrl = await startResumableUpload(fileObj.name, request, signal);
     const responseText = await finalizeResumableUpload(uploadUrl, blob, request, signal);

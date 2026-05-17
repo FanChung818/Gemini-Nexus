@@ -1,5 +1,5 @@
-// background/managers/auth_manager.js
 import { fetchRequestParams } from '../../services/auth.js';
+import { debugLog } from '../../shared/logging/debug.js';
 
 function hasUploadTokenFields(context) {
     return (
@@ -55,8 +55,8 @@ export class AuthManager {
             }
 
             this.isInitialized = true;
-        } catch (e) {
-            console.error('Failed to restore auth session:', e);
+        } catch (error) {
+            console.error('Failed to restore auth session:', error);
         }
     }
 
@@ -77,7 +77,7 @@ export class AuthManager {
         this.currentAccountPointer = (this.currentAccountPointer + 1) % this.accountIndices.length;
         await chrome.storage.local.set({ geminiAccountPointer: this.currentAccountPointer });
 
-        console.log(
+        debugLog(
             `[Gemini Nexus] Rotated to account index: ${this.accountIndices[this.currentAccountPointer]}`
         );
         return this.accountIndices[this.currentAccountPointer];
@@ -112,9 +112,9 @@ export class AuthManager {
                 uploadClientPctx: params.uploadClientPctx,
             });
             return this.currentContext;
-        } catch (e) {
-            console.warn(`Failed to fetch context for account ${targetIndex}:`, e);
-            throw e;
+        } catch (error) {
+            console.warn(`Failed to fetch context for account ${targetIndex}:`, error);
+            throw error;
         }
     }
 

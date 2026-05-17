@@ -1,5 +1,3 @@
-// background/managers/image_manager.js
-
 export class ImageManager {
     // Fetch image from a URL or Data URI
     async fetchImage(url) {
@@ -30,14 +28,14 @@ export class ImageManager {
 
             return {
                 action: 'FETCH_IMAGE_RESULT',
-                base64: base64,
+                base64,
                 type: blob.type,
                 name: 'web_image.png',
             };
-        } catch (e) {
+        } catch (error) {
             return {
                 action: 'FETCH_IMAGE_RESULT',
-                error: e.message,
+                error: error.message,
             };
         }
     }

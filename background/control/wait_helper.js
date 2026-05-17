@@ -1,5 +1,3 @@
-// background/control/wait_helper.js
-
 /**
  * Ensures actions wait for potential side effects (navigation) and DOM stability.
  * Enhanced logic based on Chrome DevTools MCP WaitForHelper.
@@ -29,34 +27,32 @@ export class WaitForHelper {
         if (!this.connection.attached) {
             await actionFn();
             // Wait a bit for potential navigation to start/process since we can't track it precisely via CDP
-            await new Promise((r) => setTimeout(r, 1000));
+            await new Promise((resolve) => setTimeout(resolve, 1000));
             return;
         }
 
-        // Enable Page domain to receive navigation events
-        await this.connection.sendCommand('Page.enable').catch(() => {});
+        try {
+            await this.connection.sendCommand('Page.enable');
+        } catch {
+            // The action can still run if Page events are unavailable.
+        }
 
-        // 1. Setup Navigation Listener (Race Condition Handling)
-        // We start listening BEFORE the action to catch immediate transitions
+        // Listen before the action so immediate transitions are not missed.
         const navigationStartedPromise = this._waitForNavigationStart();
 
         try {
-            // 2. Perform the Action
             await actionFn();
 
-            // 3. Race: Did navigation start within the timeout window?
-            const navStarted = await navigationStartedPromise;
+            const navigationStarted = await navigationStartedPromise;
 
-            // 4. If navigation started, wait for it to finish
-            if (navStarted) {
+            if (navigationStarted) {
                 await this._waitForLoadEvent();
             }
-        } catch (e) {
-            console.error('Error during action execution/waiting:', e);
-            throw e;
+        } catch (error) {
+            console.error('Error during action execution/waiting:', error);
+            throw error;
         }
 
-        // 5. Wait for DOM to settle (MutationObserver)
         await this.waitForStableDOM();
     }
 
@@ -109,8 +105,8 @@ export class WaitForHelper {
     async waitForStableDOM(timeout = null, stabilityDuration = null) {
         if (!this.connection.attached) return;
 
-        const tMax = timeout || this.timeouts.stableDom;
-        const tStable = stabilityDuration || this.timeouts.stableDomFor;
+        const maxStableDomWait = timeout || this.timeouts.stableDom;
+        const stableDomQuietWindow = stabilityDuration || this.timeouts.stableDomFor;
 
         try {
             await this.connection.sendCommand('Runtime.evaluate', {
@@ -118,20 +114,18 @@ export class WaitForHelper {
                     (async () => {
                         const startTime = Date.now();
 
-                        // 1. Wait for document.body to exist
                         while (!document || !document.body) {
-                            if (Date.now() - startTime > ${tMax}) return false;
-                            await new Promise(r => setTimeout(r, 100));
+                            if (Date.now() - startTime > ${maxStableDomWait}) return false;
+                            await new Promise(resolve => setTimeout(resolve, 100));
                         }
 
-                        // 2. Wait for stability
                         return await new Promise((resolve) => {
                             let timer = null;
 
                             const observer = new MutationObserver(() => {
                                 // Mutation detected, reset timer
                                 if (timer) clearTimeout(timer);
-                                timer = setTimeout(done, ${tStable});
+                                timer = setTimeout(done, ${stableDomQuietWindow});
                             });
 
                             function done() {
@@ -146,11 +140,11 @@ export class WaitForHelper {
                                 subtree: true
                             });
 
-                            // Initial timer (resolve if no mutations happen immediately)
-                            timer = setTimeout(done, ${tStable});
+                            // Resolve if no mutations happen immediately.
+                            timer = setTimeout(done, ${stableDomQuietWindow});
 
                             // Max safety timeout (deduct time spent waiting for body)
-                            const remaining = Math.max(100, ${tMax} - (Date.now() - startTime));
+                            const remaining = Math.max(100, ${maxStableDomWait} - (Date.now() - startTime));
                             setTimeout(() => {
                                 observer.disconnect();
                                 resolve(false);
@@ -161,7 +155,7 @@ export class WaitForHelper {
                 awaitPromise: true,
                 returnByValue: true,
             });
-        } catch (e) {
+        } catch {
             // Ignore errors if runtime context is gone (e.g. page closed or navigated away mid-script)
         }
     }

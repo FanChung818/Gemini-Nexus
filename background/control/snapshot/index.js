@@ -1,4 +1,3 @@
-// background/control/snapshot/index.js
 import { SnapshotFormatter } from './formatter.js';
 
 /**
@@ -28,7 +27,6 @@ export class SnapshotManager {
     }
 
     getBackendNodeId(uid) {
-        // 1. Strict Version Check
         // UIDs are formatted as "{snapshotId}_{nodeIndex}"
         if (uid && uid.includes('_')) {
             const parts = uid.split('_');

@@ -1,4 +1,3 @@
-// content/toolbar/templates.js
 (function () {
     const ICONS = window.GeminiToolbarIcons || {};
     // Combine modular styles (loaded previously)
@@ -81,9 +80,8 @@
                 </div>
             </div>
 
-            <!-- Footer Bar -->
             <div class="window-footer" id="window-footer">
-                <!-- Action Buttons (Shown when done) -->
+                <!-- Footer actions shown after a result is available. -->
                 <div class="footer-actions hidden" id="footer-actions">
                     <div class="footer-left">
                         <button class="footer-btn" id="btn-retry" title="${t.retry}">

@@ -1,11 +1,10 @@
-// content/shortcuts.js
-
 (function () {
     const DEFAULT_SHORTCUTS = {
         quickAsk: 'Ctrl+G',
         openPanel: 'Alt+S',
         browserControl: 'Ctrl+B',
     };
+    const MODIFIER_KEYS = ['ctrl', 'alt', 'shift', 'meta', 'command'];
 
     class ShortcutManager {
         constructor() {
@@ -19,14 +18,12 @@
         }
 
         init() {
-            // Initial Load
             chrome.storage.local.get(['geminiShortcuts'], (result) => {
                 if (result.geminiShortcuts) {
                     this.appShortcuts = { ...this.appShortcuts, ...result.geminiShortcuts };
                 }
             });
 
-            // Listen for updates
             chrome.storage.onChanged.addListener((changes, area) => {
                 if (area === 'local' && changes.geminiShortcuts) {
                     this.appShortcuts = {
@@ -36,31 +33,29 @@
                 }
             });
 
-            // Bind global keys
-            document.addEventListener('keydown', (e) => this.handleKeydown(e), true);
+            document.addEventListener('keydown', (event) => this.handleKeydown(event), true);
         }
 
-        handleKeydown(e) {
-            if (this.match(e, this.appShortcuts.openPanel)) {
-                e.preventDefault();
-                e.stopPropagation();
+        handleKeydown(event) {
+            if (this.match(event, this.appShortcuts.openPanel)) {
+                event.preventDefault();
+                event.stopPropagation();
                 chrome.runtime.sendMessage({ action: 'OPEN_SIDE_PANEL' });
                 return;
             }
 
-            if (this.match(e, this.appShortcuts.quickAsk)) {
-                e.preventDefault();
-                e.stopPropagation();
+            if (this.match(event, this.appShortcuts.quickAsk)) {
+                event.preventDefault();
+                event.stopPropagation();
                 if (this.toolbarController) {
                     this.toolbarController.showGlobalInput();
                 }
                 return;
             }
 
-            if (this.match(e, this.appShortcuts.browserControl)) {
-                e.preventDefault();
-                e.stopPropagation();
-                // Toggle side panel / browser control
+            if (this.match(event, this.appShortcuts.browserControl)) {
+                event.preventDefault();
+                event.stopPropagation();
                 chrome.runtime.sendMessage({ action: 'TOGGLE_SIDE_PANEL_CONTROL' });
                 return;
             }
@@ -70,7 +65,7 @@
             if (!shortcutString || typeof shortcutString !== 'string') return false;
             if (!event || typeof event.key !== 'string') return false;
 
-            const parts = shortcutString.split('+').map((p) => p.trim().toLowerCase());
+            const parts = shortcutString.split('+').map((part) => part.trim().toLowerCase());
             const key = event.key.toLowerCase();
 
             const hasCtrl = parts.includes('ctrl');
@@ -83,15 +78,12 @@
             if (event.shiftKey !== hasShift) return false;
             if (event.metaKey !== hasMeta) return false;
 
-            const mainKeys = parts.filter(
-                (p) => !['ctrl', 'alt', 'shift', 'meta', 'command'].includes(p)
-            );
+            const mainKeys = parts.filter((part) => !MODIFIER_KEYS.includes(part));
             if (mainKeys.length !== 1) return false;
 
             return key === mainKeys[0];
         }
     }
 
-    // Export singleton
     window.GeminiShortcuts = new ShortcutManager();
 })();

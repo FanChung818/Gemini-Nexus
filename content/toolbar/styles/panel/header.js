@@ -7,7 +7,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 16px;
+            padding: 8px 16px 4px 16px;
             cursor: move;
             user-select: none;
             background: #fff;

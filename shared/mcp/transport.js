@@ -106,7 +106,7 @@ export function mergeMcpHeaders(baseHeaders, customHeaders) {
  */
 export function mergeHttpTransportHeaders(conn, baseHeaders) {
     const headers = mergeMcpHeaders(baseHeaders, conn.headers);
-    if (conn.sessionId) headers['Mcp-Session-Id'] = conn.sessionId;
+    if (conn.sessionId) headers['MCP-Session-Id'] = conn.sessionId;
     if (conn.protocolVersion) headers['MCP-Protocol-Version'] = conn.protocolVersion;
     return headers;
 }

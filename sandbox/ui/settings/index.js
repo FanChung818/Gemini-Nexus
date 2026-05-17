@@ -1,4 +1,3 @@
-// sandbox/ui/settings/index.js
 import {
     saveShortcutsToStorage,
     saveThemeToStorage,
@@ -22,7 +21,7 @@ import { SettingsView } from './view.js';
 import {
     DEFAULT_CONTEXT_MODE,
     DEFAULT_CONTEXT_RECENT_TURNS,
-    DEFAULT_MCP_SERVER_URL,
+    DEFAULT_MCP_HTTP_URL,
     DEFAULT_MCP_TRANSPORT,
     DEFAULT_OFFICIAL_BASE_URL,
     DEFAULT_OFFICIAL_MODELS,
@@ -71,7 +70,7 @@ export class SettingsController {
             // MCP (External Tools)
             mcpEnabled: false,
             mcpTransport: DEFAULT_MCP_TRANSPORT,
-            mcpServerUrl: DEFAULT_MCP_SERVER_URL,
+            mcpServerUrl: DEFAULT_MCP_HTTP_URL,
             mcpServers: [createDefaultMcpServer()],
             mcpActiveServerId: null,
         };
@@ -85,20 +84,20 @@ export class SettingsController {
             onThemeChange: (theme) => this.setTheme(theme),
             onLanguageChange: (lang) => this.setLanguage(lang),
 
-            onTextSelectionChange: (val) => {
-                this.textSelectionEnabled = val === 'on' || val === true;
+            onTextSelectionChange: (value) => {
+                this.textSelectionEnabled = value === 'on' || value === true;
                 saveTextSelectionToStorage(this.textSelectionEnabled);
             },
-            onImageToolsChange: (val) => {
-                this.imageToolsEnabled = val === 'on' || val === true;
+            onImageToolsChange: (value) => {
+                this.imageToolsEnabled = value === 'on' || value === true;
                 saveImageToolsToStorage(this.imageToolsEnabled);
             },
-            onSidebarBehaviorChange: (val) => {
-                this.sidebarBehavior = val || 'auto';
+            onSidebarBehaviorChange: (value) => {
+                this.sidebarBehavior = value || 'auto';
                 saveSidebarBehaviorToStorage(this.sidebarBehavior);
             },
-            onSidePanelScopeChange: (val) => {
-                this.sidePanelScope = val || DEFAULT_SIDE_PANEL_SCOPE;
+            onSidePanelScopeChange: (value) => {
+                this.sidePanelScope = value || DEFAULT_SIDE_PANEL_SCOPE;
                 saveSidePanelScopeToStorage(this.sidePanelScope);
             },
             onDownloadLogs: () => this.downloadLogs(),
@@ -167,10 +166,10 @@ export class SettingsController {
         saveImageToolsToStorage(this.imageToolsEnabled);
 
         // Accounts
-        let val = data.accountIndices.trim();
-        if (!val) val = '0';
-        this.accountIndices = val;
-        const cleaned = val.replace(/[^0-9,]/g, '');
+        let accountIndices = data.accountIndices.trim();
+        if (!accountIndices) accountIndices = '0';
+        this.accountIndices = accountIndices;
+        const cleaned = accountIndices.replace(/[^0-9,]/g, '');
         saveAccountIndicesToStorage(cleaned);
 
         this.sidebarBehavior = data.sidebarBehavior || 'auto';
@@ -248,7 +247,7 @@ export class SettingsController {
             {
                 action: 'DOWNLOAD_LOGS',
                 payload: {
-                    text: text,
+                    text,
                     filename: `gemini-nexus-logs-${Date.now()}.txt`,
                 },
             },
@@ -405,8 +404,8 @@ export class SettingsController {
                 const isNewer = this.compareVersions(latestVersion, currentVersion) > 0;
                 this.view.displayUpdateStatus(latestVersion, currentVersion, isNewer);
             }
-        } catch (e) {
-            console.warn('GitHub fetch failed', e);
+        } catch (error) {
+            console.warn('GitHub fetch failed', error);
             this.view.displayStars(null);
         }
     }

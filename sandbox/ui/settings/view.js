@@ -1,4 +1,3 @@
-// sandbox/ui/settings/view.js
 import { ConnectionSection } from './sections/connection.js';
 import { GeneralSection } from './sections/general.js';
 import { AppearanceSection } from './sections/appearance.js';
@@ -10,19 +9,18 @@ export class SettingsView {
         this.callbacks = callbacks || {};
         this.elements = {};
 
-        // Initialize Sections
         this.connection = new ConnectionSection();
 
         this.general = new GeneralSection({
-            onTextSelectionChange: (val) => this.fire('onTextSelectionChange', val),
-            onImageToolsChange: (val) => this.fire('onImageToolsChange', val),
-            onSidebarBehaviorChange: (val) => this.fire('onSidebarBehaviorChange', val),
-            onSidePanelScopeChange: (val) => this.fire('onSidePanelScopeChange', val),
+            onTextSelectionChange: (value) => this.fire('onTextSelectionChange', value),
+            onImageToolsChange: (value) => this.fire('onImageToolsChange', value),
+            onSidebarBehaviorChange: (value) => this.fire('onSidebarBehaviorChange', value),
+            onSidePanelScopeChange: (value) => this.fire('onSidePanelScopeChange', value),
         });
 
         this.appearance = new AppearanceSection({
-            onThemeChange: (val) => this.fire('onThemeChange', val),
-            onLanguageChange: (val) => this.fire('onLanguageChange', val),
+            onThemeChange: (value) => this.fire('onThemeChange', value),
+            onLanguageChange: (value) => this.fire('onLanguageChange', value),
         });
 
         this.shortcuts = new ShortcutsSection();
@@ -49,7 +47,6 @@ export class SettingsView {
     bindEvents() {
         const { modal, btnClose, btnSave, btnReset } = this.elements;
 
-        // Modal actions
         if (btnClose) btnClose.addEventListener('click', () => this.close());
         if (modal) {
             modal.addEventListener('click', (e) => {
@@ -57,11 +54,9 @@ export class SettingsView {
             });
         }
 
-        // Action Buttons
         if (btnSave) btnSave.addEventListener('click', () => this.handleSave());
         if (btnReset) btnReset.addEventListener('click', () => this.handleReset());
 
-        // Keyboard
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && modal && modal.classList.contains('visible')) {
                 this.close();
@@ -93,8 +88,6 @@ export class SettingsView {
     handleReset() {
         this.fire('onReset');
     }
-
-    // --- Public API ---
 
     open() {
         if (this.elements.modal) {
@@ -136,8 +129,8 @@ export class SettingsView {
         this.general.setSidebarBehavior(behavior);
     }
 
-    setAccountIndices(val) {
-        this.general.setAccountIndices(val);
+    setAccountIndices(value) {
+        this.general.setAccountIndices(value);
     }
 
     setSidePanelScope(scope) {

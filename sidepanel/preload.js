@@ -5,5 +5,5 @@
         if (cachedTheme === 'dark' || (cachedTheme === 'system' && systemDark)) {
             document.documentElement.setAttribute('data-theme', 'dark');
         }
-    } catch (e) {}
+    } catch {}
 })();

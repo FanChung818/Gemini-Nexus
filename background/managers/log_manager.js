@@ -1,5 +1,3 @@
-// background/managers/log_manager.js
-
 export class LogManager {
     constructor() {
         this.logs = [];
@@ -15,8 +13,8 @@ export class LogManager {
                 this.logs = result[this.STORAGE_KEY];
             }
             // Avoid adding 'initialized' log here to prevent noise on every wake-up if not needed
-        } catch (e) {
-            console.error('Failed to load logs', e);
+        } catch (error) {
+            console.error('Failed to load logs', error);
         }
     }
 
@@ -56,15 +54,35 @@ export class LogManager {
 
 // --- Console Interception Helper ---
 
-function safeStringify(obj) {
+function safeStringify(valueToStringify) {
     const cache = new Set();
-    return JSON.stringify(obj, (key, value) => {
+    return JSON.stringify(valueToStringify, (key, value) => {
+        if (isSensitiveKey(key)) return '[REDACTED]';
         if (typeof value === 'object' && value !== null) {
             if (cache.has(value)) return '[Circular]';
             cache.add(value);
         }
-        return value;
+        return typeof value === 'string' ? redactSecrets(value) : value;
     });
+}
+
+function isSensitiveKey(key) {
+    return /^(authorization|cookie|set-cookie|x-api-key|api[-_]?key|access[-_]?token|refresh[-_]?token|id[-_]?token|token|secret|password)$/i.test(
+        String(key || '')
+    );
+}
+
+function redactSecrets(text) {
+    return String(text || '')
+        .replace(/\b(Bearer\s+)[^\s,"']+/gi, '$1[REDACTED]')
+        .replace(
+            /([?&](?:key|api_key|access_token|refresh_token|token|secret|password)=)[^&#\s]+/gi,
+            '$1[REDACTED]'
+        )
+        .replace(
+            /\b((?:api[-_]?key|access[-_]?token|refresh[-_]?token|id[-_]?token|authorization|cookie|secret|password)\s*[:=]\s*)[^\s,"'{}]+/gi,
+            '$1[REDACTED]'
+        );
 }
 
 function formatConsoleArgs(args) {
@@ -76,11 +94,11 @@ function formatConsoleArgs(args) {
             if (typeof arg === 'object') {
                 try {
                     return safeStringify(arg);
-                } catch (e) {
+                } catch {
                     return '[Object]';
                 }
             }
-            return String(arg);
+            return redactSecrets(arg);
         })
         .join(' ');
 }

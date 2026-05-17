@@ -1,5 +1,3 @@
-// background/control/snapshot/formatter.js
-
 export class SnapshotFormatter {
     constructor(options = {}) {
         this.verbose = options.verbose || false;
@@ -119,14 +117,11 @@ export class SnapshotFormatter {
         let line = '';
 
         if (shouldPrint) {
-            // 1. Assign Stable UID
             this.nodeCounter++;
             const uid = `${this.snapshotPrefix}_${this.nodeCounter}`;
 
-            // Notify manager to map this UID
             this.onNode(node, uid);
 
-            // 2. Extract Core Attributes
             let role = this._getVal(node.role);
             if (node.ignored) role = 'ignored';
 
@@ -148,21 +143,20 @@ export class SnapshotFormatter {
 
             if (description) parts.push(`desc=${this._escapeStr(description)}`);
 
-            // 3. Process Properties (States & Capabilities)
             if (node.properties) {
-                const propsMap = {};
-                for (const p of node.properties) {
-                    propsMap[p.name] = this._getVal(p.value);
+                const propertyValues = {};
+                for (const property of node.properties) {
+                    propertyValues[property.name] = this._getVal(property.value);
                 }
 
-                const sortedKeys = Object.keys(propsMap).sort();
+                const sortedKeys = Object.keys(propertyValues).sort();
 
                 for (const key of sortedKeys) {
                     if (this.excludedProps.has(key)) continue;
 
-                    const val = propsMap[key];
+                    const propertyValue = propertyValues[key];
 
-                    if (typeof val === 'boolean') {
+                    if (typeof propertyValue === 'boolean') {
                         // Capability: If property exists (even false), it might imply a capability
                         // (e.g. 'focused' existing means it is 'focusable')
                         if (key in this.booleanPropertyMap) {
@@ -170,18 +164,17 @@ export class SnapshotFormatter {
                         }
 
                         // State: If true, print the state itself
-                        if (val === true) {
+                        if (propertyValue === true) {
                             parts.push(key);
                         }
-                    } else if (val !== undefined && val !== '') {
+                    } else if (propertyValue !== undefined && propertyValue !== '') {
                         // Optimization: skip value in properties too if redundant
-                        if (key === 'value' && String(val) === name) continue;
-                        parts.push(`${key}=${this._escapeStr(val)}`);
+                        if (key === 'value' && String(propertyValue) === name) continue;
+                        parts.push(`${key}=${this._escapeStr(propertyValue)}`);
                     }
                 }
             }
 
-            // 4. Mark if selected in DevTools
             const isSelected =
                 this.selectedBackendNodeId && node.backendDOMNodeId === this.selectedBackendNodeId;
 
@@ -192,7 +185,6 @@ export class SnapshotFormatter {
                 '\n';
         }
 
-        // 5. Process Children
         // Flatten hierarchy: if node is skipped, children stay at current depth
         const nextDepth = shouldPrint ? depth + 1 : depth;
 

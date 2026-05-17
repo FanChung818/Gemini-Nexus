@@ -1,5 +1,4 @@
 (function () {
-    // Dependencies
     const DOMBuilder = window.GeminiToolbarDOM;
     const View = window.GeminiToolbarView;
     const DragController = window.GeminiDragController;
@@ -29,7 +28,6 @@
             this.isBuilt = false;
             this.provider = 'web';
 
-            // Sub-Managers
             this.grammarManager = null;
             this.bridge = null; // Renderer Bridge
             this.renderer = null;
@@ -41,31 +39,17 @@
             this.callbacks = callbacks;
         }
 
-        build() {
-            if (this.isBuilt) return;
-
-            // Delegate DOM creation
-            const { host, shadow } = this.domBuilder.create();
-            this.host = host;
-            this.shadow = shadow;
-
-            // Initialize Sub-components
+        _initializeRuntimeComponents({ createBridge = false } = {}) {
             this.view = new View(this.shadow);
             this.grammarManager = new GrammarManager(this.view);
 
-            // Initialize Renderer Bridge (for background markdown rendering & image processing)
-            this.bridge = new window.GeminiRendererBridge(this.host);
+            if (createBridge) {
+                this.bridge = new window.GeminiRendererBridge(this.host);
+            }
 
-            // Initialize Renderer Logic
             this.renderer = new Renderer(this.view, this.bridge);
-
-            // Init Actions Delegate
             this.actionsDelegate = new ActionsDelegate(this);
-
-            // Init Code Copy Handler
             this.codeCopyHandler = new CodeCopyHandler();
-
-            // Init Drag Controller with Docking Logic
             this.dragController = new DragController(
                 this.view.elements.askWindow,
                 this.view.elements.askHeader,
@@ -75,41 +59,28 @@
                 }
             );
 
-            // Init Drag Controller for Floating Toolbar
-            new DragController(this.view.elements.toolbar, this.view.elements.toolbarDrag, {
-                // No docking for small toolbar
-            });
+            new DragController(this.view.elements.toolbar, this.view.elements.toolbarDrag, {});
 
             this.events = new Events(this);
-
-            // Bind Events
             this.events.bind(this.view.elements, this.view.elements.askWindow);
+        }
 
+        build() {
+            if (this.isBuilt) return;
+
+            const { host, shadow } = this.domBuilder.create();
+            this.host = host;
+            this.shadow = shadow;
+
+            this._initializeRuntimeComponents({ createBridge: true });
             this.isBuilt = true;
         }
 
         rebuildForLanguageChange() {
             if (!this.isBuilt || !this.domBuilder || !this.domBuilder.rerender) return;
             this.domBuilder.rerender();
-            this.view = new View(this.shadow);
-            this.grammarManager = new GrammarManager(this.view);
-            this.renderer = new Renderer(this.view, this.bridge);
-            this.actionsDelegate = new ActionsDelegate(this);
-            this.codeCopyHandler = new CodeCopyHandler();
-            this.dragController = new DragController(
-                this.view.elements.askWindow,
-                this.view.elements.askHeader,
-                {
-                    onSnap: (side, top) => this.view.dockWindow(side, top),
-                    onUndock: () => this.view.undockWindow(),
-                }
-            );
-            new DragController(this.view.elements.toolbar, this.view.elements.toolbarDrag, {});
-            this.events = new Events(this);
-            this.events.bind(this.view.elements, this.view.elements.askWindow);
+            this._initializeRuntimeComponents();
         }
-
-        // --- Delegate Accessors ---
 
         get actions() {
             return this.actionsDelegate;
@@ -118,8 +89,6 @@
         get codeCopy() {
             return this.codeCopyHandler;
         }
-
-        // --- Other Handlers ---
 
         handleImageClick() {
             this.fireCallback('onAction', 'image_analyze');
@@ -133,10 +102,10 @@
             this.fireCallback('onModelChange', model);
         }
 
-        saveWindowDimensions(w, h) {
+        saveWindowDimensions(width, height) {
             const storage = globalThis.chrome?.storage?.local;
             if (!storage || typeof storage.set !== 'function') return;
-            storage.set({ gemini_nexus_window_size: { w, h } }).catch?.(() => {});
+            storage.set({ gemini_nexus_window_size: { w: width, h: height } }).catch?.(() => {});
         }
 
         fireCallback(type, ...args) {
@@ -148,8 +117,6 @@
                 this.callbacks.onAction(...args);
             }
         }
-
-        // --- Public API ---
 
         show(rect, mousePoint) {
             this.view.showToolbar(rect, mousePoint);
@@ -236,8 +203,6 @@
             this.view.setInputValue(text);
         }
 
-        // --- Model Selection ---
-
         getSelectedModel() {
             return this.view ? this.view.getSelectedModel() : 'gemini-3-flash';
         }
@@ -255,7 +220,7 @@
         updateModelList(settings, currentModel) {
             const provider = settings.provider || (settings.useOfficialApi ? 'official' : 'web');
             this.provider = provider;
-            let opts = [];
+            let options = [];
 
             if (provider === 'official') {
                 const rawModels = settings.officialModel || '';
@@ -264,9 +229,14 @@
                     .map((m) => m.trim())
                     .filter((m) => m);
                 if (models.length === 0) {
-                    opts = [{ val: 'gemini-3-flash-preview', txt: 'gemini-3-flash-preview' }];
+                    options = [
+                        {
+                            value: 'gemini-3-flash-preview',
+                            label: 'gemini-3-flash-preview',
+                        },
+                    ];
                 } else {
-                    opts = models.map((m) => ({ val: m, txt: m }));
+                    options = models.map((model) => ({ value: model, label: model }));
                 }
             } else if (provider === 'openai') {
                 const rawModels = settings.openaiModel || '';
@@ -275,23 +245,21 @@
                     .map((m) => m.trim())
                     .filter((m) => m);
                 if (models.length === 0) {
-                    opts = [
+                    options = [
                         {
-                            val: 'openai_custom',
-                            txt: getStrings().customModel || 'Custom Model',
+                            value: 'openai_custom',
+                            label: getStrings().customModel || 'Custom Model',
                         },
                     ];
                 } else {
-                    opts = models.map((m) => ({ val: m, txt: m }));
+                    options = models.map((model) => ({ value: model, label: model }));
                 }
             } else {
-                opts = window.GeminiWebModels.createOptions();
+                options = window.GeminiWebModels.createOptions();
             }
 
-            this.view.updateModelOptions(opts, currentModel);
+            this.view.updateModelOptions(options, currentModel);
         }
-
-        // --- Grammar Mode Delegation ---
 
         setGrammarMode(enabled, sourceElement = null, selectionRange = null) {
             if (this.grammarManager) {
@@ -322,8 +290,6 @@
                 this.grammarManager.showTriggerButton(show);
             }
         }
-
-        // --- Utils ---
 
         showCopySelectionFeedback(success) {
             this.view.toggleCopySelectionIcon(success);

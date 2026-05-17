@@ -1,4 +1,3 @@
-// sidepanel/core/bridge.js
 import { downloadFile, downloadText } from '../utils/download.js';
 import {
     DEFAULT_CONTEXT_MODE,
@@ -12,6 +11,11 @@ import {
     CONNECTION_STORAGE_KEYS,
     createConnectionSettingsPayload,
 } from '../../shared/settings/connection.js';
+import {
+    mergeSessionSaveWithCurrent,
+    normalizeDeletedSessionIds,
+    normalizeSessionSavePayload,
+} from './session_merge.js';
 
 function getModelSaveKey(payload) {
     if (payload && typeof payload === 'object') {
@@ -28,6 +32,13 @@ function getModelSaveValue(payload) {
 
     return payload;
 }
+
+const FORWARDED_RESPONSE_ACTIONS = new Set([
+    'GET_LOGS',
+    'CHECK_PAGE_CONTEXT',
+    'MCP_TEST_CONNECTION',
+    'MCP_LIST_TOOLS',
+]);
 
 export class MessageBridge {
     constructor(frameManager, stateManager) {
@@ -46,207 +57,264 @@ export class MessageBridge {
 
         const { action, payload } = event.data;
 
-        // 1. Handshake
-        if (action === 'UI_READY') {
-            this.state.markUiReady();
-            return;
+        switch (action) {
+            case 'UI_READY':
+                this.state.markUiReady();
+                return;
+            case 'OPEN_FULL_PAGE':
+                this.openFullPage();
+                return;
+            case 'OPEN_EXTERNAL_URL':
+                this.openExternalUrl(payload);
+                return;
+            case 'REQUEST_SCREEN_CAPTURE':
+                this.requestScreenCapture();
+                return;
+            case 'FORWARD_TO_BACKGROUND':
+                this.forwardToBackground(payload);
+                return;
+            case 'DOWNLOAD_IMAGE':
+                downloadFile(payload.url, payload.filename);
+                return;
+            case 'DOWNLOAD_LOGS':
+                downloadText(payload.text, payload.filename || 'gemini-nexus-logs.txt');
+                return;
+            case 'GET_TEXT_SELECTION':
+                this.restoreTextSelection();
+                return;
+            case 'GET_IMAGE_TOOLS':
+                this.restoreImageTools();
+                return;
+            case 'GET_ACCOUNT_INDICES':
+                this.restoreAccountIndices();
+                return;
+            case 'GET_CONTEXT_SETTINGS':
+                this.restoreContextSettings();
+                return;
+            case 'GET_CONNECTION_SETTINGS':
+                this.restoreConnectionSettings();
+                return;
+            case 'SAVE_SESSIONS':
+                this.saveSessionsSafely(payload);
+                return;
+            case 'SAVE_SHORTCUTS':
+                this.state.save('geminiShortcuts', payload);
+                return;
+            case 'SAVE_MODEL':
+                this.saveSelectedModel(payload);
+                return;
+            case 'SAVE_THEME':
+                this.state.save('geminiTheme', payload);
+                return;
+            case 'SAVE_LANGUAGE':
+                this.state.save('geminiLanguage', payload);
+                return;
+            case 'SAVE_TEXT_SELECTION':
+                this.state.save('geminiTextSelectionEnabled', payload);
+                return;
+            case 'SAVE_IMAGE_TOOLS':
+                this.state.save('geminiImageToolsEnabled', payload);
+                return;
+            case 'SAVE_SIDEBAR_BEHAVIOR':
+                this.state.save('geminiSidebarBehavior', payload);
+                return;
+            case 'SAVE_SIDE_PANEL_SCOPE':
+                this.state.save('geminiSidePanelScope', payload);
+                return;
+            case 'SAVE_SIDE_PANEL_SESSION_BINDING':
+                this.saveSidePanelSessionBinding(payload);
+                return;
+            case 'SAVE_ACCOUNT_INDICES':
+                this.state.save('geminiAccountIndices', payload);
+                return;
+            case 'SAVE_CONTEXT_SETTINGS':
+                this.saveContextSettings(payload);
+                return;
+            case 'SAVE_CONNECTION_SETTINGS':
+                this.saveConnectionSettings(payload);
+                return;
+            default:
+                return;
         }
+    }
 
-        // 2. Window Management
-        if (action === 'OPEN_FULL_PAGE') {
-            const url = chrome.runtime.getURL('sidepanel/index.html');
+    openFullPage() {
+        const url = chrome.runtime.getURL('sidepanel/index.html');
+        chrome.tabs.create({ url });
+    }
+
+    openExternalUrl(payload) {
+        const url = payload?.url;
+        if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
             chrome.tabs.create({ url });
-            return;
         }
-        if (action === 'OPEN_EXTERNAL_URL') {
-            const url = payload?.url;
-            if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
-                chrome.tabs.create({ url });
+    }
+
+    requestScreenCapture() {
+        this._captureDisplayStill()
+            .then((payload) => {
+                this.postBackgroundMessage(payload);
+            })
+            .catch((error) => {
+                this.postBackgroundMessage({
+                    action: 'SCREEN_CAPTURE_ERROR',
+                    error: error?.message || 'Screen capture failed',
+                });
+            });
+    }
+
+    forwardToBackground(payload) {
+        const scopedPayload = this._attachCurrentTabContext(payload);
+        chrome.runtime
+            .sendMessage(scopedPayload)
+            .then((response) => {
+                if (response && FORWARDED_RESPONSE_ACTIONS.has(scopedPayload.action)) {
+                    this.postBackgroundMessage(response);
+                }
+            })
+            .catch((error) => console.warn('Error forwarding to background:', error));
+    }
+
+    restoreTextSelection() {
+        chrome.storage.local.get(['geminiTextSelectionEnabled'], (result) => {
+            const enabled = result.geminiTextSelectionEnabled !== false;
+            this.frame.postMessage({ action: 'RESTORE_TEXT_SELECTION', payload: enabled });
+        });
+    }
+
+    restoreImageTools() {
+        chrome.storage.local.get(['geminiImageToolsEnabled'], (result) => {
+            const enabled = result.geminiImageToolsEnabled !== false;
+            this.frame.postMessage({ action: 'RESTORE_IMAGE_TOOLS', payload: enabled });
+        });
+    }
+
+    restoreAccountIndices() {
+        chrome.storage.local.get(['geminiAccountIndices'], (result) => {
+            this.frame.postMessage({
+                action: 'RESTORE_ACCOUNT_INDICES',
+                payload: result.geminiAccountIndices || '0',
+            });
+        });
+    }
+
+    restoreContextSettings() {
+        chrome.storage.local.get(['geminiContextMode', 'geminiContextRecentTurns'], (result) => {
+            this.frame.postMessage({
+                action: 'RESTORE_CONTEXT_SETTINGS',
+                payload: {
+                    mode: result.geminiContextMode || DEFAULT_CONTEXT_MODE,
+                    recentTurns: result.geminiContextRecentTurns || DEFAULT_CONTEXT_RECENT_TURNS,
+                },
+            });
+        });
+    }
+
+    restoreConnectionSettings() {
+        chrome.storage.local.get(CONNECTION_STORAGE_KEYS, (result) => {
+            this.frame.postMessage({
+                action: 'RESTORE_CONNECTION_SETTINGS',
+                payload: createConnectionSettingsPayload(result, { includeLegacyFallbacks: true }),
+            });
+        });
+    }
+
+    saveSelectedModel(payload) {
+        const model = getModelSaveValue(payload);
+        if (typeof model === 'string' && model.trim()) {
+            this.state.save(getModelSaveKey(payload), model);
+        }
+    }
+
+    saveSidePanelSessionBinding(payload) {
+        const tabId = payload?.tabId;
+        const sessionId = payload?.sessionId || null;
+        if (!Number.isInteger(tabId) || tabId <= 0) return;
+
+        chrome.storage.session.get(['geminiSidePanelSessionBindings'], (result) => {
+            const bindings = result.geminiSidePanelSessionBindings || {};
+            if (sessionId) {
+                bindings[tabId] = sessionId;
+            } else {
+                delete bindings[tabId];
             }
-            return;
-        }
-        if (action === 'REQUEST_SCREEN_CAPTURE') {
-            this._captureDisplayStill()
-                .then((payload) => {
-                    this.frame.postMessage({
-                        action: 'BACKGROUND_MESSAGE',
-                        payload,
-                    });
-                })
-                .catch((error) => {
-                    this.frame.postMessage({
-                        action: 'BACKGROUND_MESSAGE',
-                        payload: {
-                            action: 'SCREEN_CAPTURE_ERROR',
-                            error: error?.message || 'Screen capture failed',
-                        },
-                    });
-                });
+            chrome.storage.session.set({ geminiSidePanelSessionBindings: bindings });
+        });
+    }
+
+    saveContextSettings(payload) {
+        this.state.save(
+            'geminiContextMode',
+            payload?.mode === 'recent' ? 'recent' : DEFAULT_CONTEXT_MODE
+        );
+        const recentTurns = Number.parseInt(payload?.recentTurns, 10);
+        this.state.save(
+            'geminiContextRecentTurns',
+            Number.isFinite(recentTurns)
+                ? Math.min(50, Math.max(1, recentTurns))
+                : DEFAULT_CONTEXT_RECENT_TURNS
+        );
+    }
+
+    saveConnectionSettings(payload) {
+        this.state.save('geminiProvider', payload.provider);
+        this.state.save('geminiUseOfficialApi', payload.provider === 'official');
+        this.state.save(
+            'geminiOfficialBaseUrl',
+            payload.officialBaseUrl || DEFAULT_OFFICIAL_BASE_URL
+        );
+        this.state.save('geminiApiKey', payload.apiKey);
+        this.state.save('geminiOfficialModel', payload.officialModel || DEFAULT_OFFICIAL_MODELS);
+        this.state.save('geminiThinkingLevel', payload.thinkingLevel);
+        this.state.save('geminiOfficialWebSearch', payload.officialWebSearch === true);
+        this.state.save('geminiOpenaiBaseUrl', payload.openaiBaseUrl);
+        this.state.save('geminiOpenaiApiKey', payload.openaiApiKey);
+        this.state.save('geminiOpenaiModel', payload.openaiModel);
+        this.state.save(
+            'geminiOpenaiThinkingLevel',
+            payload.openaiThinkingLevel || DEFAULT_THINKING_LEVEL
+        );
+        this.state.save('geminiOpenaiUseResponsesApi', payload.openaiUseResponsesApi === true);
+        this.state.save('geminiOpenaiWebSearch', payload.openaiWebSearch === true);
+        this.state.save('geminiMcpEnabled', payload.mcpEnabled === true);
+        this.state.save('geminiMcpTransport', payload.mcpTransport || DEFAULT_MCP_TRANSPORT);
+        this.state.save('geminiMcpServerUrl', payload.mcpServerUrl || '');
+        this.state.save(
+            'geminiMcpServers',
+            Array.isArray(payload.mcpServers) ? payload.mcpServers : []
+        );
+        this.state.save('geminiMcpActiveServerId', payload.mcpActiveServerId || null);
+    }
+
+    postBackgroundMessage(payload) {
+        this.frame.postMessage({
+            action: 'BACKGROUND_MESSAGE',
+            payload,
+        });
+    }
+
+    saveSessionsSafely(payload) {
+        const { sessions, mutation } = normalizeSessionSavePayload(payload);
+        if (!Array.isArray(sessions)) {
+            this.state.save('geminiSessions', sessions);
             return;
         }
 
-        // 3. Background Forwarding
-        if (action === 'FORWARD_TO_BACKGROUND') {
-            const scopedPayload = this._attachCurrentTabContext(payload);
-            chrome.runtime
-                .sendMessage(scopedPayload)
-                .then((response) => {
-                    // If request demands a reply (e.g., GET_LOGS, CHECK_PAGE_CONTEXT), send it back
-                    if (
-                        response &&
-                        (scopedPayload.action === 'GET_LOGS' ||
-                            scopedPayload.action === 'CHECK_PAGE_CONTEXT' ||
-                            scopedPayload.action === 'MCP_TEST_CONNECTION' ||
-                            scopedPayload.action === 'MCP_LIST_TOOLS')
-                    ) {
-                        this.frame.postMessage({
-                            action: 'BACKGROUND_MESSAGE',
-                            payload: response,
-                        });
-                    }
-                })
-                .catch((err) => console.warn('Error forwarding to background:', err));
-            return;
-        }
-
-        // 4. Downloads
-        if (action === 'DOWNLOAD_IMAGE') {
-            downloadFile(payload.url, payload.filename);
-            return;
-        }
-        if (action === 'DOWNLOAD_LOGS') {
-            downloadText(payload.text, payload.filename || 'gemini-nexus-logs.txt');
-            return;
-        }
-
-        // 5. Data Getters (Immediate Response)
-        if (action === 'GET_TEXT_SELECTION') {
-            // Some keys might not be in initial bulk fetch if added later, but usually are.
-            // Fallback to async storage if needed, but state.data usually has it.
-            chrome.storage.local.get(['geminiTextSelectionEnabled'], (res) => {
-                const val = res.geminiTextSelectionEnabled !== false;
-                this.frame.postMessage({ action: 'RESTORE_TEXT_SELECTION', payload: val });
-            });
-            return;
-        }
-        if (action === 'GET_IMAGE_TOOLS') {
-            chrome.storage.local.get(['geminiImageToolsEnabled'], (res) => {
-                const val = res.geminiImageToolsEnabled !== false;
-                this.frame.postMessage({ action: 'RESTORE_IMAGE_TOOLS', payload: val });
-            });
-            return;
-        }
-        if (action === 'GET_ACCOUNT_INDICES') {
-            chrome.storage.local.get(['geminiAccountIndices'], (res) => {
-                this.frame.postMessage({
-                    action: 'RESTORE_ACCOUNT_INDICES',
-                    payload: res.geminiAccountIndices || '0',
-                });
-            });
-            return;
-        }
-        if (action === 'GET_CONTEXT_SETTINGS') {
-            chrome.storage.local.get(['geminiContextMode', 'geminiContextRecentTurns'], (res) => {
-                this.frame.postMessage({
-                    action: 'RESTORE_CONTEXT_SETTINGS',
-                    payload: {
-                        mode: res.geminiContextMode || DEFAULT_CONTEXT_MODE,
-                        recentTurns: res.geminiContextRecentTurns || DEFAULT_CONTEXT_RECENT_TURNS,
-                    },
-                });
-            });
-            return;
-        }
-        if (action === 'GET_CONNECTION_SETTINGS') {
-            chrome.storage.local.get(CONNECTION_STORAGE_KEYS, (res) => {
-                this.frame.postMessage({
-                    action: 'RESTORE_CONNECTION_SETTINGS',
-                    payload: createConnectionSettingsPayload(res, { includeLegacyFallbacks: true }),
-                });
-            });
-            return;
-        }
-
-        // 6. Data Setters (Sync to Storage & Cache)
-        if (action === 'SAVE_SESSIONS') this.state.save('geminiSessions', payload);
-        if (action === 'SAVE_SHORTCUTS') this.state.save('geminiShortcuts', payload);
-        if (action === 'SAVE_MODEL') {
-            const model = getModelSaveValue(payload);
-            if (typeof model === 'string' && model.trim()) {
-                this.state.save(getModelSaveKey(payload), model);
+        chrome.storage.local.get(['geminiSessions', 'geminiDeletedSessionIds'], (result) => {
+            const deletedSessionIds = normalizeDeletedSessionIds(result?.geminiDeletedSessionIds);
+            if (mutation?.type === 'deleteSession' && mutation.sessionId) {
+                deletedSessionIds[mutation.sessionId] = Date.now();
             }
-        }
-        if (action === 'SAVE_THEME') this.state.save('geminiTheme', payload);
-        if (action === 'SAVE_LANGUAGE') this.state.save('geminiLanguage', payload);
-        if (action === 'SAVE_TEXT_SELECTION')
-            this.state.save('geminiTextSelectionEnabled', payload);
-        if (action === 'SAVE_IMAGE_TOOLS') this.state.save('geminiImageToolsEnabled', payload);
-        if (action === 'SAVE_SIDEBAR_BEHAVIOR') this.state.save('geminiSidebarBehavior', payload);
-        if (action === 'SAVE_SIDE_PANEL_SCOPE') this.state.save('geminiSidePanelScope', payload);
-        if (action === 'SAVE_SIDE_PANEL_SESSION_BINDING') {
-            const tabId = payload?.tabId;
-            const sessionId = payload?.sessionId || null;
-            if (Number.isInteger(tabId) && tabId > 0) {
-                chrome.storage.session.get(['geminiSidePanelSessionBindings'], (result) => {
-                    const bindings = result.geminiSidePanelSessionBindings || {};
-                    if (sessionId) {
-                        bindings[tabId] = sessionId;
-                    } else {
-                        delete bindings[tabId];
-                    }
-                    chrome.storage.session.set({ geminiSidePanelSessionBindings: bindings });
-                });
-            }
-        }
-        if (action === 'SAVE_ACCOUNT_INDICES') this.state.save('geminiAccountIndices', payload);
-        if (action === 'SAVE_CONTEXT_SETTINGS') {
-            this.state.save(
-                'geminiContextMode',
-                payload?.mode === 'recent' ? 'recent' : DEFAULT_CONTEXT_MODE
+
+            const merged = mergeSessionSaveWithCurrent(
+                sessions,
+                result?.geminiSessions,
+                mutation,
+                deletedSessionIds
             );
-            const recentTurns = Number.parseInt(payload?.recentTurns, 10);
-            this.state.save(
-                'geminiContextRecentTurns',
-                Number.isFinite(recentTurns)
-                    ? Math.min(50, Math.max(1, recentTurns))
-                    : DEFAULT_CONTEXT_RECENT_TURNS
-            );
-        }
-        if (action === 'SAVE_CONNECTION_SETTINGS') {
-            this.state.save('geminiProvider', payload.provider);
-            // Official
-            this.state.save('geminiUseOfficialApi', payload.provider === 'official'); // Maintain legacy bool for now
-            this.state.save(
-                'geminiOfficialBaseUrl',
-                payload.officialBaseUrl || DEFAULT_OFFICIAL_BASE_URL
-            );
-            this.state.save('geminiApiKey', payload.apiKey);
-            this.state.save(
-                'geminiOfficialModel',
-                payload.officialModel || DEFAULT_OFFICIAL_MODELS
-            );
-            this.state.save('geminiThinkingLevel', payload.thinkingLevel);
-            this.state.save('geminiOfficialWebSearch', payload.officialWebSearch === true);
-            // OpenAI
-            this.state.save('geminiOpenaiBaseUrl', payload.openaiBaseUrl);
-            this.state.save('geminiOpenaiApiKey', payload.openaiApiKey);
-            this.state.save('geminiOpenaiModel', payload.openaiModel);
-            this.state.save(
-                'geminiOpenaiThinkingLevel',
-                payload.openaiThinkingLevel || DEFAULT_THINKING_LEVEL
-            );
-            this.state.save('geminiOpenaiUseResponsesApi', payload.openaiUseResponsesApi === true);
-            this.state.save('geminiOpenaiWebSearch', payload.openaiWebSearch === true);
-            // MCP
-            this.state.save('geminiMcpEnabled', payload.mcpEnabled === true);
-            this.state.save('geminiMcpTransport', payload.mcpTransport || DEFAULT_MCP_TRANSPORT);
-            this.state.save('geminiMcpServerUrl', payload.mcpServerUrl || '');
-            this.state.save(
-                'geminiMcpServers',
-                Array.isArray(payload.mcpServers) ? payload.mcpServers : []
-            );
-            this.state.save('geminiMcpActiveServerId', payload.mcpActiveServerId || null);
-        }
+            this.state.save('geminiSessions', merged);
+            chrome.storage.local.set({ geminiDeletedSessionIds: deletedSessionIds });
+        });
     }
 
     handleRuntimeMessage(message) {
@@ -310,9 +378,9 @@ export class MessageBridge {
             const canvas = document.createElement('canvas');
             canvas.width = width;
             canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) throw new Error('Failed to prepare screen capture.');
-            ctx.drawImage(video, 0, 0, width, height);
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error('Failed to prepare screen capture.');
+            context.drawImage(video, 0, 0, width, height);
 
             return {
                 action: 'FETCH_IMAGE_RESULT',

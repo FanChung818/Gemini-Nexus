@@ -1,0 +1,334 @@
+.shortcut-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.shortcut-row label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    flex: 1;
+}
+
+.shortcut-input {
+    width: 140px;
+    padding: 5px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 13px;
+    text-align: center;
+    color: var(--text-primary);
+    outline: none;
+    background: var(--bg-input);
+    cursor: pointer;
+    font-family: monospace;
+    transition: all 0.2s;
+}
+
+.shortcut-input:focus {
+    border-color: var(--primary);
+    background: var(--bg-input-focus);
+    box-shadow: 0 0 0 2px rgba(11, 87, 208, 0.1);
+}
+
+.shortcut-input.settings-full-input {
+    width: 100%;
+}
+
+.shortcut-input.settings-select {
+    width: 100%;
+}
+
+.shortcut-input.settings-full-input,
+.shortcut-input.settings-select {
+    min-width: 0;
+    box-sizing: border-box;
+    text-align: left;
+    font-family: inherit;
+}
+
+.shortcut-input.settings-select {
+    cursor: pointer;
+}
+
+.setting-panel {
+    margin-bottom: 8px;
+    padding: 10px;
+    border-radius: 6px;
+    background: var(--bg-setting-panel);
+}
+
+.setting-panel-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.setting-panel-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 8px;
+    min-width: 0;
+}
+
+.setting-panel-row .setting-panel-header {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.setting-inline-toggle {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.setting-panel-header h5 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.setting-panel-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 112px;
+    gap: 8px;
+    align-items: end;
+}
+
+.setting-panel-grid-even {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.setting-field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px;
+    min-width: 0;
+}
+
+.setting-field > span,
+.setting-field > label,
+.setting-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.setting-field-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.setting-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.setting-compact-block {
+    margin-bottom: 8px;
+}
+
+.setting-field .shortcut-input {
+    grid-column: 1 / -1;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+    font-family: inherit;
+}
+
+.setting-field-number .shortcut-input {
+    text-align: center;
+    font-family: monospace;
+}
+
+.setting-panel-small-input {
+    width: 96px;
+    text-align: left;
+}
+
+.setting-toggle {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+    cursor: pointer;
+}
+
+.setting-help {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    background: var(--bg-input);
+    color: var(--text-tertiary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: help;
+}
+
+.setting-help:hover,
+.setting-help:focus-visible {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: var(--bg-input-focus);
+    outline: none;
+}
+
+.setting-help::after {
+    content: attr(title);
+    position: absolute;
+    z-index: 2200;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    width: max-content;
+    max-width: min(260px, 70vw);
+    transform: translateX(-50%) translateY(4px);
+    padding: 7px 9px;
+    border-radius: 6px;
+    background: var(--text-primary);
+    color: var(--bg-body);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.35;
+    white-space: normal;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        opacity 0.12s ease,
+        transform 0.12s ease;
+}
+
+.setting-help:hover::after,
+.setting-help:focus-visible::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.setting-help-after-field {
+    margin-top: 6px;
+}
+
+.mcp-summary-row > div:first-child {
+    min-width: 0;
+}
+
+.mcp-action-row {
+    flex-wrap: wrap;
+}
+
+.mcp-tool-list {
+    max-height: 220px;
+    overflow: auto;
+    padding: 8px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.file-input-hidden {
+    display: none;
+}
+
+[data-theme='dark'] .mcp-tool-list {
+    background: var(--bg-input);
+    border-color: var(--border-color);
+}
+
+.setting-radio-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.setting-radio-option {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+}
+
+.setting-radio-choice {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.setting-radio-option input,
+.setting-radio-choice input {
+    margin-top: 3px;
+}
+
+.setting-radio-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.setting-radio-desc {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+
+.setting-shortcut-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.setting-shortcut-row {
+    margin: 0;
+}
+
+.setting-shortcut-title {
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.setting-shortcut-row .shortcut-input {
+    flex: 0 0 140px;
+}
+
+.setting-shortcut-static-row .shortcut-input {
+    color: var(--text-tertiary);
+    background: var(--bg-body);
+    cursor: default;
+}
+
+@media (max-width: 430px) {
+    .setting-panel-row {
+        align-items: flex-start;
+    }
+
+    .mcp-summary-row {
+        align-items: flex-start !important;
+    }
+
+    .setting-panel-grid,
+    .setting-panel-grid-even {
+        grid-template-columns: 1fr;
+    }
+}

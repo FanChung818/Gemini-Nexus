@@ -1,29 +1,21 @@
 (function () {
-    /**
-     * Handles copying code snippets from the result area.
-     */
     class CodeCopyHandler {
-        handle(e) {
-            const btn = e.target.closest('.copy-code-btn');
-            if (!btn) return;
+        handle(event) {
+            const copyButton = event.target.closest('.copy-code-btn');
+            if (!copyButton) return;
 
-            const wrapper = btn.closest('.code-block-wrapper');
-            const codeEl = wrapper.querySelector('code');
-            if (!codeEl) return;
+            const wrapper = copyButton.closest('.code-block-wrapper');
+            const codeElement = wrapper.querySelector('code');
+            if (!codeElement) return;
 
-            const text = codeEl.textContent;
+            const text = codeElement.textContent;
             navigator.clipboard
                 .writeText(text)
                 .then(() => {
-                    const originalHtml = btn.innerHTML;
-                    // Simple feedback (Icon change)
                     const copied = window.GeminiToolbarStrings?.copied || 'Copied';
-                    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>${copied}</span>`;
-                    setTimeout(() => {
-                        btn.innerHTML = originalHtml;
-                    }, 2000);
+                    window.GeminiCopyFeedback.showCopied(copyButton, copied);
                 })
-                .catch((err) => console.error('Failed to copy text:', err));
+                .catch((error) => console.error('Failed to copy text:', error));
         }
     }
 

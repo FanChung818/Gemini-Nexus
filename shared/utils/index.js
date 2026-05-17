@@ -1,41 +1,40 @@
-// sharedutils.js
-
-// Extract authentication token from HTML
 export function extractFromHTML(variableName, html) {
     const regex = new RegExp(`"${variableName}":"([^"]+)"`);
     const match = regex.exec(html);
     return match?.[1];
 }
 
-// Generate a random UUID
 export function generateUUID() {
+    if (globalThis.crypto?.randomUUID) {
+        return globalThis.crypto.randomUUID().toUpperCase();
+    }
+
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
-        .replace(/[xy]/g, function (c) {
-            var r = (Math.random() * 16) | 0,
-                v = c == 'x' ? r : (r & 0x3) | 0x8;
+        .replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === 'x' ? r : (r & 0x3) | 0x8;
             return v.toString(16);
         })
         .toUpperCase();
 }
 
-// Convert Data URL to Blob (Safe implementation without fetch)
 export async function dataUrlToBlob(dataUrl) {
     try {
-        const arr = dataUrl.split(',');
-        const mime = arr[0].match(/:(.*?);/)[1];
-        const bstr = atob(arr[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-            u8arr[n] = bstr.charCodeAt(n);
+        const parts = dataUrl.split(',');
+        const mimeType = parts[0].match(/:(.*?);/)[1];
+        const binaryString = atob(parts[1]);
+        const bytes = new Uint8Array(binaryString.length);
+
+        for (let index = 0; index < binaryString.length; index++) {
+            bytes[index] = binaryString.charCodeAt(index);
         }
-        return new Blob([u8arr], { type: mime });
-    } catch (e) {
-        throw new Error('Failed to convert data URL to Blob: ' + e.message);
+
+        return new Blob([bytes], { type: mimeType });
+    } catch (error) {
+        throw new Error('Failed to convert data URL to Blob: ' + error.message);
     }
 }
 
-// Upgrade Google Image URL to High Res (Original Quality)
 export function getHighResImageUrl(url) {
     if (!url) return null;
 
@@ -44,11 +43,9 @@ export function getHighResImageUrl(url) {
     let base = parts[0];
     const query = parts.slice(1).join('?');
 
-    // Remove any existing sizing parameters from the path (e.g., =w500-h500, =s1024)
-    // The regex matches typical Google User Content URL parameter patterns at the end of the path
+    // Remove any existing sizing parameter from the path, such as =w500-h500 or =s1024.
     base = base.replace(/=[a-zA-Z0-9_-]+$/, '');
 
-    // Append high-res parameter (=s0 for original size)
     base += '=s0';
 
     return base + (query ? '?' + query : '');

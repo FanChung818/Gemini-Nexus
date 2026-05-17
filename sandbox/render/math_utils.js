@@ -1,5 +1,3 @@
-// sandbox/render/math_utils.js
-
 export class MathHandler {
     constructor() {
         this.blocks = [];
@@ -16,22 +14,22 @@ export class MathHandler {
             });
         };
 
-        // 1. Block Math: \$\$ ... \$\$ (Gemini specific)
+        // Gemini escaped double-dollar block math.
         protect(/\\\$\$([\s\S]+?)\\\$\$/g, true);
 
-        // 2. Block Math: $$ ... $$
+        // Standard block math: $$ ... $$
         protect(/\$\$([\s\S]+?)\$\$/g, true);
 
-        // 3. Block Math: \[ ... \]
+        // Bracketed block math: \[ ... \]
         protect(/\\\[([\s\S]+?)\\\]/g, true);
 
-        // 4. Inline Math: \$ ... \$ (Gemini specific)
+        // Gemini escaped inline math: \$ ... \$
         protect(/\\\$([^$]+?)\\\$/g, false);
 
-        // 5. Inline Math: \( ... \)
+        // Parenthesized inline math: \( ... \)
         protect(/\\\(([\s\S]+?)\\\)/g, false);
 
-        // 6. Inline Math: $ ... $ (Standard LaTeX)
+        // Standard LaTeX inline math: $ ... $
         protect(/(?<!\\)\$([^$\n]+?)(?<!\\)\$/g, false);
 
         return text;

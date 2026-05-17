@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { bindAppEvents, getToolsPageScrollDistance } from './events.js';
 
 vi.mock('../../shared/messaging/index.js', () => ({
@@ -34,6 +34,7 @@ function installFooterDom() {
 
 describe('app events', () => {
     beforeEach(() => {
+        vi.useFakeTimers();
         vi.clearAllMocks();
         installFooterDom();
         window.parent.postMessage = vi.fn();
@@ -41,6 +42,11 @@ describe('app events', () => {
             callback();
             return 1;
         };
+    });
+
+    afterEach(() => {
+        vi.runOnlyPendingTimers();
+        vi.useRealTimers();
     });
 
     it('requests the independent screen-capture mode from the parent bridge', () => {

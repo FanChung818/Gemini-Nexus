@@ -1,4 +1,3 @@
-// crop_utils.js
 import './crop_core.js';
 
 export async function cropImage(base64, area) {

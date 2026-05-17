@@ -1,4 +1,3 @@
-// sandbox/ui/ui_controller.js
 import { ChatController } from './chat.js';
 import { SidebarController } from './sidebar.js';
 import { SettingsController } from './settings/index.js';
@@ -62,30 +61,30 @@ export class UIController {
         });
     }
 
-    // --- DynamicModel List ---
+    // --- Dynamic Model List ---
 
     updateModelList(settings) {
         if (!this.modelSelect) return;
 
         const preferred = getPreferredModel(settings, this.modelSelect.value);
         this.modelSelect.innerHTML = '';
-        const opts = createModelOptions(settings);
+        const options = createModelOptions(settings);
 
-        opts.forEach((o) => {
+        options.forEach((option) => {
             const opt = document.createElement('option');
-            opt.value = o.val;
-            opt.textContent = o.txt;
+            opt.value = option.value;
+            opt.textContent = option.label;
             this.modelSelect.appendChild(opt);
         });
 
         // Restore selection if valid, else default
-        const match = opts.find((o) => o.val === preferred);
+        const match = options.find((option) => option.value === preferred);
         if (match) {
             this.modelSelect.value = preferred;
         } else {
             // Default to first option
-            if (opts.length > 0) {
-                this.modelSelect.value = opts[0].val;
+            if (options.length > 0) {
+                this.modelSelect.value = options[0].value;
             }
             // Dispatch change to update app state
             this.modelSelect.dispatchEvent(new Event('change'));
@@ -173,7 +172,7 @@ export class UIController {
             this.tabSelector.setControlVisible(show);
         }
         if (this.tabSwitcherBtn) {
-            this.tabSwitcherBtn.style.display = 'none';
+            this.tabSwitcherBtn.hidden = true;
         }
     }
 

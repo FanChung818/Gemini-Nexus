@@ -81,6 +81,134 @@ describe('MessageBridge model persistence', () => {
         expect(state.save).toHaveBeenCalledWith('geminiModel', 'gemini-3-flash');
     });
 
+    it('does not let a stale full-session save truncate a session updated in storage', async () => {
+        const frame = createFrame();
+        const state = createState();
+        const bridge = new MessageBridge(frame, state);
+        chrome.storage.local.get.mockImplementation((keys, callback) =>
+            callback({
+                geminiSessions: [
+                    {
+                        id: 'session-1',
+                        title: 'Current',
+                        timestamp: 200,
+                        messages: [
+                            { role: 'user', text: 'Hi' },
+                            { role: 'ai', text: 'Hello' },
+                        ],
+                    },
+                ],
+            })
+        );
+
+        bridge.handleWindowMessage({
+            source: frame.getWindow(),
+            data: {
+                action: 'SAVE_SESSIONS',
+                payload: [
+                    {
+                        id: 'session-1',
+                        title: 'Stale',
+                        timestamp: 100,
+                        messages: [{ role: 'user', text: 'Hi' }],
+                    },
+                ],
+            },
+        });
+
+        await vi.waitFor(() =>
+            expect(state.save).toHaveBeenCalledWith('geminiSessions', [
+                expect.objectContaining({
+                    id: 'session-1',
+                    title: 'Current',
+                    messages: [
+                        { role: 'user', text: 'Hi' },
+                        { role: 'ai', text: 'Hello' },
+                    ],
+                }),
+            ])
+        );
+    });
+
+    it('applies delete-session mutations against current storage and records a tombstone', async () => {
+        const frame = createFrame();
+        const state = createState();
+        const bridge = new MessageBridge(frame, state);
+        chrome.storage.local.get.mockImplementation((keys, callback) =>
+            callback({
+                geminiSessions: [
+                    {
+                        id: 'session-1',
+                        title: 'Deleted',
+                        messages: [{ role: 'user', text: 'Remove me' }],
+                    },
+                    {
+                        id: 'session-2',
+                        title: 'Keep',
+                        messages: [{ role: 'user', text: 'Keep me' }],
+                    },
+                ],
+                geminiDeletedSessionIds: {},
+            })
+        );
+
+        bridge.handleWindowMessage({
+            source: frame.getWindow(),
+            data: {
+                action: 'SAVE_SESSIONS',
+                payload: {
+                    sessions: [
+                        {
+                            id: 'session-2',
+                            title: 'Keep',
+                            messages: [{ role: 'user', text: 'Keep me' }],
+                        },
+                    ],
+                    mutation: { type: 'deleteSession', sessionId: 'session-1' },
+                },
+            },
+        });
+
+        await vi.waitFor(() =>
+            expect(state.save).toHaveBeenCalledWith('geminiSessions', [
+                expect.objectContaining({ id: 'session-2' }),
+            ])
+        );
+        expect(chrome.storage.local.set).toHaveBeenCalledWith({
+            geminiDeletedSessionIds: expect.objectContaining({
+                'session-1': expect.any(Number),
+            }),
+        });
+    });
+
+    it('does not revive a tombstoned session from a stale legacy full-session save', async () => {
+        const frame = createFrame();
+        const state = createState();
+        const bridge = new MessageBridge(frame, state);
+        chrome.storage.local.get.mockImplementation((keys, callback) =>
+            callback({
+                geminiSessions: [],
+                geminiDeletedSessionIds: { 'session-1': 123 },
+            })
+        );
+
+        bridge.handleWindowMessage({
+            source: frame.getWindow(),
+            data: {
+                action: 'SAVE_SESSIONS',
+                payload: [
+                    {
+                        id: 'session-1',
+                        title: 'Stale',
+                        messages: [{ role: 'user', text: 'Old' }],
+                    },
+                ],
+            },
+        });
+
+        await vi.waitFor(() => expect(state.save).toHaveBeenCalledWith('geminiSessions', []));
+    });
+
     it('captures a selected display and forwards a still frame to the sandbox', async () => {
         const frame = createFrame();
         const state = createState();

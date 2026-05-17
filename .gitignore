@@ -10,6 +10,7 @@ lerna-debug.log*
 .env
 .env.*
 !.env.example
+!.env.chrome-webstore.example
 *.local
 
 # OS and editor files
@@ -36,3 +37,4 @@ coverage/
 
 # Local design drafts
 assets/logo-concepts/
+.superpowers/

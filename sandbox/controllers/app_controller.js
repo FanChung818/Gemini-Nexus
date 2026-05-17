@@ -1,4 +1,3 @@
-// sandbox/controllers/app_controller.js
 import { MessageHandler } from './message_handler.js';
 import { SessionFlowController } from './session_flow.js';
 import { PromptController } from './prompt.js';
@@ -248,7 +247,9 @@ export class AppController {
             this.sessionsRestored = true;
             this.sessionFlow.refreshHistoryUI();
             if (this.sessionManager.sessions.length !== restoredSessions.length) {
-                saveSessionsToStorage(this.sessionManager.getPersistableSessions());
+                saveSessionsToStorage(this.sessionManager.getPersistableSessions(), {
+                    type: 'pruneSessions',
+                });
             }
 
             if (previousCurrentId && previousCurrentSession) {

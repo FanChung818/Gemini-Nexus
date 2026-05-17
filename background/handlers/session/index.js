@@ -1,4 +1,3 @@
-// background/handlers/session/index.js
 import { PromptHandler } from './prompt_handler.js';
 import { QuickAskHandler } from './quick_ask_handler.js';
 import { ContextHandler } from './context_handler.js';

@@ -3,3 +3,4 @@ dist/
 artifacts/
 vendor/
 package-lock.json
+.superpowers/

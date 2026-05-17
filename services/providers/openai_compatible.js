@@ -1,9 +1,9 @@
-// services/providers/openai_compatible.js
 import {
     countUserAttachmentsByType,
     getImageAttachmentDataUrls,
     normalizeUserAttachments,
 } from '../../shared/attachments/index.js';
+import { debugLog } from '../../shared/logging/debug.js';
 import { readSseJson } from './sse.js';
 
 function normalizeBaseUrl(baseUrl) {
@@ -52,7 +52,7 @@ function buildOpenAIContent(text, images) {
 
     const content = [];
     if (text) {
-        content.push({ type: 'text', text: text });
+        content.push({ type: 'text', text });
     }
 
     images.forEach((img) => {
@@ -82,7 +82,7 @@ function buildResponsesContent(text, images) {
 
     const content = [];
     if (text) {
-        content.push({ type: 'input_text', text: text });
+        content.push({ type: 'input_text', text });
     }
 
     images.forEach((img) => {
@@ -223,7 +223,7 @@ async function readErrorMessage(response) {
     try {
         const errJson = JSON.parse(errorText);
         if (errJson.error && errJson.error.message) errorText = errJson.error.message;
-    } catch (e) {}
+    } catch {}
     return errorText;
 }
 
@@ -285,7 +285,7 @@ export async function sendOpenAIMessage(
     }
 
     const webSearchLabel = webSearch ? ' with Chat web search' : '';
-    console.debug(`[OpenAI Compatible] Requesting ${model} at ${url}${webSearchLabel}...`);
+    debugLog(`[OpenAI Compatible] Requesting ${model} at ${url}${webSearchLabel}...`);
 
     const response = await fetch(url, {
         method: 'POST',
@@ -387,7 +387,7 @@ async function sendOpenAIResponsesMessage(
     }
 
     const webSearchLabel = config.webSearch === true ? ' with web search' : '';
-    console.debug(`[OpenAI Responses] Requesting ${model} at ${url}${webSearchLabel}...`);
+    debugLog(`[OpenAI Responses] Requesting ${model} at ${url}${webSearchLabel}...`);
 
     const response = await fetch(url, {
         method: 'POST',

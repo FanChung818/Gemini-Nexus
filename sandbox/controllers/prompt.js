@@ -1,4 +1,3 @@
-// sandbox/controllers/prompt.js
 import { appendMessage } from '../render/message.js';
 import { sendToBackground, saveSessionsToStorage } from '../../shared/messaging/index.js';
 import { t } from '../core/i18n.js';
@@ -157,7 +156,10 @@ export class PromptController {
 
         this.sessionManager.addMessage(currentId, 'user', text, displayAttachments);
 
-        saveSessionsToStorage(this.sessionManager.getPersistableSessions());
+        saveSessionsToStorage(this.sessionManager.getPersistableSessions(), {
+            type: 'upsertSession',
+            sessionId: currentId,
+        });
         this.app.sessionFlow.switchToSession(currentId);
 
         if (session.context) {
@@ -204,7 +206,10 @@ export class PromptController {
         );
         if (!editResult) return false;
 
-        saveSessionsToStorage(this.sessionManager.getPersistableSessions());
+        saveSessionsToStorage(this.sessionManager.getPersistableSessions(), {
+            type: 'replaceSession',
+            sessionId: currentId,
+        });
         this.app.sessionFlow.refreshHistoryUI();
         this.app.rerender();
 

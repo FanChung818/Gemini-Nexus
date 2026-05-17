@@ -1,9 +1,16 @@
-// content/toolbar/actions.js
+const GEMINI_IMAGE_EDIT_MODES = new Set([
+    'upscale',
+    'expand',
+    'remove_text',
+    'remove_bg',
+    'remove_watermark',
+]);
 
 class ToolbarActions {
     constructor(uiController) {
         this.ui = uiController;
         this.lastRequest = null;
+        this.pendingImageChat = null;
     }
 
     get t() {
@@ -12,76 +19,86 @@ class ToolbarActions {
 
     /**
      * Handles Image Prompts (Screenshot, OCR, Analysis)
-     * @param {string} imgBase64 - Image Data URL
-     * @param {object} rect - Display Position
+     * @param {string} imageDataUrl - Image Data URL
+     * @param {object} rect - Display position
      * @param {string} mode - 'ocr' | 'translate' | 'snip' | 'analyze' | 'upscale' | 'expand' | 'remove_text' | 'remove_bg' | 'remove_watermark'
-     * @param {string} model - Model Name
+     * @param {string} model - Model name
      */
-    async handleImagePrompt(imgBase64, rect, mode, model = 'gemini-3-flash') {
-        const t = this.t;
-        let title, prompt, loadingMsg, inputVal;
+    async handleImagePrompt(imageDataUrl, rect, mode, model = 'gemini-3-flash') {
+        const strings = this.t;
+        let title, prompt, loadingMessage, inputValue;
 
         switch (mode) {
             case 'ocr':
-                title = t.titles.ocr;
-                prompt = t.prompts.ocr;
-                loadingMsg = t.loading.ocr;
-                inputVal = t.inputs.ocr;
+                title = strings.titles.ocr;
+                prompt = strings.prompts.ocr;
+                loadingMessage = strings.loading.ocr;
+                inputValue = strings.inputs.ocr;
                 break;
             case 'translate':
-                title = t.titles.translate;
-                prompt = t.prompts.imageTranslate;
-                loadingMsg = t.loading.translate;
-                inputVal = t.inputs.translate;
+                title = strings.titles.translate;
+                prompt = strings.prompts.imageTranslate;
+                loadingMessage = strings.loading.translate;
+                inputValue = strings.inputs.translate;
                 break;
             case 'analyze': // General Image Analysis (from Hover button)
-                title = t.titles.analyze;
-                prompt = t.prompts.analyze;
-                loadingMsg = t.loading.analyze;
-                inputVal = t.inputs.analyze;
+                title = strings.titles.analyze;
+                prompt = strings.prompts.analyze;
+                loadingMessage = strings.loading.analyze;
+                inputValue = strings.inputs.analyze;
                 break;
             case 'upscale':
-                title = t.titles.upscale;
-                prompt = t.prompts.upscale;
-                loadingMsg = t.loading.upscale;
-                inputVal = t.inputs.upscale;
+                title = strings.titles.upscale;
+                prompt = strings.prompts.upscale;
+                loadingMessage = strings.loading.upscale;
+                inputValue = strings.inputs.upscale;
                 break;
             case 'expand':
-                title = t.titles.expand;
-                prompt = t.prompts.expand;
-                loadingMsg = t.loading.expand;
-                inputVal = t.inputs.expand;
+                title = strings.titles.expand;
+                prompt = strings.prompts.expand;
+                loadingMessage = strings.loading.expand;
+                inputValue = strings.inputs.expand;
                 break;
             case 'remove_text':
-                title = t.titles.removeText;
-                prompt = t.prompts.removeText;
-                loadingMsg = t.loading.removeText;
-                inputVal = t.inputs.removeText;
+                title = strings.titles.removeText;
+                prompt = strings.prompts.removeText;
+                loadingMessage = strings.loading.removeText;
+                inputValue = strings.inputs.removeText;
                 break;
             case 'remove_bg':
-                title = t.titles.removeBg;
-                prompt = t.prompts.removeBg;
-                loadingMsg = t.loading.removeBg;
-                inputVal = t.inputs.removeBg;
+                title = strings.titles.removeBg;
+                prompt = strings.prompts.removeBg;
+                loadingMessage = strings.loading.removeBg;
+                inputValue = strings.inputs.removeBg;
                 break;
             case 'remove_watermark':
-                title = t.titles.removeWatermark;
-                prompt = t.prompts.removeWatermark;
-                loadingMsg = t.loading.removeWatermark;
-                inputVal = t.inputs.removeWatermark;
+                title = strings.titles.removeWatermark;
+                prompt = strings.prompts.removeWatermark;
+                loadingMessage = strings.loading.removeWatermark;
+                inputValue = strings.inputs.removeWatermark;
                 break;
-            case 'snip': // Fallback / Generic Snip
+            case 'snip':
             default:
-                title = t.titles.snip;
-                prompt = t.prompts.snipAnalyze;
-                loadingMsg = t.loading.snip;
-                inputVal = t.inputs.snip;
+                title = strings.titles.snip;
+                prompt = strings.prompts.snipAnalyze;
+                loadingMessage = strings.loading.snip;
+                inputValue = strings.inputs.snip;
                 break;
         }
 
-        await this.ui.showAskWindow(rect, loadingMsg, title);
-        this.ui.showLoading(loadingMsg);
-        this.ui.setInputValue(inputVal);
+        if ((this.ui.provider || 'web') !== 'web' && GEMINI_IMAGE_EDIT_MODES.has(mode)) {
+            await this.ui.showAskWindow(rect, null, title);
+            this.ui.setInputValue(inputValue);
+            this.ui.showError(
+                strings.errors?.imageEditWebOnly ||
+                    'Image editing is only available when using Gemini Web.'
+            );
+            return;
+        }
+
+        await this.ui.showAskWindow(rect, loadingMessage, title);
+        this.ui.showLoading(loadingMessage);
+        this.ui.setInputValue(inputValue);
 
         const targetModel = window.GeminiWebModels.resolveImagePromptModel({
             provider: this.ui.provider || 'web',
@@ -89,16 +106,26 @@ class ToolbarActions {
             model,
         });
 
-        const msg = {
+        const message = {
             action: 'QUICK_ASK_IMAGE',
-            url: imgBase64,
+            url: imageDataUrl,
             text: prompt,
             model: targetModel,
             imageMode: mode,
         };
 
-        this.lastRequest = msg;
-        chrome.runtime.sendMessage(msg);
+        this.lastRequest = message;
+        chrome.runtime.sendMessage(message);
+    }
+
+    async handleImageChat(imageDataUrl, rect) {
+        this.pendingImageChat = {
+            url: imageDataUrl,
+        };
+
+        const title = this.t.chatWithImage || this.t.titles.analyze;
+        await this.ui.showAskWindow(rect, null, title);
+        this.ui.setInputValue('');
     }
 
     async handleQuickAction(
@@ -108,55 +135,75 @@ class ToolbarActions {
         model = 'gemini-3-flash',
         mousePoint = null
     ) {
-        const t = this.t;
-        let prompt, title, inputPlaceholder, loadingMsg;
+        const strings = this.t;
+        let prompt, title, inputPlaceholder, loadingMessage;
 
         if (actionType === 'translate') {
-            prompt = t.prompts.textTranslate(selection);
-            title = t.titles.textTranslate;
-            inputPlaceholder = t.inputs.textTranslate;
-            loadingMsg = t.loading.translate;
+            prompt = strings.prompts.textTranslate(selection);
+            title = strings.titles.textTranslate;
+            inputPlaceholder = strings.inputs.textTranslate;
+            loadingMessage = strings.loading.translate;
         } else if (actionType === 'summarize') {
-            prompt = t.prompts.summarize(selection);
-            title = t.titles.summarize;
-            inputPlaceholder = t.inputs.summarize;
-            loadingMsg = t.loading.summarize;
+            prompt = strings.prompts.summarize(selection);
+            title = strings.titles.summarize;
+            inputPlaceholder = strings.inputs.summarize;
+            loadingMessage = strings.loading.summarize;
         } else if (actionType === 'grammar') {
-            prompt = t.prompts.grammar(selection);
-            title = t.titles.grammar;
-            inputPlaceholder = t.inputs.grammar;
-            loadingMsg = t.loading.grammar;
+            prompt = strings.prompts.grammar(selection);
+            title = strings.titles.grammar;
+            inputPlaceholder = strings.inputs.grammar;
+            loadingMessage = strings.loading.grammar;
         } else if (actionType === 'explain') {
-            prompt = t.prompts.explain(selection);
-            title = t.titles.explain;
-            inputPlaceholder = t.inputs.explain;
-            loadingMsg = t.loading.explain;
+            prompt = strings.prompts.explain(selection);
+            title = strings.titles.explain;
+            inputPlaceholder = strings.inputs.explain;
+            loadingMessage = strings.loading.explain;
         } else {
-            // Fallback
             prompt = selection;
             title = 'AI';
             inputPlaceholder = '';
-            loadingMsg = t.loading.analyze;
+            loadingMessage = strings.loading.analyze;
         }
 
         this.ui.hide();
         await this.ui.showAskWindow(rect, selection, title, mousePoint);
-        this.ui.showLoading(loadingMsg);
+        this.ui.showLoading(loadingMessage);
 
         this.ui.setInputValue(inputPlaceholder);
 
-        const msg = {
+        const message = {
             action: 'QUICK_ASK',
             text: prompt,
-            model: model,
+            model,
         };
 
-        this.lastRequest = msg;
-        chrome.runtime.sendMessage(msg);
+        this.lastRequest = message;
+        chrome.runtime.sendMessage(message);
     }
 
     handleSubmitAsk(question, context, sessionId = null, model = 'gemini-3-flash') {
         this.ui.showLoading();
+
+        if (this.pendingImageChat) {
+            const targetModel = window.GeminiWebModels.resolveImagePromptModel({
+                provider: this.ui.provider || 'web',
+                mode: 'chat',
+                model,
+            });
+            const message = {
+                action: 'QUICK_ASK_IMAGE',
+                url: this.pendingImageChat.url,
+                text: question,
+                model: targetModel,
+                imageMode: 'chat',
+                sessionId,
+            };
+
+            this.pendingImageChat = null;
+            this.lastRequest = message;
+            chrome.runtime.sendMessage(message);
+            return;
+        }
 
         let prompt = question;
         let includePageContext = false;
@@ -170,16 +217,16 @@ class ToolbarActions {
             prompt = `Context:\n${context}\n\nQuestion: ${question}`;
         }
 
-        const msg = {
+        const message = {
             action: 'QUICK_ASK',
             text: prompt,
-            model: model,
-            sessionId: sessionId,
-            includePageContext: includePageContext,
+            model,
+            sessionId,
+            includePageContext,
         };
 
-        this.lastRequest = msg;
-        chrome.runtime.sendMessage(msg);
+        this.lastRequest = message;
+        chrome.runtime.sendMessage(message);
     }
 
     handleRetry() {
@@ -199,22 +246,22 @@ class ToolbarActions {
         }
 
         this.lastRequest = retryRequest;
-        const loadingMsg = this.t.loading.regenerate;
-        this.ui.showLoading(loadingMsg);
+        const loadingMessage = this.t.loading.regenerate;
+        this.ui.showLoading(loadingMessage);
         chrome.runtime.sendMessage(retryRequest);
     }
 
     handleCancel() {
+        this.pendingImageChat = null;
         chrome.runtime.sendMessage({ action: 'CANCEL_PROMPT' });
     }
 
     handleContinueChat(sessionId) {
         chrome.runtime.sendMessage({
             action: 'OPEN_SIDE_PANEL',
-            sessionId: sessionId,
+            sessionId,
         });
     }
 }
 
-// Export global for Content Script usage
 window.GeminiToolbarActions = ToolbarActions;

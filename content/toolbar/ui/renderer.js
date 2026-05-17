@@ -1,4 +1,3 @@
-// content/toolbar/ui/renderer.js
 (function () {
     /**
      * Handles the rendering of results in the toolbar window,
@@ -27,7 +26,7 @@
                     const result = await this.bridge.render(text, isStreaming ? [] : images);
                     html = result.html;
                     tasks = result.fetchTasks || [];
-                } catch (e) {
+                } catch {
                     console.warn('Bridge render failed, falling back to simple escape');
                     html = text
                         .replace(/&/g, '&amp;')

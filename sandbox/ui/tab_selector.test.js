@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TabSelectorTemplate } from './templates/tab_selector.js';
 import { HeaderTemplate } from './templates/header.js';
+import { TemplateIcons } from './templates/icons.js';
 import { TabSelectorController } from './tab_selector.js';
 
 vi.mock('../core/i18n.js', () => ({
@@ -24,6 +25,13 @@ vi.mock('../core/i18n.js', () => ({
 describe('TabSelectorController browser control bar', () => {
     beforeEach(() => {
         document.body.innerHTML = HeaderTemplate + TabSelectorTemplate;
+    });
+
+    it('keeps the legacy tab switcher hidden without inline display styles', () => {
+        const trigger = document.getElementById('tab-switcher-btn');
+
+        expect(trigger.hidden).toBe(true);
+        expect(trigger.hasAttribute('style')).toBe(false);
     });
 
     it('shows the controlled tab state in the persistent control bar', () => {
@@ -85,5 +93,16 @@ describe('TabSelectorController browser control bar', () => {
 
         activeItem.querySelector('.tab-lock-only-btn').click();
         expect(onSelect).toHaveBeenCalledWith(2, false);
+    });
+
+    it('resets the trigger button with the shared tab stack icon', () => {
+        const controller = new TabSelectorController();
+        const trigger = document.getElementById('tab-switcher-btn');
+        const expected = document.createElement('div');
+        expected.innerHTML = TemplateIcons.TAB_STACK;
+
+        controller.resetTrigger();
+
+        expect(trigger.innerHTML).toBe(expected.innerHTML);
     });
 });

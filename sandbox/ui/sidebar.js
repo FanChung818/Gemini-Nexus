@@ -1,4 +1,3 @@
-// ui_sidebar.js -> sandbox/ui/sidebar.js
 import { t } from '../core/i18n.js';
 import Fuse from 'fuse.js';
 

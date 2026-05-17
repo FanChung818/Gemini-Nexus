@@ -1,4 +1,3 @@
-// sandbox/render/generated_image.js
 import { sendToBackground } from '../../shared/messaging/index.js';
 import { getHighResImageUrl } from '../../shared/utils/index.js';
 import { t } from '../core/i18n.js';

@@ -1,4 +1,14 @@
-// services/parser.js
+const PAYLOAD_IDS_INDEX = 1;
+const PAYLOAD_STRING_INDEX = 2;
+const PAYLOAD_CANDIDATES_INDEX = 4;
+const FIRST_CANDIDATE_INDEX = 0;
+const CANDIDATE_CHOICE_ID_INDEX = 0;
+const CANDIDATE_TEXT_INDEX = 1;
+const CANDIDATE_THOUGHTS_INDEX = 37;
+const TEXT_VALUE_INDEX = 0;
+const CONVERSATION_ID_INDEX = 0;
+const RESPONSE_ID_INDEX = 1;
+const MAX_IMAGE_SCAN_DEPTH = 20;
 
 export function parseGeminiLine(line) {
     try {
@@ -12,13 +22,12 @@ export function parseGeminiLine(line) {
         const rootArray = Array.isArray(rawData) ? rawData : null;
         if (!rootArray) return null;
 
-        // Helper to validate and extract from a potential payload item
         // Expected structure: [id, index, json_string, ...]
         const extractPayload = (item) => {
-            if (!Array.isArray(item) || item.length < 3) return null;
+            if (!Array.isArray(item) || item.length <= PAYLOAD_STRING_INDEX) return null;
 
-            // The payload is typically a JSON string at index 2
-            const payloadStr = item[2];
+            // The payload is typically a JSON string at the payload string slot.
+            const payloadStr = item[PAYLOAD_STRING_INDEX];
             if (typeof payloadStr !== 'string') return null;
 
             try {
@@ -26,69 +35,78 @@ export function parseGeminiLine(line) {
 
                 // Payload structure typically:
                 // [ [conv_id, resp_id], ..., null, null, [ [candidates] ] ]
-                // We look for payload[4][0] -> first candidate
-                if (!Array.isArray(payload) || payload.length < 5) return null;
-
-                const candidates = payload[4];
-                if (!Array.isArray(candidates) || !candidates[0]) return null;
-
-                // Candidate structure: [choiceId, [text_node], ...]
-                const firstCandidate = candidates[0];
-                if (!Array.isArray(firstCandidate) || firstCandidate.length < 2) return null;
-
-                // 1. Extract Text
-                let text = '';
-                const textNode = firstCandidate[1];
-                if (Array.isArray(textNode) && typeof textNode[0] === 'string') {
-                    text = textNode[0];
+                // The candidates bucket contains the first response candidate.
+                if (!Array.isArray(payload) || payload.length <= PAYLOAD_CANDIDATES_INDEX) {
+                    return null;
                 }
 
-                // 2. Extract Thoughts (Thinking Process) - Index 37
-                // Based on python gemini-webapi reference: candidate[37][0][0]
-                let thoughts = null;
+                const candidates = payload[PAYLOAD_CANDIDATES_INDEX];
+                if (!Array.isArray(candidates) || !candidates[FIRST_CANDIDATE_INDEX]) return null;
+
+                // Candidate structure: [choiceId, [text_node], ...]
+                const firstCandidate = candidates[FIRST_CANDIDATE_INDEX];
                 if (
-                    firstCandidate[37] &&
-                    Array.isArray(firstCandidate[37]) &&
-                    firstCandidate[37][0]
+                    !Array.isArray(firstCandidate) ||
+                    firstCandidate.length <= CANDIDATE_TEXT_INDEX
                 ) {
-                    const thoughtNode = firstCandidate[37][0];
-                    if (Array.isArray(thoughtNode) && typeof thoughtNode[0] === 'string') {
-                        thoughts = thoughtNode[0];
+                    return null;
+                }
+
+                // Extract the visible answer text.
+                let text = '';
+                const textNode = firstCandidate[CANDIDATE_TEXT_INDEX];
+                if (Array.isArray(textNode) && typeof textNode[TEXT_VALUE_INDEX] === 'string') {
+                    text = textNode[TEXT_VALUE_INDEX];
+                }
+
+                // Based on python gemini-webapi reference.
+                let thoughts = null;
+                const thoughtsBucket = firstCandidate[CANDIDATE_THOUGHTS_INDEX];
+                if (
+                    thoughtsBucket &&
+                    Array.isArray(thoughtsBucket) &&
+                    thoughtsBucket[TEXT_VALUE_INDEX]
+                ) {
+                    const thoughtNode = thoughtsBucket[TEXT_VALUE_INDEX];
+                    if (
+                        Array.isArray(thoughtNode) &&
+                        typeof thoughtNode[TEXT_VALUE_INDEX] === 'string'
+                    ) {
+                        thoughts = thoughtNode[TEXT_VALUE_INDEX];
                     }
                 }
 
-                // 3. Extract Generated Images (Deep Search Strategy)
                 // Instead of relying on specific indices (which shift between models like Flash vs Thinking),
                 // we recursively scan the candidate structure for any string that looks like a hosted image URL.
                 const generatedImages = [];
                 const seenUrls = new Set();
 
-                const traverse = (obj, depth = 0) => {
-                    // Safety break for deep recursion
-                    if (!obj || depth > 20) return;
+                const traverse = (node, depth = 0) => {
+                    // Guard against unexpected nested payloads.
+                    if (!node || depth > MAX_IMAGE_SCAN_DEPTH) return;
 
-                    if (typeof obj === 'string') {
+                    if (typeof node === 'string') {
                         // Check for Google hosted content URLs (lh3.googleusercontent.com, etc.)
                         if (
-                            (obj.startsWith('http') || obj.startsWith('//')) &&
-                            (obj.includes('googleusercontent.com') || obj.includes('ggpht.com'))
+                            (node.startsWith('http') || node.startsWith('//')) &&
+                            (node.includes('googleusercontent.com') || node.includes('ggpht.com'))
                         ) {
-                            // CRITICAL: Exclude the placeholder URL which looks like .../image_generation_content/0
-                            if (obj.includes('image_generation_content')) return;
+                            // Exclude the placeholder URL which looks like .../image_generation_content/0.
+                            if (node.includes('image_generation_content')) return;
 
-                            // Normalize protocol
-                            let url = obj;
+                            // Normalize protocol.
+                            let url = node;
                             if (url.startsWith('//')) {
                                 url = 'https:' + url;
                             } else if (url.startsWith('http://')) {
                                 url = url.replace('http://', 'https://');
                             }
 
-                            // Add unique images
+                            // Add unique images.
                             if (!seenUrls.has(url)) {
                                 seenUrls.add(url);
                                 generatedImages.push({
-                                    url: url,
+                                    url,
                                     alt: 'Generated Image',
                                 });
                             }
@@ -96,48 +114,48 @@ export function parseGeminiLine(line) {
                         return;
                     }
 
-                    if (Array.isArray(obj)) {
-                        for (const item of obj) {
+                    if (Array.isArray(node)) {
+                        for (const item of node) {
                             traverse(item, depth + 1);
                         }
                         return;
                     }
 
-                    if (typeof obj === 'object') {
-                        for (const key in obj) {
-                            traverse(obj[key], depth + 1);
+                    if (typeof node === 'object') {
+                        for (const key in node) {
+                            traverse(node[key], depth + 1);
                         }
                         return;
                     }
                 };
 
-                // Start traversal on all properties of the candidate except the text node (index 1)
+                // Start traversal on all properties of the candidate except the text node.
                 // This prevents us from re-parsing URLs quoted in the text itself.
-                firstCandidate.forEach((part, idx) => {
-                    if (idx !== 1) traverse(part);
+                firstCandidate.forEach((part, index) => {
+                    if (index !== CANDIDATE_TEXT_INDEX) traverse(part);
                 });
 
-                // CLEANUP: If we successfully found real images, remove the ugly placeholder text.
+                // If real images were found, remove the ugly placeholder text.
                 // Placeholder format: http://googleusercontent.com/image_generation_content/0
                 if (generatedImages.length > 0) {
                     text = text.replace(
                         /https?:\/\/googleusercontent\.com\/image_generation_content\/\d+/g,
                         ''
                     );
-                    // Remove potential empty markdown links created by this removal
+                    // Remove potential empty markdown links created by this removal.
                     text = text.replace(/\[\s*\]\(\s*\)/g, '');
                     text = text.trim();
                 }
 
                 return {
-                    text: text,
-                    thoughts: thoughts,
+                    text,
+                    thoughts,
                     images: generatedImages,
-                    conversationId: payload[1]?.[0],
-                    responseId: payload[1]?.[1],
-                    choiceId: firstCandidate[0],
+                    conversationId: payload[PAYLOAD_IDS_INDEX]?.[CONVERSATION_ID_INDEX],
+                    responseId: payload[PAYLOAD_IDS_INDEX]?.[RESPONSE_ID_INDEX],
+                    choiceId: firstCandidate[CANDIDATE_CHOICE_ID_INDEX],
                 };
-            } catch (e) {
+            } catch {
                 return null;
             }
         };
@@ -155,7 +173,7 @@ export function parseGeminiLine(line) {
                 };
             }
         }
-    } catch (e) {
+    } catch {
         // Line parsing failed (not JSON or unexpected format)
     }
     return null;

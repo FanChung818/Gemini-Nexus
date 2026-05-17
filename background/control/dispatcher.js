@@ -1,5 +1,3 @@
-// background/control/dispatcher.js
-
 /**
  * Maps string tool names to executable actions.
  * Decouples logic from the main ControlManager.
@@ -23,13 +21,26 @@ export class ToolDispatcher {
 
         // Interaction
         'click',
+        'hover',
         'fill',
+        'fill_form',
         'press_key',
-        'attach_file',
+        'type_text',
 
         // Observation & Logic
         'take_snapshot',
+        'wait_for',
+        'handle_dialog',
         'evaluate_script',
+    ]);
+
+    static SNAPSHOT_OPTIONAL_TOOL_NAMES = new Set([
+        'click',
+        'hover',
+        'fill',
+        'fill_form',
+        'press_key',
+        'type_text',
     ]);
 
     static isLocalTool(name) {
@@ -45,38 +56,78 @@ export class ToolDispatcher {
         this.snapshotManager = snapshotManager;
     }
 
+    async maybeAppendSnapshot(name, args, result) {
+        if (
+            !ToolDispatcher.SNAPSHOT_OPTIONAL_TOOL_NAMES.has(name) ||
+            args?.includeSnapshot !== true ||
+            typeof result !== 'string' ||
+            result.startsWith('Error')
+        ) {
+            return result;
+        }
+
+        const snapshot = await this.snapshotManager.takeSnapshot();
+        return `${result}\n\n## Latest page snapshot\n${snapshot}`;
+    }
+
     async dispatch(name, args) {
+        let result;
         switch (name) {
             // Navigation
             case 'navigate_page':
-                return this.actions.navigatePage(args);
+                result = await this.actions.navigatePage(args);
+                break;
             case 'new_page':
-                return this.actions.newPage(args);
+                result = await this.actions.newPage(args);
+                break;
             case 'close_page':
-                return this.actions.closePage(args);
+                result = await this.actions.closePage(args);
+                break;
             case 'list_pages':
-                return this.actions.listPages();
+                result = await this.actions.listPages();
+                break;
             case 'select_page':
-                return this.actions.selectPage(args);
+                result = await this.actions.selectPage(args);
+                break;
 
             // Interaction
             case 'click':
-                return this.actions.clickElement(args);
+                result = await this.actions.clickElement(args);
+                break;
+            case 'hover':
+                result = await this.actions.hoverElement(args);
+                break;
             case 'fill':
-                return this.actions.fillElement(args);
+                result = await this.actions.fillElement(args);
+                break;
+            case 'fill_form':
+                result = await this.actions.fillForm(args);
+                break;
             case 'press_key':
-                return this.actions.pressKey(args);
-            case 'attach_file':
-                return this.actions.attachFile(args);
+                result = await this.actions.pressKey(args);
+                break;
+            case 'type_text':
+                result = await this.actions.typeText(args);
+                break;
 
             // Observation & Logic
             case 'take_snapshot':
-                return this.snapshotManager.takeSnapshot(args);
+                result = await this.snapshotManager.takeSnapshot(args);
+                break;
+            case 'wait_for':
+                result = await this.actions.waitFor(args);
+                break;
+            case 'handle_dialog':
+                result = await this.actions.handleDialog(args);
+                break;
             case 'evaluate_script':
-                return this.actions.evaluateScript(args);
+                result = await this.actions.evaluateScript(args);
+                break;
 
             default:
                 return `Error: Unknown tool '${name}'`;
         }
+
+        return this.maybeAppendSnapshot(name, args, result);
     }
 }

@@ -1,5 +1,5 @@
-// sandbox/ui/tab_selector.js
 import { t } from '../core/i18n.js';
+import { TemplateIcons } from './templates/icons.js';
 
 export class TabSelectorController {
     constructor() {
@@ -206,31 +206,23 @@ export class TabSelectorController {
                 lockBtn.style.color = 'var(--text-tertiary)';
             }
 
-            // --- Separate Handlers ---
-
-            // 1. Lock Button Click: Only Lock/Unlock, NO Switch
             lockBtn.onclick = (e) => {
-                e.stopPropagation(); // Prevent bubbling to item click
+                e.stopPropagation();
                 if (!isControllable) return;
 
                 this.updateTrigger(tab);
 
-                // Pass false to indicate we do NOT want to switch visual tab
                 if (this.onSelect) this.onSelect(tab.id, false);
                 this.close();
             };
 
-            // 2. Row Click: Switch + Lock
             item.onclick = (e) => {
                 if (!isControllable) return;
-                // If we click the row, we generally want to switch to that tab.
-                // We also ensure it becomes the locked target for control.
 
                 if (!isLocked) {
                     this.updateTrigger(tab);
                 }
 
-                // Pass true to switch tab
                 if (this.onSelect) this.onSelect(tab.id, true);
                 this.close();
             };
@@ -278,10 +270,7 @@ export class TabSelectorController {
 
     resetTrigger() {
         if (!this.triggerBtn) return;
-        this.triggerBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M2 6h20v13a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z"/>
-            <path d="M2 6l2.5-3.5A2 2 0 0 1 6.1 1h11.8a2 2 0 0 1 1.6 1.5L22 6"/>
-        </svg>`;
+        this.triggerBtn.innerHTML = TemplateIcons.TAB_STACK;
         this.triggerBtn.title = t('selectTabTooltip') || 'Select a tab to control';
         this.triggerBtn.style.border = 'none';
     }

@@ -1,5 +1,3 @@
-// content/toolbar/image.js
-
 (function () {
     class GeminiImageDetector {
         constructor(callbacks) {

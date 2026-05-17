@@ -69,4 +69,19 @@ describe('GeminiToolbarTemplates', () => {
         expect(item).not.toBeNull();
         expect(item.textContent).toContain('Translate image text');
     });
+
+    it('renders the image tools trigger with the Gemini logo', () => {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = window.GeminiToolbarTemplates.mainStructure;
+
+        const trigger = wrapper.querySelector('.ai-tool-trigger');
+        const logoIcon = trigger?.querySelector('[data-icon="LOGO"]');
+        const plusIcon = trigger?.querySelector('[data-icon="PLUS"]');
+        const externalIcon = trigger?.querySelector('[data-icon="EXTERNAL_OPEN"]');
+
+        expect(trigger).not.toBeNull();
+        expect(logoIcon).not.toBeNull();
+        expect(plusIcon).toBeNull();
+        expect(externalIcon).toBeNull();
+    });
 });

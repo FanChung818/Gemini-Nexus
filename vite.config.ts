@@ -29,11 +29,6 @@ export default defineConfig(() => {
             host: '0.0.0.0',
         },
         plugins: [copySidepanelPreload()],
-        resolve: {
-            alias: {
-                '@': path.resolve(__dirname, '.'),
-            },
-        },
         build: {
             rollupOptions: {
                 input: {

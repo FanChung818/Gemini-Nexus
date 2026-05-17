@@ -1,161 +1,92 @@
-// content/toolbar/events.js
 (function () {
+    const TOOLBAR_ACTIONS = [
+        ['copySelection', 'copy_selection'],
+        ['ask', 'ask'],
+        ['grammar', 'grammar'],
+        ['translate', 'translate'],
+        ['explain', 'explain'],
+        ['summarize', 'summarize'],
+    ];
+
+    const IMAGE_MENU_ACTIONS = [
+        ['imageChat', 'image_chat'],
+        ['imageDescribe', 'image_describe'],
+        ['imageExtract', 'image_extract'],
+        ['imageTranslate', 'image_translate'],
+        ['imageRemoveBg', 'image_remove_bg'],
+        ['imageRemoveText', 'image_remove_text'],
+        ['imageRemoveWatermark', 'image_remove_watermark'],
+        ['imageUpscale', 'image_upscale'],
+        ['imageExpand', 'image_expand'],
+    ];
+
+    const WINDOW_ACTIONS = [
+        ['headerClose', 'cancelAsk'],
+        ['stop', 'stopAsk'],
+        ['continue', 'continueChat'],
+        ['copy', 'copyResult'],
+        ['retry', 'retryAsk'],
+        ['insert', 'insertResult'],
+        ['replace', 'replaceResult'],
+    ];
+
     class ToolbarEvents {
         constructor(controller) {
             this.controller = controller;
             this.resizeObserver = null;
+            this.submenuPlacementHandlers = [];
             this.handleGlobalKeydown = this.handleGlobalKeydown.bind(this);
         }
 
         bind(elements, askWindow) {
             const { buttons, imageBtn, askInput, askModelSelect } = elements;
 
-            // --- Toolbar Buttons ---
-            // Use .actions property to access delegate
-            this._add(buttons.copySelection, 'mousedown', (e) =>
-                this.controller.actions.triggerAction(e, 'copy_selection')
-            );
-            this._add(buttons.ask, 'mousedown', (e) =>
-                this.controller.actions.triggerAction(e, 'ask')
-            );
-            this._add(buttons.grammar, 'mousedown', (e) =>
-                this.controller.actions.triggerAction(e, 'grammar')
-            );
-            this._add(buttons.translate, 'mousedown', (e) =>
-                this.controller.actions.triggerAction(e, 'translate')
-            );
-            this._add(buttons.explain, 'mousedown', (e) =>
-                this.controller.actions.triggerAction(e, 'explain')
-            );
-            this._add(buttons.summarize, 'mousedown', (e) =>
-                this.controller.actions.triggerAction(e, 'summarize')
-            );
+            TOOLBAR_ACTIONS.forEach(([buttonName, actionName]) => {
+                this._bindTrigger(buttons[buttonName], 'mousedown', actionName);
+            });
 
-            // --- Image Button ---
-            this._add(imageBtn, 'click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
+            this._add(imageBtn, 'click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
                 this.controller.handleImageClick();
             });
             this._add(imageBtn, 'mouseover', () => this.controller.handleImageHover(true));
             this._add(imageBtn, 'mouseout', () => this.controller.handleImageHover(false));
 
-            // --- Image Menu Actions ---
-            if (buttons.imageChat) {
-                this._add(buttons.imageChat, 'click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.controller.actions.triggerAction(e, 'image_chat');
+            IMAGE_MENU_ACTIONS.forEach(([buttonName, actionName]) => {
+                this._bindTrigger(buttons[buttonName], 'click', actionName, {
+                    stopPropagation: true,
                 });
-            }
-            if (buttons.imageDescribe) {
-                this._add(buttons.imageDescribe, 'click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.controller.actions.triggerAction(e, 'image_describe');
-                });
-            }
-            if (buttons.imageExtract) {
-                this._add(buttons.imageExtract, 'click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.controller.actions.triggerAction(e, 'image_extract');
-                });
-            }
-            if (buttons.imageTranslate) {
-                this._add(buttons.imageTranslate, 'click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.controller.actions.triggerAction(e, 'image_translate');
-                });
-            }
+            });
+            this._bindSubmenuPlacement(imageBtn);
 
-            // --- Image Edit Actions ---
-            if (buttons.imageRemoveBg) {
-                this._add(buttons.imageRemoveBg, 'click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.controller.actions.triggerAction(e, 'image_remove_bg');
-                });
-            }
-            if (buttons.imageRemoveText) {
-                this._add(buttons.imageRemoveText, 'click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.controller.actions.triggerAction(e, 'image_remove_text');
-                });
-            }
-            if (buttons.imageRemoveWatermark) {
-                this._add(buttons.imageRemoveWatermark, 'click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.controller.actions.triggerAction(e, 'image_remove_watermark');
-                });
-            }
-            if (buttons.imageUpscale) {
-                this._add(buttons.imageUpscale, 'click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.controller.actions.triggerAction(e, 'image_upscale');
-                });
-            }
-            if (buttons.imageExpand) {
-                this._add(buttons.imageExpand, 'click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.controller.actions.triggerAction(e, 'image_expand');
-                });
-            }
-
-            // --- Window Actions ---
-            this._add(buttons.headerClose, 'click', (e) => this.controller.actions.cancelAsk(e));
-            this._add(buttons.stop, 'click', (e) => this.controller.actions.stopAsk(e));
-
-            if (buttons.continue) {
-                this._add(buttons.continue, 'click', (e) =>
-                    this.controller.actions.continueChat(e)
-                );
-            }
-            if (buttons.copy) {
-                this._add(buttons.copy, 'click', (e) => this.controller.actions.copyResult(e));
-            }
-            if (buttons.retry) {
-                this._add(buttons.retry, 'click', (e) => this.controller.actions.retryAsk(e));
-            }
-            if (buttons.insert) {
-                this._add(buttons.insert, 'click', (e) => this.controller.actions.insertResult(e));
-            }
-            if (buttons.replace) {
-                this._add(buttons.replace, 'click', (e) =>
-                    this.controller.actions.replaceResult(e)
-                );
-            }
-
-            // --- Input ---
-            this._add(askInput, 'keydown', (e) => {
-                if (e.key === 'Enter' && !e.isComposing) {
-                    e.preventDefault();
-                    this.controller.actions.submitAsk(e);
-                }
-                e.stopPropagation();
+            WINDOW_ACTIONS.forEach(([buttonName, methodName]) => {
+                this._bindActionMethod(buttons[buttonName], methodName);
             });
 
-            // --- Model Selection ---
-            this._add(askModelSelect, 'change', (e) => {
-                this.controller.handleModelChange(e.target.value);
+            this._add(askInput, 'keydown', (event) => {
+                if (event.key === 'Enter' && !event.isComposing) {
+                    event.preventDefault();
+                    this.controller.actions.submitAsk(event);
+                }
+                event.stopPropagation();
+            });
+
+            this._add(askModelSelect, 'change', (event) => {
+                this.controller.handleModelChange(event.target.value);
                 const Utils = window.GeminiViewUtils;
-                if (Utils && Utils.resizeSelect) Utils.resizeSelect(e.target);
+                if (Utils && Utils.resizeSelect) Utils.resizeSelect(event.target);
             });
 
             // Prevent event bubbling to page
             if (elements.askWindow) {
-                this._add(elements.askWindow, 'mousedown', (e) => e.stopPropagation());
+                this._add(elements.askWindow, 'mousedown', (event) => event.stopPropagation());
             }
 
-            // Code Copy Delegation inside Result Area
-            // Use .codeCopy property to access handler
             if (elements.resultText) {
-                this._add(elements.resultText, 'click', (e) => this.controller.codeCopy.handle(e));
+                this._add(elements.resultText, 'click', (event) =>
+                    this.controller.codeCopy.handle(event)
+                );
             }
 
             this._initResizeObserver(askWindow);
@@ -164,12 +95,12 @@
             document.addEventListener('keydown', this.handleGlobalKeydown, true);
         }
 
-        handleGlobalKeydown(e) {
-            if (e.key === 'Escape') {
+        handleGlobalKeydown(event) {
+            if (event.key === 'Escape') {
                 if (this.controller.isWindowVisible()) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.controller.actions.cancelAsk(e);
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.controller.actions.cancelAsk(event);
                 } else if (this.controller.isVisible()) {
                     // Hides small toolbar (selection or image button)
                     this.controller.hide();
@@ -178,17 +109,31 @@
             }
         }
 
-        _add(el, event, handler) {
-            if (el) {
-                el.addEventListener(event, handler);
+        _add(element, event, handler) {
+            if (element) {
+                element.addEventListener(event, handler);
             }
+        }
+
+        _bindTrigger(button, eventName, actionName, { stopPropagation = false } = {}) {
+            this._add(button, eventName, (event) => {
+                if (stopPropagation) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                this.controller.actions.triggerAction(event, actionName);
+            });
+        }
+
+        _bindActionMethod(button, methodName) {
+            this._add(button, 'click', (event) => this.controller.actions[methodName](event));
         }
 
         _initResizeObserver(targetElement) {
             if (!targetElement) return;
 
             this.resizeObserver = new ResizeObserver((entries) => {
-                for (let entry of entries) {
+                for (const entry of entries) {
                     if (this.controller.isWindowVisible()) {
                         let width, height;
                         if (entry.borderBoxSize && entry.borderBoxSize.length > 0) {
@@ -208,10 +153,59 @@
             this.resizeObserver.observe(targetElement);
         }
 
+        _bindSubmenuPlacement(imageBtn) {
+            if (!imageBtn || typeof imageBtn.querySelectorAll !== 'function') return;
+
+            const submenuTriggers = imageBtn.querySelectorAll('.has-submenu');
+            submenuTriggers.forEach((trigger) => {
+                const handler = () => this._positionSubmenu(trigger);
+                trigger.addEventListener('mouseenter', handler);
+                trigger.addEventListener('focusin', handler);
+                this.submenuPlacementHandlers.push({ trigger, handler });
+            });
+        }
+
+        _positionSubmenu(trigger) {
+            const submenu = trigger?.querySelector?.('.submenu');
+            if (!submenu) return;
+
+            trigger.classList.remove('submenu-open-left');
+            submenu.style.setProperty('--submenu-offset-y', '0px');
+
+            const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+            const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+            const edgePadding = 8;
+            const triggerRect = trigger.getBoundingClientRect();
+            const submenuRect = submenu.getBoundingClientRect();
+
+            const wouldOverflowRight = submenuRect.right > viewportWidth - edgePadding;
+            const hasMoreRoomOnLeft =
+                triggerRect.left >= viewportWidth - triggerRect.right ||
+                triggerRect.left >= submenuRect.width + edgePadding;
+            if (wouldOverflowRight && hasMoreRoomOnLeft) {
+                trigger.classList.add('submenu-open-left');
+            }
+
+            let offsetY = 0;
+            if (submenuRect.bottom > viewportHeight - edgePadding) {
+                offsetY -= submenuRect.bottom - (viewportHeight - edgePadding);
+            }
+            if (submenuRect.top + offsetY < edgePadding) {
+                offsetY += edgePadding - (submenuRect.top + offsetY);
+            }
+
+            submenu.style.setProperty('--submenu-offset-y', `${Math.round(offsetY)}px`);
+        }
+
         disconnect() {
             if (this.resizeObserver) {
                 this.resizeObserver.disconnect();
             }
+            this.submenuPlacementHandlers.forEach(({ trigger, handler }) => {
+                trigger.removeEventListener('mouseenter', handler);
+                trigger.removeEventListener('focusin', handler);
+            });
+            this.submenuPlacementHandlers = [];
             document.removeEventListener('keydown', this.handleGlobalKeydown, true);
         }
     }

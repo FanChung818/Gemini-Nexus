@@ -1,4 +1,3 @@
-// background/index.js
 import { GeminiSessionManager } from './managers/session_manager.js';
 import { ImageManager } from './managers/image_manager.js';
 import { BrowserControlManager } from './managers/control_manager.js';

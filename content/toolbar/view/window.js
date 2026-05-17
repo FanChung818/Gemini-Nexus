@@ -1,4 +1,3 @@
-// content/toolbar/view/window.js
 (function () {
     const Utils = window.GeminiViewUtils;
     const ICONS = window.GeminiToolbarIcons;
@@ -31,8 +30,7 @@
                 link.href = href;
                 link.target = '_blank';
                 link.rel = 'noopener noreferrer';
-                link.style.color = 'inherit';
-                link.style.textDecoration = 'underline';
+                link.className = 'gemini-error-link';
                 link.textContent = node.textContent || href;
                 target.appendChild(link);
                 return;
@@ -54,6 +52,56 @@
         template.content.childNodes.forEach((node) => appendSanitizedErrorNode(target, node));
     }
 
+    function createErrorIcon() {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', '20');
+        svg.setAttribute('height', '20');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '2');
+        svg.setAttribute('stroke-linecap', 'round');
+        svg.setAttribute('stroke-linejoin', 'round');
+
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', '12');
+        circle.setAttribute('cy', '12');
+        circle.setAttribute('r', '10');
+
+        const verticalLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        verticalLine.setAttribute('x1', '12');
+        verticalLine.setAttribute('y1', '8');
+        verticalLine.setAttribute('x2', '12');
+        verticalLine.setAttribute('y2', '12');
+
+        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        dot.setAttribute('x1', '12');
+        dot.setAttribute('y1', '16');
+        dot.setAttribute('x2', '12.01');
+        dot.setAttribute('y2', '16');
+
+        svg.append(circle, verticalLine, dot);
+        return svg;
+    }
+
+    function createErrorShell(titleText) {
+        const card = document.createElement('div');
+        card.className = 'gemini-error-card';
+
+        const title = document.createElement('div');
+        title.className = 'gemini-error-title';
+
+        const label = document.createElement('span');
+        label.textContent = titleText;
+        title.append(createErrorIcon(), label);
+
+        const body = document.createElement('div');
+        body.className = 'gemini-error-text';
+
+        card.append(title, body);
+        return { card, body };
+    }
+
     async function getSavedWindowSize() {
         const storage = globalThis.chrome?.storage?.local;
         if (!storage || typeof storage.get !== 'function') return null;
@@ -72,6 +120,10 @@
     class WindowView {
         constructor(elements) {
             this.elements = elements;
+            this.imagePreview = new window.GeminiImagePreviewController({
+                resultText: this.elements.resultText,
+                askWindow: this.elements.askWindow,
+            });
         }
 
         async show(rect, contextText, title, resetDrag = null, mousePoint = null) {
@@ -199,17 +251,9 @@
         showError(text) {
             if (!this.elements.askWindow) return;
 
-            // Render Error UI with Retry hint
-            this.elements.resultText.innerHTML = `
-                <div style="padding: 12px 0; color: #d93025;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-weight: 600;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                        <span>${window.GeminiToolbarStrings?.error || 'Error'}</span>
-                    </div>
-                    <div class="gemini-error-text" style="font-size: 14px; line-height: 1.5; color: #1f1f1f;"></div>
-                </div>
-             `;
-            appendErrorText(this.elements.resultText.querySelector('.gemini-error-text'), text);
+            const { card, body } = createErrorShell(window.GeminiToolbarStrings?.error || 'Error');
+            this.elements.resultText.replaceChildren(card);
+            appendErrorText(body, text);
 
             // Show Footer with Actions (Retry is in footer-left)
             if (this.elements.windowFooter) this.elements.windowFooter.classList.remove('hidden');

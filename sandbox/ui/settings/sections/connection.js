@@ -1,5 +1,3 @@
-// sandbox/ui/settings/sections/connection.js
-import { sendToBackground } from '../../../../shared/messaging/index.js';
 import {
     DEFAULT_MCP_TRANSPORT,
     DEFAULT_OFFICIAL_BASE_URL,
@@ -18,6 +16,7 @@ import {
     normalizeOpenAISettings,
     parseMcpHeadersText,
 } from './connection_utils.js';
+import { bindConnectionSectionEvents } from './connection_events.js';
 import { renderMcpToolsUI } from './mcp_tools_view.js';
 import { t } from '../../../core/i18n.js';
 
@@ -91,184 +90,7 @@ export class ConnectionSection {
     }
 
     bindEvents() {
-        const { providerSelect } = this.elements;
-        if (providerSelect) {
-            providerSelect.addEventListener('change', (e) => {
-                this.updateVisibility(e.target.value);
-            });
-        }
-
-        const { mcpEnabled } = this.elements;
-        if (mcpEnabled) {
-            mcpEnabled.addEventListener('change', (e) => {
-                this.updateMcpVisibility(e.target.checked === true);
-            });
-        }
-
-        const {
-            mcpServerSelect,
-            mcpAddServer,
-            mcpRemoveServer,
-            mcpServerName,
-            mcpTransport,
-            mcpServerUrl,
-            mcpHeaders,
-            mcpServerEnabled,
-            mcpTestConnection,
-            mcpToolMode,
-            mcpRefreshTools,
-            mcpEnableAllTools,
-            mcpDisableAllTools,
-            mcpToolSearch,
-        } = this.elements;
-
-        if (mcpServerSelect) {
-            mcpServerSelect.addEventListener('change', (e) => {
-                this._saveCurrentServerEdits();
-                this.mcpActiveServerId = e.target.value;
-                this._loadActiveServerIntoForm();
-                this._renderMcpServerOptions();
-                this.setMcpTestStatus('');
-            });
-        }
-
-        if (mcpAddServer) {
-            mcpAddServer.addEventListener('click', () => {
-                this._saveCurrentServerEdits();
-                const server = this._getDefaultServer();
-                this.mcpServers.push(server);
-                this.mcpActiveServerId = server.id;
-                this._renderMcpServerOptions();
-                this._loadActiveServerIntoForm();
-                this.setMcpTestStatus('');
-            });
-        }
-
-        if (mcpRemoveServer) {
-            mcpRemoveServer.addEventListener('click', () => {
-                this._saveCurrentServerEdits();
-                const id = this.mcpActiveServerId;
-                if (!id) return;
-
-                this.mcpServers = this.mcpServers.filter((s) => s.id !== id);
-
-                if (this.mcpServers.length === 0) {
-                    const server = this._getDefaultServer();
-                    server.enabled = false;
-                    this.mcpServers = [server];
-                }
-
-                this.mcpActiveServerId = this.mcpServers[0].id;
-                this._renderMcpServerOptions();
-                this._loadActiveServerIntoForm();
-                this.setMcpTestStatus('');
-            });
-        }
-
-        const onEdit = () => {
-            this._saveCurrentServerEdits();
-            this._renderMcpServerOptions();
-        };
-
-        if (mcpServerName) mcpServerName.addEventListener('input', onEdit);
-        if (mcpServerUrl) mcpServerUrl.addEventListener('input', onEdit);
-        if (mcpHeaders) mcpHeaders.addEventListener('input', onEdit);
-        if (mcpTransport) {
-            mcpTransport.addEventListener('change', () => {
-                const server = this._getActiveServer();
-                const prevTransport = server ? server.transport || 'sse' : 'sse';
-                const nextTransport = mcpTransport.value || 'sse';
-
-                // Update placeholder to match transport.
-                if (mcpServerUrl) {
-                    mcpServerUrl.placeholder = this._getDefaultUrlForTransport(nextTransport);
-                }
-
-                // If URL is empty OR still equal to the previous transport default, swap to new default.
-                if (server && mcpServerUrl) {
-                    const currentUrl = (mcpServerUrl.value || '').trim();
-                    const prevDefault = this._getDefaultUrlForTransport(prevTransport);
-                    if (!currentUrl || currentUrl === prevDefault) {
-                        mcpServerUrl.value = this._getDefaultUrlForTransport(nextTransport);
-                    }
-                }
-
-                onEdit();
-            });
-        }
-        if (mcpServerEnabled) mcpServerEnabled.addEventListener('change', onEdit);
-
-        if (mcpToolMode) {
-            mcpToolMode.addEventListener('change', () => {
-                this._saveCurrentServerEdits();
-                this._renderToolsUI();
-            });
-        }
-
-        if (mcpToolSearch) {
-            mcpToolSearch.addEventListener('input', () => {
-                this._renderToolsUI();
-            });
-        }
-
-        if (mcpRefreshTools) {
-            mcpRefreshTools.addEventListener('click', () => {
-                if (!this._saveCurrentServerEdits()) return;
-                const server = this._getActiveServer();
-                if (!server) return;
-
-                this.setMcpTestStatus(t('mcpFetchingTools'));
-                sendToBackground({
-                    action: 'MCP_LIST_TOOLS',
-                    serverId: server.id,
-                    requestKey: this._serverKey(server),
-                    transport: inferMcpTransport(server.transport, server.url),
-                    url: server.url || '',
-                    headers: normalizeMcpHeaders(server.headers),
-                });
-            });
-        }
-
-        if (mcpEnableAllTools) {
-            mcpEnableAllTools.addEventListener('click', () => {
-                const server = this._getActiveServer();
-                if (!server) return;
-                const cached = this._getCachedTools(server);
-                if (!cached || cached.length === 0) return;
-                server.toolMode = 'selected';
-                server.enabledTools = cached.map((t) => t.name).filter(Boolean);
-                this._loadActiveServerIntoForm();
-                this._renderToolsUI();
-            });
-        }
-
-        if (mcpDisableAllTools) {
-            mcpDisableAllTools.addEventListener('click', () => {
-                const server = this._getActiveServer();
-                if (!server) return;
-                server.toolMode = 'selected';
-                server.enabledTools = [];
-                this._loadActiveServerIntoForm();
-                this._renderToolsUI();
-            });
-        }
-
-        if (mcpTestConnection) {
-            mcpTestConnection.addEventListener('click', () => {
-                if (!this._saveCurrentServerEdits()) return;
-                const server = this._getActiveServer();
-                if (!server) return;
-
-                this.setMcpTestStatus(t('mcpTestingConnection'));
-                sendToBackground({
-                    action: 'MCP_TEST_CONNECTION',
-                    serverId: server.id,
-                    transport: inferMcpTransport(server.transport, server.url),
-                    url: server.url || '',
-                    headers: normalizeMcpHeaders(server.headers),
-                });
-            });
-        }
+        bindConnectionSectionEvents(this);
     }
 
     setData(data) {
@@ -422,15 +244,15 @@ export class ConnectionSection {
         if (!apiKeyContainer) return;
 
         if (provider === 'web') {
-            apiKeyContainer.style.display = 'none';
+            apiKeyContainer.hidden = true;
         } else {
-            apiKeyContainer.style.display = 'flex';
+            apiKeyContainer.hidden = false;
             if (provider === 'official') {
-                if (officialFields) officialFields.style.display = 'flex';
-                if (openaiFields) openaiFields.style.display = 'none';
+                if (officialFields) officialFields.hidden = false;
+                if (openaiFields) openaiFields.hidden = true;
             } else if (provider === 'openai') {
-                if (officialFields) officialFields.style.display = 'none';
-                if (openaiFields) openaiFields.style.display = 'flex';
+                if (officialFields) officialFields.hidden = true;
+                if (openaiFields) openaiFields.hidden = false;
             }
         }
     }
@@ -438,7 +260,7 @@ export class ConnectionSection {
     updateMcpVisibility(enabled) {
         const { mcpFields } = this.elements;
         if (!mcpFields) return;
-        mcpFields.style.display = enabled ? 'flex' : 'none';
+        mcpFields.hidden = !enabled;
     }
 
     _getActiveServer() {
@@ -471,8 +293,8 @@ export class ConnectionSection {
             try {
                 server.headers = parseMcpHeadersText(mcpHeaders.value);
                 this.setMcpTestStatus('');
-            } catch (e) {
-                this.setMcpTestStatus(e.message || t('mcpConnectionFailed'), true);
+            } catch (error) {
+                this.setMcpTestStatus(error.message || t('mcpConnectionFailed'), true);
                 return false;
             }
         }

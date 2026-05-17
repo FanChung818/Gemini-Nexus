@@ -6,8 +6,11 @@ import { AppController } from './app_controller.js';
 import { saveSessionsToStorage } from '../../shared/messaging/index.js';
 
 vi.mock('../render/message.js', () => ({
-    appendContextCompressionNotice: vi.fn(),
     appendMessage: vi.fn(),
+}));
+
+vi.mock('../render/context_compression.js', () => ({
+    appendContextCompressionNotice: vi.fn(),
 }));
 
 vi.mock('../../shared/dom/crop_utils.js', () => ({
@@ -131,9 +134,10 @@ describe('AppController session restore behavior', () => {
 
         expect(sessionManager.currentSessionId).toBeNull();
         expect(sessionManager.sessions).toEqual([expect.objectContaining({ id: 'real' })]);
-        expect(saveSessionsToStorage).toHaveBeenCalledWith([
-            expect.objectContaining({ id: 'real' }),
-        ]);
+        expect(saveSessionsToStorage).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: 'real' })],
+            { type: 'pruneSessions' }
+        );
         expect(window.parent.postMessage).toHaveBeenCalledWith(
             {
                 action: 'SAVE_SIDE_PANEL_SESSION_BINDING',

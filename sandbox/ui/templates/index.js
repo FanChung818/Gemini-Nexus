@@ -1,5 +1,3 @@
-// sandbox/ui/templates/index.js
-
 export { SidebarTemplate } from './sidebar.js';
 export { SettingsTemplate } from './settings/index.js';
 export { HeaderTemplate } from './header.js';

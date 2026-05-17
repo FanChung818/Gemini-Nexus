@@ -1,4 +1,3 @@
-// background/managers/session/request_dispatcher.js
 import { sendOfficialMessage } from '../../../services/providers/official.js';
 import { sendWebMessage } from '../../../services/providers/web.js';
 import { sendOpenAIMessage } from '../../../services/providers/openai_compatible.js';
@@ -374,10 +373,10 @@ export class RequestDispatcher {
                     sources: [],
                     context: null,
                 });
-            } catch (err) {
-                const message = err.message || '';
+            } catch (error) {
+                const message = error.message || '';
                 if (isUnavailableWebAuthError(message)) {
-                    throw err;
+                    throw error;
                 }
 
                 const isLoginError = isRefreshableWebAuthError(message);
@@ -392,7 +391,7 @@ export class RequestDispatcher {
                 if ((isLoginError || isNetworkGlitch) && attemptCount < maxAttempts) {
                     const type = isLoginError ? 'Auth' : 'Network';
                     console.warn(
-                        `[Gemini Nexus] ${type} error (${err.message}), retrying... (Attempt ${attemptCount}/${maxAttempts})`
+                        `[Gemini Nexus] ${type} error (${error.message}), retrying... (Attempt ${attemptCount}/${maxAttempts})`
                     );
 
                     if (isLoginError || isNetworkGlitch) {
@@ -404,11 +403,11 @@ export class RequestDispatcher {
 
                     const baseDelay = Math.pow(2, attemptCount) * 1000;
                     const jitter = Math.random() * 1000;
-                    await new Promise((r) => setTimeout(r, baseDelay + jitter));
+                    await new Promise((resolve) => setTimeout(resolve, baseDelay + jitter));
                     continue;
                 }
 
-                throw err;
+                throw error;
             }
         }
     }

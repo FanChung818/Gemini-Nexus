@@ -25,6 +25,7 @@ describe('copy button', () => {
 
         expect(copyToClipboard).toHaveBeenCalledWith('copy me');
         expect(button.innerHTML).not.toBe(originalIcon);
+        expect(button.textContent).toContain('已复制');
 
         vi.advanceTimersByTime(2000);
         expect(button.innerHTML).toBe(originalIcon);

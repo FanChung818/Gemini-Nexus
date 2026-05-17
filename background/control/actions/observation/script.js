@@ -1,4 +1,3 @@
-// background/control/actions/observation/script.js
 import { BaseActionHandler } from '../base.js';
 
 export class ScriptActions extends BaseActionHandler {
@@ -10,45 +9,38 @@ export class ScriptActions extends BaseActionHandler {
         try {
             const callArguments = [];
 
-            // 1. Resolve arguments: UIDs to ObjectIds
+            // Resolve UID arguments to CDP object IDs.
             if (args && Array.isArray(args)) {
                 for (const arg of args) {
                     if (typeof arg === 'object' && arg !== null && arg.uid) {
-                        // Argument is a DOM reference
                         try {
                             const objectId = await this.getObjectIdFromUid(arg.uid);
                             callArguments.push({ objectId });
-                        } catch (e) {
-                            return `Error: Could not resolve argument with uid ${arg.uid}: ${e.message}`;
+                        } catch (error) {
+                            return `Error: Could not resolve argument with uid ${arg.uid}: ${error.message}`;
                         }
                     } else {
-                        // Regular JSON argument
                         callArguments.push({ value: arg });
                     }
                 }
             }
 
-            // 2. Script Wrapping logic
             let functionDeclaration = script.trim();
 
-            // Heuristic to detect if it's already a function definition
             const isFunction =
                 /^(async\s+)?function\b/.test(functionDeclaration) ||
                 /^\(?[\w\s,]*\)?\s*=>/.test(functionDeclaration);
 
             if (!isFunction) {
-                // If it looks like a code block with an explicit return, wrap as statements
                 if (/\breturn\b/.test(functionDeclaration)) {
                     functionDeclaration = `async function() { ${functionDeclaration} }`;
                 } else {
-                    // Otherwise treat as an expression
                     functionDeclaration = `async function() { return (${functionDeclaration}); }`;
                 }
             }
 
-            // 3. Execution via CDP
-            const res = await this.cmd('Runtime.callFunctionOn', {
-                functionDeclaration: functionDeclaration,
+            const response = await this.cmd('Runtime.callFunctionOn', {
+                functionDeclaration,
                 arguments: callArguments,
                 executionContextId: undefined, // Default context
                 returnByValue: true, // Return JSON result
@@ -56,26 +48,24 @@ export class ScriptActions extends BaseActionHandler {
                 userGesture: true,
             });
 
-            // 4. Result Handling
-            if (res.exceptionDetails) {
-                const exc = res.exceptionDetails;
-                return `Script Exception: ${exc.text} ${exc.exception ? exc.exception.description : ''}`;
+            if (response.exceptionDetails) {
+                const exception = response.exceptionDetails;
+                return `Script Exception: ${exception.text} ${exception.exception ? exception.exception.description : ''}`;
             }
 
-            if (res.result) {
-                if (res.result.type === 'undefined') return 'undefined';
+            if (response.result) {
+                if (response.result.type === 'undefined') return 'undefined';
 
-                // Return structured JSON for objects, string for primitives
-                const val = res.result.value;
-                if (typeof val === 'object' && val !== null) {
-                    return JSON.stringify(val, null, 2);
+                const value = response.result.value;
+                if (typeof value === 'object' && value !== null) {
+                    return JSON.stringify(value, null, 2);
                 }
-                return String(val);
+                return String(value);
             }
 
             return 'undefined';
-        } catch (e) {
-            return `Error evaluating script: ${e.message}`;
+        } catch (error) {
+            return `Error evaluating script: ${error.message}`;
         }
     }
 }

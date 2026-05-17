@@ -1,4 +1,4 @@
-// background/managers/keep_alive.js
+import { debugLog } from '../../shared/logging/debug.js';
 
 const ALARM_NAME = 'gemini_cookie_rotate';
 const ROTATE_URL = 'https://accounts.google.com/RotateCookies';
@@ -48,7 +48,7 @@ class KeepAliveManager {
         this.isRotating = true;
 
         try {
-            // console.debug("[Gemini Nexus] Keep-Alive: Rotating cookies...");
+            debugLog('[Gemini Nexus] Keep-Alive: Rotating cookies...');
 
             // This endpoint refreshes __Secure-1PSIDTS
             // Browser automatically handles the Cookie header in request and Set-Cookie in response
@@ -66,14 +66,14 @@ class KeepAliveManager {
             if (response.ok) {
                 this.lastRotation = Date.now();
                 this.consecutiveErrors = 0;
-                // console.debug("[Gemini Nexus] Keep-Alive: Rotation successful");
+                debugLog('[Gemini Nexus] Keep-Alive: Rotation successful');
             } else {
                 this.consecutiveErrors++;
                 this._handleError(response.status);
             }
-        } catch (e) {
+        } catch (error) {
             this.consecutiveErrors++;
-            console.error('[Gemini Nexus] Keep-Alive: Network error', e);
+            console.error('[Gemini Nexus] Keep-Alive: Network error', error);
         } finally {
             this.isRotating = false;
         }
@@ -85,7 +85,7 @@ class KeepAliveManager {
         // If 401 Unauthorized or 403 Forbidden, session is likely dead.
         // We clear the context so the next user action triggers a fresh auth check.
         if (status === 401 || status === 403) {
-            console.log('[Gemini Nexus] Session expired. Clearing local context.');
+            debugLog('[Gemini Nexus] Session expired. Clearing local context.');
             await chrome.storage.local.remove(['geminiContext']);
         }
 

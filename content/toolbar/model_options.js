@@ -10,11 +10,11 @@
     ]);
 
     const WEB_MODEL_OPTIONS = [
-        { val: 'gemini-3-flash', txt: 'Fast' },
-        { val: 'gemini-3-flash-thinking', txt: 'Thinking' },
-        { val: 'gemini-3-pro', txt: '3.1 Pro' },
-        { val: 'gemini-3.1-flash-image-preview', txt: 'Image Fast' },
-        { val: WEB_IMAGE_GENERATION_MODEL, txt: 'Image Pro' },
+        { value: 'gemini-3-flash', label: 'Fast' },
+        { value: 'gemini-3-flash-thinking', label: 'Thinking' },
+        { value: 'gemini-3-pro', label: '3.1 Pro' },
+        { value: 'gemini-3.1-flash-image-preview', label: 'Image Fast' },
+        { value: WEB_IMAGE_GENERATION_MODEL, label: 'Image Pro' },
     ];
 
     function createOptions() {
@@ -23,7 +23,7 @@
 
     function createOptionMarkup() {
         return WEB_MODEL_OPTIONS.map(
-            (option) => `<option value="${option.val}">${option.txt}</option>`
+            (option) => `<option value="${option.value}">${option.label}</option>`
         ).join('');
     }
 

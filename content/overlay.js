@@ -1,4 +1,78 @@
-// content/overlay.js
+const OVERLAY_STYLE_ID = 'gemini-nexus-overlay-styles';
+const OVERLAY_STYLE_TEXT = `
+    .gemini-nexus-capture-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 2147483647;
+        cursor: crosshair;
+        user-select: none;
+        overflow: hidden;
+    }
+
+    .gemini-nexus-capture-background {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+        filter: brightness(0.6);
+    }
+
+    .gemini-nexus-capture-selection {
+        position: fixed;
+        border: 2px solid #0b57d0;
+        background-color: rgba(11, 87, 208, 0.1);
+        display: none;
+        pointer-events: none;
+        z-index: 2147483648;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
+    }
+
+    .gemini-nexus-capture-selection.has-background {
+        overflow: hidden;
+    }
+
+    .gemini-nexus-capture-selection-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-size: 100vw 100vh;
+        background-repeat: no-repeat;
+        pointer-events: none;
+    }
+
+    .gemini-nexus-capture-hint {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: white;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-family: sans-serif;
+        pointer-events: none;
+        z-index: 2147483649;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+`;
+
+function ensureOverlayStyles() {
+    if (document.getElementById(OVERLAY_STYLE_ID)) return;
+    const style = document.createElement('style');
+    style.id = OVERLAY_STYLE_ID;
+    style.textContent = OVERLAY_STYLE_TEXT;
+    (document.head || document.documentElement).appendChild(style);
+}
 
 class SelectionOverlay {
     constructor() {
@@ -26,47 +100,30 @@ class SelectionOverlay {
     }
 
     createDOM(screenshotBase64) {
+        ensureOverlayStyles();
+
         this.overlay = document.createElement('div');
         this.overlay.id = 'gemini-nexus-overlay';
-        this.overlay.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.4); z-index: 2147483647;
-            cursor: crosshair; user-select: none;
-            overflow: hidden;
-        `;
+        this.overlay.className = 'gemini-nexus-capture-overlay';
 
         // Add the screenshot as a frozen background
         if (screenshotBase64) {
             this.backgroundImg = document.createElement('img');
             this.backgroundImg.src = screenshotBase64;
-            this.backgroundImg.style.cssText = `
-                position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                object-fit: cover; pointer-events: none;
-                filter: brightness(0.6);
-            `;
+            this.backgroundImg.className = 'gemini-nexus-capture-background';
             this.overlay.appendChild(this.backgroundImg);
         }
 
         this.selectionBox = document.createElement('div');
-        this.selectionBox.style.cssText = `
-            position: fixed; border: 2px solid #0b57d0;
-            background-color: rgba(11, 87, 208, 0.1);
-            display: none; pointer-events: none; z-index: 2147483648;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3); /* Cut-out effect */
-        `;
+        this.selectionBox.className = 'gemini-nexus-capture-selection';
 
         // If we have a background image, we can use it to create a high-contrast cut-out
         if (screenshotBase64) {
             const innerImg = document.createElement('div');
-            innerImg.style.cssText = `
-                position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-                background-image: url(${screenshotBase64});
-                background-size: 100vw 100vh;
-                background-repeat: no-repeat;
-                pointer-events: none;
-             `;
+            innerImg.className = 'gemini-nexus-capture-selection-image';
+            innerImg.style.backgroundImage = `url(${screenshotBase64})`;
             this.selectionBox.appendChild(innerImg);
-            this.selectionBox.style.overflow = 'hidden';
+            this.selectionBox.classList.add('has-background');
 
             // Dynamic position for innerImg to match viewport coordinates
             this.innerImgRef = innerImg;
@@ -78,13 +135,7 @@ class SelectionOverlay {
             window.GeminiToolbarStrings?.captureHint ||
             'Drag to capture area / Click anywhere to cancel';
 
-        this.hint.style.cssText = `
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-            color: white; background: rgba(0, 0, 0, 0.8);
-            padding: 8px 16px; border-radius: 20px; font-size: 14px;
-            font-family: sans-serif; pointer-events: none; z-index: 2147483649;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        `;
+        this.hint.className = 'gemini-nexus-capture-hint';
 
         this.overlay.appendChild(this.selectionBox);
         this.overlay.appendChild(this.hint);

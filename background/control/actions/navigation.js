@@ -1,4 +1,3 @@
-// background/control/actions/navigation.js
 import { BaseActionHandler } from './base.js';
 
 export class NavigationActions extends BaseActionHandler {
@@ -66,15 +65,15 @@ export class NavigationActions extends BaseActionHandler {
         let tab;
 
         if (background) {
-            // Step 2: Create independent Worker window (popup) to avoid throttling and visual interference
-            const win = await chrome.windows.create({
+            // Use an unfocused popup to avoid throttling and visual interference.
+            const popupWindow = await chrome.windows.create({
                 url: targetUrl,
                 type: 'popup',
                 focused: false,
                 width: 1280,
                 height: 800,
             });
-            tab = win.tabs[0];
+            tab = popupWindow.tabs[0];
         } else {
             const createOptions = { url: targetUrl };
             const windowId = this.getControlledWindowId();
@@ -105,18 +104,15 @@ export class NavigationActions extends BaseActionHandler {
 
     async listPages() {
         const tabs = await this.getScopedTabs();
-        return tabs.map((t, idx) => `${idx}: ${t.title} (${t.url})`).join('\n');
+        return tabs.map((tab, index) => `${index}: ${tab.title} (${tab.url})`).join('\n');
     }
 
     async selectPage({ index }) {
-        // Issue 01: Remove forced foreground switching
         const tabs = await this.getScopedTabs();
         const tab = tabs[index];
         if (!tab) return `Error: Index ${index} not found.`;
 
-        // Removed: await chrome.tabs.update(tab.id, { active: true });
-
-        // Return object with metadata so ControlManager can update the locked tab
+        // Return metadata so ControlManager can update the locked tab without forcing focus.
         return {
             output: `Selected page ${index} (Background Mode): ${tab.title}`,
             _meta: { switchTabId: tab.id },

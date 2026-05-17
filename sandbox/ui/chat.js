@@ -1,6 +1,6 @@
-// ui_chat.js -> sandbox/ui/chat.js
 import { t } from '../core/i18n.js';
 import { copyToClipboard } from '../render/clipboard.js';
+import '../../shared/ui/copy_feedback.js';
 
 export class ChatController {
     constructor(elements) {
@@ -60,15 +60,9 @@ export class ChatController {
                 try {
                     await copyToClipboard(codeEl.textContent);
 
-                    // Visual Feedback
-                    const originalHtml = btn.innerHTML;
-                    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>${t('copied')}</span>`;
-
-                    setTimeout(() => {
-                        btn.innerHTML = originalHtml;
-                    }, 2000);
-                } catch (err) {
-                    console.error('Failed to copy code', err);
+                    globalThis.GeminiCopyFeedback.showCopied(btn, t('copied'));
+                } catch (error) {
+                    console.error('Failed to copy code', error);
                 }
             });
         }

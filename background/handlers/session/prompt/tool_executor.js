@@ -1,4 +1,3 @@
-// background/handlers/session/prompt/tool_executor.js
 import { parseToolCommand } from '../utils.js';
 import { ToolDispatcher } from '../../../control/dispatcher.js';
 
@@ -107,6 +106,9 @@ export class ToolExecutor {
                 const isMultiServerTool = toolName.includes('__');
 
                 if (isMultiServerTool && isMultiServer) {
+                    const { server, routedToolName } = this.resolveRoutedMcpTool(toolName, servers);
+                    this.assertMcpToolEnabled(server, routedToolName);
+
                     // Multi-server mode: route by tool ID
                     remote = await this.mcpManager.callToolById(
                         toolName,
@@ -115,25 +117,23 @@ export class ToolExecutor {
                     );
                 } else if (isMultiServer) {
                     // Multi-server but plain tool name - try to find it in any server
-                    // First, check which server has this tool
                     const allTools = await this.mcpManager.listAllActiveTools(servers);
-                    const matchingTool = allTools.find((t) => t.name === toolName);
+                    const matchingTools = allTools.filter((t) => t.name === toolName);
 
-                    if (!matchingTool) {
+                    if (matchingTools.length === 0) {
                         throw new Error(`Tool '${toolName}' not found in any enabled MCP server.`);
                     }
 
-                    // Check if tool is enabled for its server
-                    const server = servers.find((s) => s.id === matchingTool._serverId);
-                    if (server && server.toolMode === 'selected') {
-                        const enabled = Array.isArray(server.enabledTools)
-                            ? new Set(server.enabledTools)
-                            : new Set();
-                        if (!enabled.has(toolName)) {
-                            throw new Error(
-                                `External MCP tool '${toolName}' is disabled (not in selected tools).`
-                            );
-                        }
+                    const matchingTool = matchingTools.find((tool) => {
+                        const server = servers.find((s) => s.id === tool._serverId);
+                        return this.isMcpToolEnabled(server, toolName);
+                    });
+
+                    if (!matchingTool) {
+                        const firstServer = servers.find(
+                            (s) => s.id === matchingTools[0]._serverId
+                        );
+                        this.assertMcpToolEnabled(firstServer, toolName);
                     }
 
                     remote = await this.mcpManager.callToolById(
@@ -163,9 +163,10 @@ export class ToolExecutor {
 
                 output = remote.text;
                 files = remote.files && remote.files.length ? remote.files : null;
+                if (remote.isError === true) status = 'failed';
             }
-        } catch (err) {
-            output = `Error executing tool: ${err.message}`;
+        } catch (error) {
+            output = `Error executing tool: ${error.message}`;
             status = 'failed';
         }
 
@@ -214,6 +215,34 @@ export class ToolExecutor {
             parts.push(String(callIndex));
         }
         return parts.join('|');
+    }
+
+    resolveRoutedMcpTool(toolName, servers) {
+        const sep = typeof toolName === 'string' ? toolName.indexOf('__') : -1;
+        const serverId = sep === -1 ? '' : toolName.slice(0, sep);
+        const routedToolName = sep === -1 ? toolName : toolName.slice(sep + 2);
+        const server = servers.find((candidate) => candidate && candidate.id === serverId);
+
+        if (!server) {
+            throw new Error(`Server not found: ${serverId}`);
+        }
+
+        return { server, routedToolName };
+    }
+
+    assertMcpToolEnabled(server, toolName) {
+        if (this.isMcpToolEnabled(server, toolName)) return;
+
+        throw new Error(`External MCP tool '${toolName}' is disabled (not in selected tools).`);
+    }
+
+    isMcpToolEnabled(server, toolName) {
+        if (!server || server.toolMode !== 'selected') return true;
+
+        const enabled = Array.isArray(server.enabledTools)
+            ? new Set(server.enabledTools)
+            : new Set();
+        return enabled.has(toolName);
     }
 
     sendToolStatus(request, status) {

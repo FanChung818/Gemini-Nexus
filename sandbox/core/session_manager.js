@@ -1,4 +1,3 @@
-// sandbox/core/session_manager.js
 import { generateUUID } from '../../shared/utils/index.js';
 import {
     getImageAttachmentDataUrls,
