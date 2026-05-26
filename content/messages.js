@@ -16,6 +16,30 @@
             });
         }
 
+        resetCaptureState() {
+            this.captureSource = null;
+            this.captureTargetSidePanelTabId = null;
+        }
+
+        handleCaptureFailure(request) {
+            const message = request.error || 'Capture failed';
+
+            if (this.captureSource === 'sidepanel') {
+                chrome.runtime.sendMessage({
+                    action: 'SCREEN_CAPTURE_ERROR',
+                    error: message,
+                    tabId: this.captureTargetSidePanelTabId,
+                });
+                this.resetCaptureState();
+                return;
+            }
+
+            if (this.toolbarController) {
+                this.toolbarController.showExtensionError(message);
+            }
+            this.resetCaptureState();
+        }
+
         handle(request, sender, sendResponse) {
             if (request.action === 'CONTEXT_MENU_ACTION') {
                 if (this.toolbarController) {
@@ -45,7 +69,9 @@
                     }
                 }
 
-                this.selectionOverlay.start(request.image);
+                this.selectionOverlay.start(request.image, {
+                    onCancel: () => this.resetCaptureState(),
+                });
                 sendResponse({ status: 'selection_started' });
                 return true;
             }
@@ -60,14 +86,19 @@
                             tabId: this.captureTargetSidePanelTabId,
                         },
                     });
-                    this.captureSource = null;
-                    this.captureTargetSidePanelTabId = null;
+                    this.resetCaptureState();
                 } else {
                     if (this.toolbarController) {
                         this.toolbarController.handleCropResult(request);
                     }
-                    this.captureTargetSidePanelTabId = null;
+                    this.resetCaptureState();
                 }
+                sendResponse({ status: 'ok' });
+                return true;
+            }
+
+            if (request.action === 'CROP_SCREENSHOT_FAILED') {
+                this.handleCaptureFailure(request);
                 sendResponse({ status: 'ok' });
                 return true;
             }

@@ -66,8 +66,12 @@
             preview.addEventListener('click', (event) => {
                 if (event.target === preview) this.close();
             });
+            closeButton.addEventListener('mousedown', (event) => {
+                event.stopPropagation();
+            });
             closeButton.addEventListener('click', (event) => {
                 event.preventDefault();
+                event.stopPropagation();
                 this.close();
             });
             preview.addEventListener('wheel', (event) => this.handleWheel(event), {
@@ -132,10 +136,7 @@
         }
 
         startPan(event) {
-            if (
-                event.button !== 0 ||
-                event.target?.classList?.contains('gemini-image-preview-close')
-            ) {
+            if (event.button !== 0 || event.target?.closest?.('.gemini-image-preview-close')) {
                 return;
             }
             event.preventDefault();

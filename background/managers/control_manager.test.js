@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BrowserControlManager } from './control_manager.js';
+import {
+    BrowserControlManager,
+    DEFAULT_BROWSER_CONTROL_START_URL,
+} from './control_manager.js';
 
 function setupChrome() {
     globalThis.chrome = {
@@ -19,6 +22,27 @@ function setupChrome() {
                     title: 'OpenAI News | OpenAI',
                     url: 'https://openai.com/news/',
                     active: true,
+                    windowId: 1,
+                })
+            ),
+            query: vi.fn(() =>
+                Promise.resolve([
+                    {
+                        id: 42,
+                        title: 'OpenAI News | OpenAI',
+                        url: 'https://openai.com/news/',
+                        active: true,
+                        windowId: 1,
+                    },
+                ])
+            ),
+            create: vi.fn(() =>
+                Promise.resolve({
+                    id: 700,
+                    title: 'Google Search',
+                    url: DEFAULT_BROWSER_CONTROL_START_URL,
+                    active: false,
+                    windowId: 1,
                 })
             ),
             onUpdated: { addListener: vi.fn() },
@@ -95,6 +119,53 @@ describe('BrowserControlManager native tab group indicator', () => {
         expect(chrome.tabs.group).toHaveBeenNthCalledWith(2, { groupId: 9, tabIds: [77] });
     });
 
+    it('ignores stale async tab lookups after the control target changes', async () => {
+        const pendingTabLookups = new Map();
+        chrome.tabs.get = vi.fn(
+            (tabId) =>
+                new Promise((resolve) => {
+                    pendingTabLookups.set(tabId, resolve);
+                })
+        );
+        chrome.tabs.group = vi.fn(() => Promise.resolve(9));
+        const manager = new BrowserControlManager();
+
+        manager.setTargetTab(42);
+        manager.setTargetTab(77);
+
+        pendingTabLookups.get(77)({
+            id: 77,
+            title: 'Current tab',
+            url: 'https://current.test/',
+            active: true,
+            windowId: 1,
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        pendingTabLookups.get(42)({
+            id: 42,
+            title: 'Stale tab',
+            url: 'https://stale.test/',
+            active: false,
+            windowId: 1,
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(manager.lockedTabId).toBe(77);
+        expect(manager.connection.targetTabId).toBe(77);
+        expect(chrome.tabs.group).toHaveBeenCalledTimes(1);
+        expect(chrome.tabs.group).toHaveBeenCalledWith({ tabIds: [77] });
+        expect(chrome.tabs.group).not.toHaveBeenCalledWith({ groupId: 9, tabIds: [42] });
+        expect(chrome.runtime.sendMessage).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                action: 'TAB_LOCKED',
+                tab: expect.objectContaining({ id: 77 }),
+            })
+        );
+    });
+
     it('does not fail when tab group APIs are unavailable', async () => {
         delete chrome.tabs.group;
         delete chrome.tabGroups;
@@ -102,6 +173,63 @@ describe('BrowserControlManager native tab group indicator', () => {
 
         expect(() => manager.setTargetTab(42)).not.toThrow();
         await Promise.resolve();
+    });
+
+    it('creates a background Google search tab for standalone chat browser control', async () => {
+        chrome.tabs.group = vi.fn(({ groupId }) => Promise.resolve(groupId ?? 9));
+        chrome.tabs.get = vi.fn((tabId) =>
+            Promise.resolve(
+                tabId === 700
+                    ? {
+                          id: 700,
+                          title: 'Google Search',
+                          url: DEFAULT_BROWSER_CONTROL_START_URL,
+                          active: false,
+                          windowId: 1,
+                      }
+                    : {
+                          id: 42,
+                          title: 'Gemini Nexus',
+                          url: 'chrome-extension://id/sidepanel/index.html',
+                          active: true,
+                          windowId: 1,
+                      }
+            )
+        );
+        const manager = new BrowserControlManager();
+
+        const enabled = await manager.enableControl({ createDefaultTab: true });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(chrome.tabs.create).toHaveBeenCalledWith({
+            url: DEFAULT_BROWSER_CONTROL_START_URL,
+            active: false,
+            windowId: 1,
+        });
+        expect(enabled).toBe(true);
+        expect(manager.getTargetTabId()).toBe(700);
+        expect(manager.connection.currentTabId).toBe(700);
+        expect(chrome.tabs.group).toHaveBeenCalledWith({ tabIds: [700] });
+        expect(chrome.tabGroups.update).toHaveBeenCalledWith(9, {
+            title: 'Browser control',
+            color: 'green',
+            collapsed: false,
+        });
+    });
+
+    it('keeps normal browser control on the active webpage without creating a default tab', async () => {
+        chrome.tabs.group = vi.fn(() => Promise.resolve(9));
+        const manager = new BrowserControlManager();
+
+        const enabled = await manager.enableControl();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(enabled).toBe(true);
+        expect(chrome.tabs.create).not.toHaveBeenCalled();
+        expect(manager.getTargetTabId()).toBe(42);
+        expect(chrome.tabs.group).toHaveBeenCalledWith({ tabIds: [42] });
     });
 
     it('rejects switching control to a tab outside the controlled group', async () => {
@@ -214,9 +342,19 @@ describe('BrowserControlManager native tab group indicator', () => {
 
     it('reattaches before taking a snapshot when the locked tab changed', async () => {
         const manager = new BrowserControlManager();
+        chrome.tabs.get = vi.fn((tabId) =>
+            Promise.resolve({
+                id: tabId,
+                title: `Tab ${tabId}`,
+                url: `https://tab-${tabId}.test/`,
+                active: tabId === 77,
+                windowId: 1,
+            })
+        );
         const attach = vi.spyOn(manager.connection, 'attach').mockImplementation(async (tabId) => {
             manager.connection.attached = true;
             manager.connection.currentTabId = tabId;
+            return true;
         });
         manager.snapshotManager.takeSnapshot = vi.fn(() => Promise.resolve('new snapshot'));
         manager.connection.attached = true;
@@ -227,6 +365,32 @@ describe('BrowserControlManager native tab group indicator', () => {
 
         expect(attach).toHaveBeenCalledWith(77);
         expect(snapshot).toBe('new snapshot');
+    });
+
+    it('does not report a debugger connection as enabled when attach fails', async () => {
+        chrome.debugger.attach = vi.fn((target, version, callback) => {
+            chrome.runtime.lastError = { message: 'Another debugger is already attached.' };
+            callback();
+            chrome.runtime.lastError = null;
+        });
+        const manager = new BrowserControlManager();
+        manager.lockedTabId = 42;
+        manager.connection.targetTabId = 42;
+
+        const enabled = await manager.ensureConnection();
+
+        expect(enabled).toBe(false);
+        expect(manager.connection.attached).toBe(false);
+        expect(manager.connection.currentTabId).toBeNull();
+    });
+
+    it('returns true when the debugger is already attached to the requested tab', async () => {
+        const manager = new BrowserControlManager();
+        manager.connection.attached = true;
+        manager.connection.currentTabId = 42;
+
+        await expect(manager.connection.attach(42)).resolves.toBe(true);
+        expect(chrome.debugger.attach).not.toHaveBeenCalled();
     });
 
     it('does not enable retired diagnostics domains when attaching debugger', async () => {

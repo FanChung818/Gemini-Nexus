@@ -2,6 +2,7 @@
     const TOOLBAR_PROVIDER_STORAGE_KEY = 'geminiToolbarProvider';
     const TOOLBAR_MODEL_STORAGE_KEY = 'geminiToolbarModel';
     const TOOLBAR_OPENAI_MODEL_STORAGE_KEY = 'geminiToolbarOpenaiSelectedModel';
+    const TRANSLATION_TARGET_STORAGE_KEY = 'geminiTranslationTargets';
     const TOOLBAR_MODEL_STORAGE_KEYS = [
         TOOLBAR_PROVIDER_STORAGE_KEY,
         TOOLBAR_MODEL_STORAGE_KEY,
@@ -77,6 +78,9 @@
                     if (TOOLBAR_MODEL_STORAGE_KEYS.some((key) => changes[key])) {
                         this.syncSettings();
                     }
+                    if (changes[TRANSLATION_TARGET_STORAGE_KEY]) {
+                        this.ui.restoreTranslationTargets?.();
+                    }
                 }
             });
 
@@ -87,7 +91,18 @@
         }
 
         async syncSettings() {
-            const result = await chrome.storage.local.get(TOOLBAR_MODEL_STORAGE_KEYS);
+            let result;
+            try {
+                result = await chrome.storage.local.get(TOOLBAR_MODEL_STORAGE_KEYS);
+            } catch (error) {
+                console.warn(
+                    'Failed to sync toolbar provider/model settings:',
+                    error?.message || error
+                );
+                return;
+            }
+
+            result = result || {};
 
             const settings = {
                 provider: result.geminiProvider,
@@ -176,18 +191,7 @@
         }
 
         handleGeneratedImageResult(request) {
-            if (request.base64 && this.ui) {
-                this.ui
-                    .processImage(request.base64)
-                    .then((cleaned) => {
-                        this.ui.handleGeneratedImageResult({ ...request, base64: cleaned });
-                    })
-                    .catch(() => {
-                        this.ui.handleGeneratedImageResult(request);
-                    });
-                return;
-            }
-            this.ui.handleGeneratedImageResult(request);
+            if (this.ui) this.ui.handleGeneratedImageResult(request);
         }
 
         handleClick(event) {

@@ -71,6 +71,7 @@ describe('StandaloneSettingsBridge', () => {
                             geminiContextMode: 'recent',
                             geminiContextRecentTurns: 5,
                             geminiProvider: 'openai',
+                            geminiWebTemporaryChat: true,
                             geminiOpenaiModel: 'gpt-5',
                             geminiOpenaiSelectedModel: 'gpt-5',
                         })
@@ -111,6 +112,7 @@ describe('StandaloneSettingsBridge', () => {
             expect.objectContaining({
                 provider: 'openai',
                 selectedModel: 'gpt-5',
+                webTemporaryChat: true,
             })
         );
     });

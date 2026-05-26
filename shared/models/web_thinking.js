@@ -2,6 +2,11 @@ import { getWebModelHeaderConfig } from './web_models.js';
 
 export const DEFAULT_WEB_THINKING_LEVEL = 'high';
 export const WEB_THINKING_LEVELS = Object.freeze(['minimal', 'low', 'medium', 'high']);
+export const WEB_NATIVE_THINKING_LEVELS = Object.freeze({
+    STANDARD: 1,
+    EXTENDED: 2,
+    DEEP_THINK: 3,
+});
 
 export function normalizeWebThinkingLevel(level, fallback = DEFAULT_WEB_THINKING_LEVEL) {
     const normalized = String(level || '')
@@ -35,4 +40,12 @@ export function getNextWebThinkingLevel(model, currentLevel) {
     const normalized = normalizeWebThinkingLevelForModel(model, currentLevel);
     const fastLevel = getWebThinkingFastLevel(model);
     return normalized === fastLevel ? DEFAULT_WEB_THINKING_LEVEL : fastLevel;
+}
+
+export function getWebNativeThinkingLevel(model, level) {
+    const normalized = normalizeWebThinkingLevelForModel(model, level);
+    if (normalized === 'minimal' || normalized === 'low') {
+        return WEB_NATIVE_THINKING_LEVELS.STANDARD;
+    }
+    return WEB_NATIVE_THINKING_LEVELS.EXTENDED;
 }

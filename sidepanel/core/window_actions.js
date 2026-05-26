@@ -52,27 +52,13 @@ const WINDOW_MESSAGE_HANDLERS = {
         );
     },
     EXPORT_HISTORY_DATA() {
-        chrome.storage.local.get(HISTORY_STORAGE_KEYS, (result) => {
-            const exportPayload = buildHistoryExportPayload(result || {});
-            downloadText(
-                JSON.stringify(exportPayload, null, 2),
-                buildDataExportFilename('history'),
-                'application/json'
-            );
-        });
+        exportStorageData(HISTORY_STORAGE_KEYS, 'history', buildHistoryExportPayload);
     },
     IMPORT_HISTORY_DATA(payload, bridge) {
         bridge.importHistoryData(payload);
     },
     EXPORT_SETTINGS_DATA() {
-        chrome.storage.local.get(SETTINGS_STORAGE_KEYS, (result) => {
-            const exportPayload = buildSettingsExportPayload(result || {});
-            downloadText(
-                JSON.stringify(exportPayload, null, 2),
-                buildDataExportFilename('settings'),
-                'application/json'
-            );
-        });
+        exportStorageData(SETTINGS_STORAGE_KEYS, 'settings', buildSettingsExportPayload);
     },
     IMPORT_SETTINGS_DATA(payload, bridge) {
         bridge.importSettingsData(payload);
@@ -159,6 +145,28 @@ const WINDOW_MESSAGE_HANDLERS = {
         bridge.saveConnectionSettings(payload);
     },
 };
+
+function getRuntimeLastError() {
+    const message = chrome.runtime?.lastError?.message;
+    return message ? new Error(message) : null;
+}
+
+function exportStorageData(storageKeys, kind, buildPayload) {
+    chrome.storage.local.get(storageKeys, (result) => {
+        const readError = getRuntimeLastError();
+        if (readError) {
+            console.warn(`[Gemini Nexus] Failed to export ${kind} data:`, readError);
+            return;
+        }
+
+        const exportPayload = buildPayload(result || {});
+        downloadText(
+            JSON.stringify(exportPayload, null, 2),
+            buildDataExportFilename(kind),
+            'application/json'
+        );
+    });
+}
 
 export function handleWindowMessageAction(action, payload, bridge) {
     const handler = WINDOW_MESSAGE_HANDLERS[action];

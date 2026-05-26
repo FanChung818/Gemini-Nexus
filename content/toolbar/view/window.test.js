@@ -30,7 +30,10 @@ describe('WindowView', () => {
         window.GeminiViewLayout = {
             positionElement: vi.fn(),
         };
-        window.GeminiToolbarIcons = { COPY: 'copy' };
+        window.GeminiToolbarIcons = {
+            COPY: 'copy',
+            CLOSE: '<svg viewBox="0 0 24 24"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>',
+        };
         await import('./image_preview.js');
         await import('./translation_targets.js');
         await import('./window.js');
@@ -174,5 +177,36 @@ describe('WindowView', () => {
         preview.querySelector('.gemini-image-preview-close').click();
 
         expect(preview.classList.contains('visible')).toBe(false);
+    });
+
+    it('closes the zoom preview when the nested close icon is clicked', () => {
+        const elements = createElements();
+        document.body.appendChild(elements.askWindow);
+        const view = new window.GeminiViewWindow(elements);
+
+        view.showResult(
+            '<div class="generated-images-grid"><img class="generated-image" src="data:image/png;base64,CCCC" alt="Generated"></div>',
+            null,
+            false
+        );
+
+        elements.resultText.querySelector('.generated-image').click();
+
+        const preview = document.body.querySelector('.gemini-image-preview');
+        const closeIconPath = preview.querySelector('.gemini-image-preview-close path');
+        closeIconPath.dispatchEvent(
+            new MouseEvent('mousedown', {
+                button: 0,
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+
+        expect(preview.classList.contains('is-panning')).toBe(false);
+
+        closeIconPath.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+        expect(preview.classList.contains('visible')).toBe(false);
+        expect(preview.hidden).toBe(true);
     });
 });

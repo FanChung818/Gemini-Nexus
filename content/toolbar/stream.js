@@ -11,6 +11,8 @@
         }
 
         handleStreamMessage(request, sender, sendResponse) {
+            if (request.source && request.source !== 'toolbar') return false;
+
             if (request.action === 'GEMINI_STREAM_UPDATE') {
                 if (this.ui.isVisible()) {
                     this.ui.showResult(request.text, null, true);

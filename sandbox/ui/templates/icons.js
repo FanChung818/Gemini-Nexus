@@ -68,6 +68,24 @@ export const TemplateIcons = {
             <line x1="12" y1="15" x2="12" y2="3"></line>
         </svg>
     `,
+    UPLOAD: icon`
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+    `,
+    DATABASE: icon`
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+            <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"></path>
+            <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"></path>
+        </svg>
+    `,
     EDIT: icon`
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -205,11 +223,8 @@ export const TemplateIcons = {
     RELEASES: icon`
         <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor"
             stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
-            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
-            <line x1="6" y1="1" x2="6" y2="4"></line>
-            <line x1="10" y1="1" x2="10" y2="4"></line>
-            <line x1="14" y1="1" x2="14" y2="4"></line>
+            <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"></path>
+            <circle cx="7.5" cy="7.5" r=".5" fill="currentColor"></circle>
         </svg>
     `,
     SEARCH: icon`
@@ -299,8 +314,10 @@ export const TemplateIcons = {
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
-            <path d="M2 6h20v13a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z"/>
-            <path d="M2 6l2.5-3.5A2 2 0 0 1 6.1 1h11.8a2 2 0 0 1 1.6 1.5L22 6"/>
+            <rect x="7" y="3" width="14" height="12" rx="2"></rect>
+            <path d="M7 7h14"></path>
+            <path d="M3 8v11a2 2 0 0 0 2 2h12"></path>
+            <path d="M3 12h4"></path>
         </svg>
     `,
     ZAP: icon`

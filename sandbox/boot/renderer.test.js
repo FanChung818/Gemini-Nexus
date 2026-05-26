@@ -17,12 +17,6 @@ vi.mock('../../shared/utils/index.js', () => ({
     getHighResImageUrl: (url) => `${url}?highres=1`,
 }));
 
-vi.mock('../../shared/media/watermark_remover.js', () => ({
-    WatermarkRemover: {
-        process: vi.fn(),
-    },
-}));
-
 describe('renderer mode', () => {
     beforeEach(() => {
         mockIds.next = 1;

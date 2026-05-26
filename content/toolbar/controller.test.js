@@ -11,6 +11,7 @@ function installControllerDependencies() {
         showAskWindow: vi.fn(),
         showError: vi.fn(),
         setCustomSelectionTools: vi.fn(),
+        restoreTranslationTargets: vi.fn(),
     };
 
     window.GeminiToolbarUI = vi.fn(() => uiInstance);
@@ -99,6 +100,24 @@ describe('GeminiToolbarController model persistence', () => {
         );
     });
 
+    it('keeps the current toolbar model UI when provider settings cannot be read', async () => {
+        chrome.storage.local.get.mockRejectedValueOnce(new Error('Storage unavailable'));
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        try {
+            new window.GeminiToolbarController();
+            await Promise.resolve();
+
+            expect(ui.updateModelList).not.toHaveBeenCalled();
+            expect(warnSpy).toHaveBeenCalledWith(
+                'Failed to sync toolbar provider/model settings:',
+                'Storage unavailable'
+            );
+        } finally {
+            warnSpy.mockRestore();
+        }
+    });
+
     it('saves toolbar model changes without overwriting the sidepanel model key', () => {
         const controller = new window.GeminiToolbarController();
 
@@ -140,6 +159,23 @@ describe('GeminiToolbarController model persistence', () => {
         expect(chrome.storage.local.set).not.toHaveBeenCalledWith({
             geminiOpenaiSelectedModel: 'gpt-5.1',
         });
+    });
+
+    it('restores toolbar translation targets when imported settings update storage', () => {
+        new window.GeminiToolbarController();
+        const listener = chrome.storage.onChanged.addListener.mock.calls[0][0];
+
+        listener(
+            {
+                geminiTranslationTargets: {
+                    oldValue: ['auto'],
+                    newValue: ['ja'],
+                },
+            },
+            'local'
+        );
+
+        expect(ui.restoreTranslationTargets).toHaveBeenCalled();
     });
 
     it('opens a lightweight input window for extension errors', () => {

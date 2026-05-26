@@ -3,6 +3,7 @@ import {
     assertCurrentAttachmentsSupported,
     buildChatMessages,
     buildResponsesInput,
+    hasImageAttachmentsInRequest,
     normalizeBaseUrl,
 } from './openai_payloads.js';
 import {
@@ -14,6 +15,15 @@ import {
     readErrorMessage,
 } from './openai_response_extractors.js';
 import { readSseJson } from './sse.js';
+
+function isXAIBaseUrl(baseUrl) {
+    try {
+        const hostname = new URL(baseUrl).hostname.toLowerCase();
+        return hostname === 'x.ai' || hostname.endsWith('.x.ai');
+    } catch {
+        return false;
+    }
+}
 
 /**
  * Sends a message using an OpenAI Compatible API.
@@ -144,11 +154,16 @@ async function sendOpenAIResponsesMessage(
 ) {
     const { baseUrl, apiKey, model } = config;
     const url = `${baseUrl}/responses`;
+    const hasImages = hasImageAttachmentsInRequest(history, files);
     const payload = {
         model,
         input: buildResponsesInput(prompt, history, files),
         stream: true,
     };
+
+    if (hasImages && isXAIBaseUrl(baseUrl)) {
+        payload.store = false;
+    }
 
     if (config.webSearch === true) {
         payload.tools = [{ type: 'web_search' }];

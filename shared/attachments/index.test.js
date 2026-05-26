@@ -69,4 +69,50 @@ describe('message attachment helpers', () => {
             })
         ).toEqual(['[1 image attachment(s)]']);
     });
+
+    it('lists non-image attachments for provider capability checks', () => {
+        expect(
+            attachments.getNonImageAttachments([
+                {
+                    base64: 'data:image/png;base64,AAAA',
+                    type: 'image/png',
+                    name: 'image.png',
+                },
+                {
+                    base64: 'data:application/pdf;base64,BBBB',
+                    type: 'application/pdf',
+                    name: 'brief.pdf',
+                },
+            ])
+        ).toEqual([
+            {
+                base64: 'data:application/pdf;base64,BBBB',
+                type: 'application/pdf',
+                name: 'brief.pdf',
+            },
+        ]);
+    });
+
+    it('keeps octet-stream data URLs that are actually images', () => {
+        const png = 'data:application/octet-stream;base64,iVBORw0KGgoAAA';
+        const normalizedPng = 'data:image/png;base64,iVBORw0KGgoAAA';
+
+        expect(
+            attachments.normalizeUserAttachments([
+                {
+                    base64: png,
+                    type: 'application/octet-stream',
+                    name: 'capture.bin',
+                },
+            ])
+        ).toEqual([
+            {
+                base64: normalizedPng,
+                type: 'image/png',
+                name: 'capture.bin',
+            },
+        ]);
+        expect(attachments.getImageAttachmentDataUrls([png])).toEqual([normalizedPng]);
+        expect(attachments.countUserAttachmentsByType([png])).toEqual({ images: 1, files: 0 });
+    });
 });

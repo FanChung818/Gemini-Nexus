@@ -1,6 +1,13 @@
-import { getActiveTabContent } from './session/active_tab_content.js';
-import { getPanelPathForTab } from '../managers/sidepanel_scope_manager.js';
+import { handleToggleBrowserControl } from './ui_browser_control.js';
+import {
+    handleAreaSelected,
+    handleInitiateCapture,
+    handleProcessCropInSidePanel,
+} from './ui_capture.js';
+import { handleFetchGeneratedImage, handleFetchImage } from './ui_image_fetching.js';
 import { handleMcpListTools, handleMcpTestConnection } from './ui_mcp_tools.js';
+import { handleCheckPageContext, handleGetActiveSelection } from './ui_page_context.js';
+import { handleOpenSidePanel, handleToggleSidePanelControl } from './ui_sidepanel.js';
 import { handleGetOpenTabs, handleSwitchTab } from './ui_tab_actions.js';
 
 export class UIMessageHandler {
@@ -12,166 +19,53 @@ export class UIMessageHandler {
     }
 
     handle(request, sender, sendResponse) {
-        // --- IMAGE FETCHING (USER INPUT) ---
+        const context = this._createMessageContext();
+
         if (request.action === 'FETCH_IMAGE') {
-            (async () => {
-                try {
-                    const result = await this.imageHandler.fetchImage(request.url);
-                    chrome.runtime
-                        .sendMessage({
-                            ...result,
-                            tabId: this._getTargetSidePanelTabId(request, sender),
-                        })
-                        .catch(() => {});
-                } catch (error) {
-                    console.error('Fetch image error', error);
-                } finally {
-                    sendResponse({ status: 'completed' });
-                }
-            })();
+            handleFetchImage(context, request, sender, sendResponse);
             return true;
         }
 
-        // --- IMAGE FETCHING (GENERATED DISPLAY) ---
         if (request.action === 'FETCH_GENERATED_IMAGE') {
-            (async () => {
-                try {
-                    const result = await this.imageHandler.fetchImage(request.url);
-
-                    const payload = {
-                        action: 'GENERATED_IMAGE_RESULT',
-                        tabId: this._getTargetSidePanelTabId(request, sender),
-                        reqId: request.reqId,
-                        base64: result.base64,
-                        error: result.error,
-                    };
-
-                    this._sendToRequestSource(sender, payload);
-                } catch (error) {
-                    console.error('Fetch generated image error', error);
-                    const payload = {
-                        action: 'GENERATED_IMAGE_RESULT',
-                        tabId: this._getTargetSidePanelTabId(request, sender),
-                        reqId: request.reqId,
-                        error: error.message,
-                    };
-                    this._sendToRequestSource(sender, payload);
-                } finally {
-                    sendResponse({ status: 'completed' });
-                }
-            })();
+            handleFetchGeneratedImage(context, request, sender, sendResponse);
             return true;
         }
-
-        // --- SIDEPANEL & SELECTION ---
 
         if (request.action === 'OPEN_SIDE_PANEL') {
-            this._handleOpenSidePanel(request, sender).then(sendResponse, (error) => {
-                sendResponse({ status: 'error', error: error.message || String(error) });
-            });
+            handleOpenSidePanel(context, request, sender, sendResponse);
             return true;
         }
 
         if (request.action === 'TOGGLE_SIDE_PANEL_CONTROL') {
-            this._handleToggleSidePanelControl(request, sender).finally(() => {
-                sendResponse({ status: 'processed' });
-            });
+            handleToggleSidePanelControl(context, request, sender, sendResponse);
             return true;
         }
 
         if (request.action === 'INITIATE_CAPTURE') {
-            (async () => {
-                const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-                if (tab) {
-                    // Pre-capture for the overlay background
-                    // Pass windowId explicitly to capture the correct window
-                    const capture = await this.imageHandler.captureScreenshot(tab.windowId);
-                    chrome.tabs
-                        .sendMessage(tab.id, {
-                            action: 'START_SELECTION',
-                            image: capture.base64,
-                            mode: request.mode, // Forward the mode (ocr, snip, translate)
-                            source: request.source, // Forward the source (sidepanel or local)
-                            targetSidePanelTabId: this._getTargetSidePanelTabId(request, sender),
-                        })
-                        .catch(() => {});
-                }
-            })();
+            handleInitiateCapture(context, request, sender);
             return false;
         }
 
         if (request.action === 'AREA_SELECTED') {
-            (async () => {
-                try {
-                    // Use windowId from sender tab to ensure we capture the same window where selection occurred
-                    const windowId = sender.tab ? sender.tab.windowId : null;
-                    const result = await this.imageHandler.captureArea(request.area, windowId);
-                    if (result && sender.tab) {
-                        // Send specifically to the tab that initiated the selection
-                        chrome.tabs.sendMessage(sender.tab.id, result).catch(() => {});
-                    }
-                } catch (error) {
-                    console.error('Area capture error', error);
-                } finally {
-                    sendResponse({ status: 'completed' });
-                }
-            })();
+            handleAreaSelected(context, request, sender, sendResponse);
             return true;
         }
 
         if (request.action === 'PROCESS_CROP_IN_SIDEPANEL') {
-            // Broadcast the crop result to runtime so Side Panel can pick it up
-            chrome.runtime
-                .sendMessage({
-                    ...request.payload,
-                    tabId: request.payload?.tabId || this._getTargetSidePanelTabId(request, sender),
-                })
-                .catch(() => {});
-            sendResponse({ status: 'forwarded' });
+            handleProcessCropInSidePanel(context, request, sender, sendResponse);
             return true;
         }
 
         if (request.action === 'GET_ACTIVE_SELECTION') {
-            (async () => {
-                const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-                if (tab) {
-                    try {
-                        const response = await chrome.tabs.sendMessage(tab.id, {
-                            action: 'GET_SELECTION',
-                        });
-                        chrome.runtime
-                            .sendMessage({
-                                action: 'SELECTION_RESULT',
-                                tabId: this._getTargetSidePanelTabId(request, sender),
-                                text: response ? response.selection : '',
-                            })
-                            .catch(() => {});
-                    } catch {
-                        chrome.runtime
-                            .sendMessage({
-                                action: 'SELECTION_RESULT',
-                                tabId: this._getTargetSidePanelTabId(request, sender),
-                                text: '',
-                            })
-                            .catch(() => {});
-                    }
-                }
-                sendResponse({ status: 'completed' });
-            })();
+            handleGetActiveSelection(context, request, sender, sendResponse);
             return true;
         }
 
-        // --- PAGE CONTEXT CHECK ---
         if (request.action === 'CHECK_PAGE_CONTEXT') {
-            (async () => {
-                const content = await getActiveTabContent();
-                const length = content ? content.length : 0;
-                sendResponse({ action: 'PAGE_CONTEXT_RESULT', length: length });
-            })();
+            handleCheckPageContext(context, request, sender, sendResponse);
             return true;
         }
 
-        // --- MCP (External Tools) ---
         if (request.action === 'MCP_TEST_CONNECTION') {
             handleMcpTestConnection(this.mcpManager, request, sendResponse);
             return true;
@@ -182,31 +76,18 @@ export class UIMessageHandler {
             return true;
         }
 
-        // --- TAB MANAGEMENT ---
-
         if (request.action === 'GET_OPEN_TABS') {
-            handleGetOpenTabs(this._createTabActionContext(), request, sender, sendResponse);
+            handleGetOpenTabs(context, request, sender, sendResponse);
             return true;
         }
 
         if (request.action === 'SWITCH_TAB') {
-            handleSwitchTab(this._createTabActionContext(), request, sender, sendResponse);
+            handleSwitchTab(context, request, sender, sendResponse);
             return true;
         }
 
-        // --- BROWSER CONTROL TOGGLE ---
         if (request.action === 'TOGGLE_BROWSER_CONTROL') {
-            if (this.controlManager) {
-                this.controlManager.setOwnerSidePanelTabId?.(
-                    this._getTargetSidePanelTabId(request, sender)
-                );
-                if (request.enabled) {
-                    this.controlManager.enableControl();
-                } else {
-                    this.controlManager.disableControl();
-                }
-            }
-            sendResponse({ status: 'processed' });
+            handleToggleBrowserControl(context, request, sender, sendResponse);
             return true;
         }
 
@@ -222,125 +103,15 @@ export class UIMessageHandler {
         chrome.runtime.sendMessage(payload).catch(() => {});
     }
 
-    _createTabActionContext() {
+    _createMessageContext() {
         return {
+            imageHandler: this.imageHandler,
             controlManager: this.controlManager,
+            sidePanelScopeManager: this.sidePanelScopeManager,
             getTargetSidePanelTabId: (request, sender) =>
                 this._getTargetSidePanelTabId(request, sender),
+            sendToRequestSource: (sender, payload) => this._sendToRequestSource(sender, payload),
         };
-    }
-
-    async _handleOpenSidePanel(request, sender) {
-        if (!sender.tab) {
-            return { status: 'error', error: 'No active tab for side panel.' };
-        }
-
-        let openPromise;
-        try {
-            if (this.sidePanelScopeManager) {
-                openPromise = this.sidePanelScopeManager.openForTab(
-                    sender.tab.id,
-                    sender.tab.windowId
-                );
-            } else {
-                chrome.sidePanel
-                    .setOptions({
-                        tabId: sender.tab.id,
-                        enabled: true,
-                        path: getPanelPathForTab(sender.tab.id),
-                    })
-                    .catch(() => {});
-                openPromise = chrome.sidePanel.open({
-                    tabId: sender.tab.id,
-                    windowId: sender.tab.windowId,
-                });
-            }
-        } catch (error) {
-            console.error('Could not start side panel open flow:', error);
-            return { status: 'error', error: error.message || String(error) };
-        }
-
-        const updateOps = {};
-        if (request.sessionId) updateOps.pendingSessionId = request.sessionId;
-        if (request.mode) updateOps.pendingMode = request.mode;
-
-        if (Object.keys(updateOps).length > 0) {
-            await chrome.storage.local.set(updateOps);
-            // Clear pending items after a timeout to prevent stale actions
-            setTimeout(() => {
-                const keys = Object.keys(updateOps);
-                chrome.storage.local.remove(keys);
-            }, 5000);
-        }
-
-        try {
-            await openPromise;
-        } catch (error) {
-            console.error('Could not open side panel:', error);
-            return { status: 'error', error: error.message || String(error) };
-        }
-
-        // If immediate execution needed after open (panel might already be open)
-        setTimeout(() => {
-            if (request.sessionId) {
-                chrome.runtime
-                    .sendMessage({
-                        action: 'SWITCH_SESSION',
-                        tabId: sender.tab.id,
-                        sessionId: request.sessionId,
-                    })
-                    .catch(() => {});
-            }
-            if (request.mode === 'browser_control') {
-                chrome.runtime
-                    .sendMessage({
-                        action: 'ACTIVATE_BROWSER_CONTROL',
-                        tabId: sender.tab.id,
-                    })
-                    .catch(() => {});
-            }
-        }, 500);
-
-        return { status: 'opened' };
-    }
-
-    async _handleToggleSidePanelControl(request, sender) {
-        if (!sender.tab) return;
-
-        const tabId = sender.tab.id;
-        const currentLock = this.controlManager ? this.controlManager.getTargetTabId() : null;
-
-        // Is Browser Control active for this tab?
-        const isControlActive = currentLock === tabId;
-
-        if (isControlActive) {
-            if (this.controlManager) {
-                await this.controlManager.disableControl();
-            }
-
-            try {
-                // This effectively closes the side panel for this tab
-                await chrome.sidePanel.setOptions({ tabId, enabled: false });
-
-                // Re-enable it quickly so it can be opened again later
-                setTimeout(() => {
-                    chrome.sidePanel.setOptions({
-                        tabId,
-                        enabled: true,
-                        path: getPanelPathForTab(tabId),
-                    });
-                }, 250);
-            } catch (error) {
-                console.error('Failed to toggle side panel close:', error);
-            }
-        } else {
-            if (this.controlManager) {
-                this.controlManager.setOwnerSidePanelTabId(
-                    this._getTargetSidePanelTabId(request, sender)
-                );
-            }
-            await this._handleOpenSidePanel({ ...request, mode: 'browser_control' }, sender);
-        }
     }
 
     _getTargetSidePanelTabId(request, sender) {

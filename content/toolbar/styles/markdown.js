@@ -5,11 +5,15 @@
         .result-area {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             position: relative;
             font-size: 14px;
             line-height: 1.6;
             color: #1f1f1f;
             padding-right: 4px; /* Space for scrollbar */
+            min-width: 0;
+            max-width: 100%;
+            box-sizing: border-box;
             /* No bottom padding needed with separate footer */
         }
 
@@ -18,6 +22,13 @@
         .result-area::-webkit-scrollbar-thumb:hover { background: #d0d0d0; }
 
         /* --- Markdown Styles --- */
+
+        .markdown-body {
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
 
         .markdown-body p { margin: 0 0 12px 0; }
         .markdown-body p:last-child { margin-bottom: 0; }
@@ -141,7 +152,10 @@
 
         /* Images (Standard MD images) */
         .markdown-body img {
+            display: block;
             max-width: 100%;
+            height: auto;
+            box-sizing: border-box;
             border-radius: 8px;
             margin: 8px 0;
             border: 1px solid #e0e0e0;
@@ -150,16 +164,22 @@
         /* Generated Images (Grid Layout) */
         .generated-images-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: minmax(0, 1fr);
             gap: 8px;
             margin-top: 12px;
             margin-bottom: 8px;
             width: 100%;
+            min-width: 0;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .generated-image {
+            display: block;
             width: 100%;
+            max-width: 100%;
             height: auto;
+            box-sizing: border-box;
             border-radius: 8px;
             border: 1px solid #e0e0e0;
             object-fit: contain; /* Full image visible */

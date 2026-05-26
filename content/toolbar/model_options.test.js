@@ -3,6 +3,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 describe('toolbar web model helper', () => {
     beforeAll(async () => {
         globalThis.window = {};
+        await import('../../shared/models/web_model_catalog.js');
+        window.GeminiNexusWebModelCatalog = globalThis.GeminiNexusWebModelCatalog;
         await import('./model_options.js');
     });
 

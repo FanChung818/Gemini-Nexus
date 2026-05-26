@@ -147,6 +147,23 @@ export class SidePanelScopeManager {
         });
     }
 
+    async openAfterSetup(openOptions, setupPromises) {
+        let immediateOpenError = null;
+        const immediateOpenPromise = chrome.sidePanel.open(openOptions).catch((error) => {
+            immediateOpenError = error;
+        });
+
+        await Promise.all([...setupPromises, immediateOpenPromise]);
+
+        if (!immediateOpenError) return;
+
+        console.warn(
+            '[SidePanelScopeManager] Retrying side panel open after options settled:',
+            immediateOpenError
+        );
+        await chrome.sidePanel.open(openOptions);
+    }
+
     async openForTab(tabId, windowId) {
         if (!tabId || !windowId) return;
 
@@ -178,12 +195,10 @@ export class SidePanelScopeManager {
                 persistPromise = this.persistEnabledTabs();
             }
 
-            const openPromise = chrome.sidePanel.open({ tabId, windowId });
-            await Promise.all([
+            await this.openAfterSetup({ tabId, windowId }, [
                 disableDefaultPromise,
                 enableTabPromise,
                 persistPromise,
-                openPromise,
             ]);
         } else {
             const defaultOptionsPromise = Promise.all([
@@ -194,8 +209,7 @@ export class SidePanelScopeManager {
                     enabled: true,
                 }),
             ]);
-            const openPromise = chrome.sidePanel.open({ tabId, windowId });
-            await Promise.all([defaultOptionsPromise, openPromise]);
+            await this.openAfterSetup({ tabId, windowId }, [defaultOptionsPromise]);
         }
     }
 }

@@ -12,6 +12,15 @@ export const ConnectionSettingsTemplate = `
                 <option value="openai" data-i18n="providerOpenAI">OpenAI Compatible API</option>
             </select>
 
+            <div id="web-fields" class="settings-stack settings-section-offset">
+                <div class="setting-panel-row">
+                    <div class="setting-panel-header">
+                        <h5 data-i18n="webTemporaryChat">Temporary chat</h5>
+                    </div>
+                    <input type="checkbox" id="web-temporary-chat-enabled" class="setting-toggle" />
+                </div>
+            </div>
+
             <div id="api-key-container" class="settings-stack settings-section-offset" hidden>
                 <div id="official-fields" class="settings-stack tight" hidden>
                     <div class="setting-field">

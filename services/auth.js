@@ -9,6 +9,7 @@ export async function fetchRequestParams(userIndex = '0') {
     }
     const response = await fetch(url, {
         method: 'GET',
+        credentials: 'include',
     });
     const html = await response.text();
 
@@ -26,9 +27,17 @@ export async function fetchRequestParams(userIndex = '0') {
         authUserIndex = authMatch[1];
     }
 
-    if (!atValue) {
+    const missingRequestTokens = [
+        ['atValue', atValue],
+        ['blValue', blValue],
+        ['fSid', fSid],
+    ]
+        .filter(([, value]) => !value)
+        .map(([name]) => name);
+
+    if (missingRequestTokens.length > 0) {
         throw new Error(
-            `Not logged in for account ${userIndex}. Please log in to gemini.google.com.`
+            `Gemini Web request tokens unavailable for account ${userIndex}: ${missingRequestTokens.join(', ')}. Please log in to gemini.google.com or refresh Gemini.`
         );
     }
 

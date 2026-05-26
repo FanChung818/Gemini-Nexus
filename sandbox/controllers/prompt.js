@@ -55,6 +55,7 @@ export class PromptController {
             webThinkingLevel: conn.webThinkingLevel,
             includePageContext: this.app.pageContextActive,
             enableBrowserControl: this.app.browserControlActive,
+            hostIsTab: this.app.hostIsTab === true,
             enableMcpTools,
             mcpServers,
             mcpTransport: firstServer ? firstServer.transport || 'sse' : 'sse',

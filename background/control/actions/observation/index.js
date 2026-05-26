@@ -12,8 +12,6 @@ export class ObservationActions extends BaseActionHandler {
         this.dialog = new DialogActions(connection, snapshotManager, waitHelper);
     }
 
-    // --- Delegates ---
-
     async waitFor(args) {
         return this.wait.waitFor(args);
     }

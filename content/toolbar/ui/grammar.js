@@ -30,8 +30,6 @@
             };
         }
 
-        // --- View Manipulation ---
-
         showTriggerButton(show) {
             const { buttons } = this.view.elements;
             if (buttons.grammar) {

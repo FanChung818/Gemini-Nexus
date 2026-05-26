@@ -13,11 +13,19 @@ import { normalizeWebThinkingLevel } from '../../../shared/models/web_thinking.j
 import { normalizeOpenAIWebSearchSettings } from '../../../shared/settings/openai.js';
 import { debugLog } from '../../../shared/logging/debug.js';
 
-export async function getConnectionSettings() {
+function normalizeProviderOverride(provider) {
+    const normalized = String(provider || '').trim();
+    return normalized === 'web' || normalized === 'official' || normalized === 'openai'
+        ? normalized
+        : null;
+}
+
+export async function getConnectionSettings(options = {}) {
     const stored = await chrome.storage.local.get([
         'geminiProvider',
         'geminiUseOfficialApi',
         'geminiWebThinkingLevel',
+        'geminiWebTemporaryChat',
         'geminiOfficialBaseUrl',
         'geminiApiKey',
         'geminiOfficialModel',
@@ -35,7 +43,7 @@ export async function getConnectionSettings() {
         'geminiContextRecentTurns',
     ]);
 
-    const provider = getConnectionProvider(stored);
+    const provider = normalizeProviderOverride(options.provider) || getConnectionProvider(stored);
 
     let activeApiKey = stored.geminiApiKey || '';
 
@@ -71,6 +79,7 @@ export async function getConnectionSettings() {
     return {
         provider: provider,
         webThinkingLevel: normalizeWebThinkingLevel(stored.geminiWebThinkingLevel),
+        webTemporaryChat: stored.geminiWebTemporaryChat === true,
         officialBaseUrl: stored.geminiOfficialBaseUrl || DEFAULT_OFFICIAL_BASE_URL,
         apiKey: activeApiKey,
         officialModel: stored.geminiOfficialModel || DEFAULT_OFFICIAL_MODELS,

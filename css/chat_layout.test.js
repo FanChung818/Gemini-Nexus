@@ -36,4 +36,18 @@ describe('chat message layout styles', () => {
             /\.message-content-container\s+\.msg-content\s*{[^}]*overflow-wrap:\s*anywhere/s
         );
     });
+
+    it('keeps generated images constrained to the message width', async () => {
+        const mediaCss = await readCss('chat_media.css');
+
+        expect(mediaCss).toMatch(
+            /\.generated-images-grid\s*{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s
+        );
+        expect(mediaCss).toMatch(/\.generated-images-grid\s*{[^}]*min-width:\s*0/s);
+        expect(mediaCss).toMatch(/\.generated-images-grid\s*{[^}]*max-width:\s*100%/s);
+        expect(mediaCss).toMatch(/\.generated-image\s*{[^}]*display:\s*block/s);
+        expect(mediaCss).toMatch(/\.generated-image\s*{[^}]*width:\s*100%/s);
+        expect(mediaCss).toMatch(/\.generated-image\s*{[^}]*max-width:\s*100%/s);
+        expect(mediaCss).toMatch(/\.generated-image\s*{[^}]*box-sizing:\s*border-box/s);
+    });
 });

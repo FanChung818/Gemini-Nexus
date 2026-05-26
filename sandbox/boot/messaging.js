@@ -114,6 +114,9 @@ export class AppMessageBridge {
             if (typeof this.ui.setHostContext === 'function') {
                 this.ui.setHostContext(payload || {});
             }
+            if (typeof this.app.setHostContext === 'function') {
+                this.app.setHostContext(payload || {});
+            }
             return;
         }
 

@@ -1,31 +1,39 @@
 import { fetchRequestParams } from '../auth.js';
 import { uploadFile } from '../upload.js';
 import { parseGeminiLine } from '../parser.js';
+import {
+    getNonImageAttachments,
+    normalizeUserAttachments,
+} from '../../shared/attachments/index.js';
 import { generateUUID } from '../../shared/utils/index.js';
 import {
     getSupportedWebModelValues,
     getWebModelHeaderConfig,
 } from '../../shared/models/web_models.js';
 import {
-    DEFAULT_WEB_THINKING_LEVEL,
+    getWebNativeThinkingLevel,
     normalizeWebThinkingLevelForModel,
 } from '../../shared/models/web_thinking.js';
 import { debugLog } from '../../shared/logging/debug.js';
 
-const WEB_THINKING_INSTRUCTIONS = {
-    minimal:
-        'Gemini Nexus thinking mode: Minimal. Prioritize the fastest direct answer; keep internal reasoning to the minimum needed and do not mention this mode.',
-    low: 'Gemini Nexus thinking mode: Low. Use concise reasoning, favor speed, and do not mention this mode.',
-    medium: 'Gemini Nexus thinking mode: Medium. Balance reasoning depth with response speed and do not mention this mode.',
-};
+const WEB_CLIENT_CAPABILITIES = Object.freeze([4, 5, 6, 8]);
 
 async function handleFileUploads(files, signal, uploadContext) {
-    if (!files || files.length === 0) return [];
+    const normalizedFiles = normalizeUserAttachments(files);
+    if (normalizedFiles.length === 0) return [];
 
-    debugLog(`[Gemini Web] Uploading ${files.length} files...`);
+    const nonImageAttachments = getNonImageAttachments(normalizedFiles);
+    if (nonImageAttachments.length > 0) {
+        const names = nonImageAttachments.map((file) => file.name || file.type).join(', ');
+        throw new Error(
+            `Gemini Web Client currently supports image attachments only. Remove non-image files (${names}) or switch to Gemini Official API.`
+        );
+    }
+
+    debugLog(`[Gemini Web] Uploading ${normalizedFiles.length} files...`);
     // Upload in parallel
     const fileList = await Promise.all(
-        files.map((file) =>
+        normalizedFiles.map((file) =>
             uploadFile(file, signal, uploadContext).then((url) => [[url], file.name])
         )
     );
@@ -33,7 +41,7 @@ async function handleFileUploads(files, signal, uploadContext) {
     return fileList;
 }
 
-function constructPayload(prompt, fileList, contextIds) {
+function constructPayload(prompt, fileList, contextIds, { temporaryChat = false } = {}) {
     // Structure aligned with Python Gemini-API: [prompt, 0, null, fileList] or [prompt]
     const messageStruct = fileList.length > 0 ? [prompt, 0, null, fileList] : [prompt];
 
@@ -42,19 +50,13 @@ function constructPayload(prompt, fileList, contextIds) {
         null,
         contextIds, // [conversationId, responseId, choiceId]
     ];
+    if (temporaryChat === true) {
+        // Native Gemini Web sets proto field 46 for temporary chats.
+        requestPayload[45] = true;
+    }
 
     // The API expects: f.req = JSON.stringify([null, JSON.stringify(requestPayload)])
     return JSON.stringify([null, JSON.stringify(requestPayload)]);
-}
-
-export function applyWebThinkingInstruction(prompt, model, thinkingLevel) {
-    const normalizedLevel = normalizeWebThinkingLevelForModel(model, thinkingLevel);
-    if (normalizedLevel === DEFAULT_WEB_THINKING_LEVEL) return String(prompt || '');
-
-    const instruction = WEB_THINKING_INSTRUCTIONS[normalizedLevel];
-    if (!instruction) return String(prompt || '');
-
-    return [instruction, '', String(prompt || '')].join('\n');
 }
 
 function stripNativeContextIds(context = {}) {
@@ -62,7 +64,7 @@ function stripNativeContextIds(context = {}) {
     return authContext;
 }
 
-function buildModelHeader(model, requestId) {
+function buildModelHeader(model, requestId, thinkingLevel, { temporaryChat = false } = {}) {
     const config = getWebModelHeaderConfig(model);
     if (!config) {
         throw new Error(
@@ -70,25 +72,16 @@ function buildModelHeader(model, requestId) {
         );
     }
 
-    return JSON.stringify([
-        1,
-        null,
-        null,
-        null,
-        config.hash,
-        null,
-        null,
-        0,
-        [4],
-        null,
-        null,
-        config.mode,
-        null,
-        null,
-        config.featureMode,
-        null,
-        requestId,
-    ]);
+    const header = [];
+    header[0] = 1;
+    header[4] = config.hash;
+    header[7] = temporaryChat === true ? true : 0;
+    header[8] = WEB_CLIENT_CAPABILITIES;
+    header[11] = config.mode;
+    header[14] = config.mode;
+    header[15] = getWebNativeThinkingLevel(model, thinkingLevel);
+    header[16] = requestId;
+    return JSON.stringify(header);
 }
 
 function buildEndpoint(authUser, queryParams) {
@@ -120,6 +113,7 @@ async function fetchStream(endpoint, atValue, fReq, headers, signal) {
         method: 'POST',
         signal: signal,
         headers: finalHeaders,
+        credentials: 'include',
         body: new URLSearchParams({
             at: atValue,
             'f.req': fReq,
@@ -146,7 +140,11 @@ export async function sendWebMessage(
 ) {
     debugLog(`[Gemini Web] Requesting model: ${model}`);
     const requestId = generateUUID();
-    const modelHeader = buildModelHeader(model, requestId);
+    const normalizedThinkingLevel = normalizeWebThinkingLevelForModel(model, options.thinkingLevel);
+    const temporaryChat = options.temporaryChat === true;
+    const modelHeader = buildModelHeader(model, requestId, normalizedThinkingLevel, {
+        temporaryChat,
+    });
 
     if (!context || !context.atValue) {
         // Fallback: This should ideally be handled by SessionManager before calling,
@@ -170,8 +168,7 @@ export async function sendWebMessage(
 
     // Current Gemini Web rejects the legacy three-id continuation payload without
     // the extra UI-only context token, so Web continuity is handled by the caller.
-    const effectivePrompt = applyWebThinkingInstruction(prompt, model, options.thinkingLevel);
-    const fReq = constructPayload(effectivePrompt, fileList, ['', '', '']);
+    const fReq = constructPayload(prompt, fileList, ['', '', ''], { temporaryChat });
 
     const queryParams = new URLSearchParams({
         bl: context.blValue,

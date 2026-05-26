@@ -39,6 +39,7 @@ function createPromptHarness({ text = 'Hello', files = [] } = {}) {
     const app = {
         pageContextActive: false,
         browserControlActive: false,
+        hostIsTab: false,
         isGenerating: false,
         generatingSessionId: null,
         getSelectedModel: vi.fn(() => 'gemini-test'),
@@ -156,6 +157,20 @@ describe('PromptController.send', () => {
         expect(controller.buildRequestPayload('Hello', [], 'session-1')).toEqual(
             expect.objectContaining({
                 webThinkingLevel: 'minimal',
+            })
+        );
+    });
+
+    it('includes standalone host context in browser-control prompt requests', () => {
+        const { app, controller } = createPromptHarness();
+        app.browserControlActive = true;
+        app.hostIsTab = true;
+
+        expect(controller.buildRequestPayload('Open Google', [], 'session-1')).toEqual(
+            expect.objectContaining({
+                action: 'SEND_PROMPT',
+                enableBrowserControl: true,
+                hostIsTab: true,
             })
         );
     });

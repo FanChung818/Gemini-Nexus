@@ -10,6 +10,14 @@ const MIME_EXTENSIONS = {
     'text/x-python': 'py',
 };
 
+const IMAGE_SIGNATURES = [
+    { signature: '/9j/', type: 'image/jpeg' },
+    { signature: 'iVBORw0KGgo', type: 'image/png' },
+    { signature: 'R0lGODdh', type: 'image/gif' },
+    { signature: 'R0lGODlh', type: 'image/gif' },
+    { signature: 'UklGR', type: 'image/webp' },
+];
+
 function isPlainObject(value) {
     return value && typeof value === 'object' && !Array.isArray(value);
 }
@@ -17,6 +25,41 @@ function isPlainObject(value) {
 export function getDataUrlMime(dataUrl) {
     if (typeof dataUrl !== 'string') return null;
     return dataUrl.match(/^data:([^;,]+)[;,]/)?.[1] || null;
+}
+
+function getDataUrlPayload(dataUrl) {
+    if (typeof dataUrl !== 'string') return '';
+    const commaIndex = dataUrl.indexOf(',');
+    return commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : '';
+}
+
+function inferImageMimeFromDataUrl(dataUrl) {
+    const payload = getDataUrlPayload(dataUrl).replace(/\s+/g, '');
+    const match = IMAGE_SIGNATURES.find(({ signature }) => payload.startsWith(signature));
+    return match ? match.type : null;
+}
+
+function normalizeAttachmentType(type, dataUrl) {
+    const normalizedType = typeof type === 'string' ? type.trim() : '';
+    if (normalizedType && normalizedType !== 'application/octet-stream') {
+        return normalizedType;
+    }
+
+    return inferImageMimeFromDataUrl(dataUrl) || normalizedType || 'application/octet-stream';
+}
+
+function normalizeAttachmentDataUrl(dataUrl, type) {
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) return dataUrl;
+    if (!type || !type.startsWith('image/')) return dataUrl;
+
+    const metadata = dataUrl.slice(0, dataUrl.indexOf(','));
+    const payload = getDataUrlPayload(dataUrl);
+    if (!metadata || !payload) return dataUrl;
+
+    const currentType = getDataUrlMime(dataUrl);
+    if (currentType === type) return dataUrl;
+
+    return `data:${type};base64,${payload}`;
 }
 
 function getDefaultExtension(mimeType) {
@@ -35,9 +78,12 @@ export function normalizeUserAttachments(attachments) {
     return items
         .map((item, index) => {
             if (typeof item === 'string') {
-                const type = getDataUrlMime(item) || 'image/png';
+                const declaredType = getDataUrlMime(item);
+                const type = declaredType
+                    ? normalizeAttachmentType(declaredType, item)
+                    : inferImageMimeFromDataUrl(item) || 'image/png';
                 return {
-                    base64: item,
+                    base64: normalizeAttachmentDataUrl(item, type),
                     type,
                     name: createDefaultName(index, type),
                 };
@@ -45,9 +91,12 @@ export function normalizeUserAttachments(attachments) {
 
             if (!isPlainObject(item) || typeof item.base64 !== 'string') return null;
 
-            const type = item.type || getDataUrlMime(item.base64) || 'application/octet-stream';
+            const type = normalizeAttachmentType(
+                item.type || getDataUrlMime(item.base64),
+                item.base64
+            );
             return {
-                base64: item.base64,
+                base64: normalizeAttachmentDataUrl(item.base64, type),
                 type,
                 name:
                     typeof item.name === 'string' && item.name.trim()
@@ -85,6 +134,12 @@ export function countUserAttachmentsByType(attachments) {
             return counts;
         },
         { images: 0, files: 0 }
+    );
+}
+
+export function getNonImageAttachments(attachments) {
+    return normalizeUserAttachments(attachments).filter(
+        (attachment) => !attachment.type.startsWith('image/')
     );
 }
 

@@ -14,6 +14,9 @@ describe('sidepanel window actions', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         globalThis.chrome = {
+            runtime: {
+                lastError: null,
+            },
             storage: {
                 local: {
                     get: vi.fn(),
@@ -105,6 +108,44 @@ describe('sidepanel window actions', () => {
             expect.stringMatching(/^gemini-nexus-history-\d{4}-\d{2}-\d{2}\.json$/),
             'application/json'
         );
+    });
+
+    it('does not export history data when storage read fails', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        chrome.storage.local.get.mockImplementation((keys, callback) => {
+            chrome.runtime.lastError = { message: 'Storage read failed' };
+            callback({});
+            chrome.runtime.lastError = null;
+        });
+
+        handleWindowMessageAction('EXPORT_HISTORY_DATA', null, {});
+
+        expect(downloadText).not.toHaveBeenCalled();
+        expect(warnSpy).toHaveBeenCalledWith(
+            '[Gemini Nexus] Failed to export history data:',
+            expect.any(Error)
+        );
+
+        warnSpy.mockRestore();
+    });
+
+    it('does not export settings data when storage read fails', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        chrome.storage.local.get.mockImplementation((keys, callback) => {
+            chrome.runtime.lastError = { message: 'Storage read failed' };
+            callback({});
+            chrome.runtime.lastError = null;
+        });
+
+        handleWindowMessageAction('EXPORT_SETTINGS_DATA', null, {});
+
+        expect(downloadText).not.toHaveBeenCalled();
+        expect(warnSpy).toHaveBeenCalledWith(
+            '[Gemini Nexus] Failed to export settings data:',
+            expect.any(Error)
+        );
+
+        warnSpy.mockRestore();
     });
 
     it('forwards data import actions to the bridge', () => {

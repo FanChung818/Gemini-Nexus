@@ -182,8 +182,7 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
-                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                <polyline points="14 2 14 8 20 8"/>
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94L14.7 6.3z"/>
             </svg>
         `,
         CHEVRON_RIGHT: markup`
@@ -214,10 +213,12 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
-                <line x1="18" y1="8" x2="23" y2="13"/>
-                <line x1="23" y1="8" x2="18" y2="13"/>
+                <path d="M4 6h10"/>
+                <path d="M4 10h12"/>
+                <path d="M4 14h7"/>
+                <path d="M4 18h6"/>
+                <path d="m15 15 5 5"/>
+                <path d="m20 15-5 5"/>
             </svg>
         `,
         REMOVE_WATERMARK: markup`

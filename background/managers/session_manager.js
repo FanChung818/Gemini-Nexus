@@ -50,7 +50,7 @@ export class GeminiSessionManager {
         };
 
         try {
-            const settings = await getConnectionSettings();
+            const settings = await getConnectionSettings({ provider: request.provider });
 
             // Normalize files
             let files = [];

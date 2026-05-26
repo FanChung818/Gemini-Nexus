@@ -19,5 +19,19 @@ describe('fetchRequestParams', () => {
             uploadPushId: 'feeds/upload-dynamic',
             uploadClientPctx: 'client-pctx-token',
         });
+        expect(global.fetch).toHaveBeenCalledWith('https://gemini.google.com/u/2/app', {
+            method: 'GET',
+            credentials: 'include',
+        });
+    });
+
+    it('rejects HTML that no longer exposes required Web request tokens', async () => {
+        global.fetch = vi.fn().mockResolvedValue({
+            text: () => Promise.resolve('<html><script>{"SNlM0e":"at-token"}</script></html>'),
+        });
+
+        await expect(fetchRequestParams('0')).rejects.toThrow(
+            'Gemini Web request tokens unavailable for account 0: blValue, fSid'
+        );
     });
 });

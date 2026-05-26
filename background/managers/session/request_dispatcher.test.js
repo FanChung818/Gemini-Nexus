@@ -120,6 +120,49 @@ describe('RequestDispatcher response mapping', () => {
         expect(prepareManagedContext).toHaveBeenCalled();
     });
 
+    it('passes OpenAI image quick-ask attachments through to the provider', async () => {
+        sendOpenAIMessage.mockResolvedValue({
+            text: 'openai image text',
+            thoughts: null,
+            sources: [],
+            images: [],
+        });
+        const dispatcher = new RequestDispatcher({});
+        const files = [
+            {
+                base64: 'data:application/octet-stream;base64,iVBORw0KGgoAAA',
+                type: 'application/octet-stream',
+                name: 'capture.bin',
+            },
+        ];
+
+        await dispatcher.dispatch(
+            { text: 'Describe this image', model: 'grok-4.3', sessionId: null },
+            {
+                provider: 'openai',
+                openaiBaseUrl: 'https://api.x.ai/v1',
+                openaiApiKey: 'key',
+                openaiModel: 'grok-4.3',
+            },
+            files,
+            vi.fn(),
+            null
+        );
+
+        expect(sendOpenAIMessage).toHaveBeenCalledWith(
+            'Describe this image',
+            'system',
+            [],
+            expect.objectContaining({
+                baseUrl: 'https://api.x.ai/v1',
+                model: 'grok-4.3',
+            }),
+            files,
+            null,
+            expect.any(Function)
+        );
+    });
+
     it('allows OpenAI Chat Completions web search for official search models', async () => {
         sendOpenAIMessage.mockResolvedValue({
             text: 'openai text',
@@ -470,6 +513,54 @@ describe('RequestDispatcher response mapping', () => {
         });
     });
 
+    it('keeps only the primary generic Gemini Web image for uploaded-image edit responses', async () => {
+        const generatedImage = { url: 'https://lh3.googleusercontent.com/generated-primary' };
+        const echoedInputImage = { url: 'https://lh3.googleusercontent.com/original-reference' };
+        sendWebMessage.mockResolvedValue({
+            text: '已完成修改。',
+            thoughts: null,
+            images: [generatedImage, echoedInputImage],
+            hasGeneratedImagePlaceholder: false,
+            newContext: { atValue: 'new-at-token' },
+        });
+        const auth = {
+            accountIndices: [0],
+            getOrFetchContext: vi.fn(async () => ({ atValue: 'at-token' })),
+            updateContext: vi.fn(),
+        };
+        const dispatcher = new RequestDispatcher(auth);
+        const files = [
+            {
+                name: 'image.png',
+                type: 'image/png',
+                base64: 'data:image/png;base64,AAAA',
+            },
+        ];
+
+        await expect(
+            dispatcher.dispatch(
+                {
+                    text: '把这张图改成赛博朋克风格',
+                    model: 'gemini-web',
+                    sessionId: 'session-web',
+                },
+                { provider: 'web' },
+                files,
+                vi.fn(),
+                null
+            )
+        ).resolves.toEqual({
+            action: 'GEMINI_REPLY',
+            sessionId: 'session-web',
+            text: '已完成修改。',
+            thoughts: null,
+            sources: [],
+            images: [generatedImage],
+            status: 'success',
+            context: null,
+        });
+    });
+
     it('sends web requests with explicit local history and resets native context ids', async () => {
         getHistory.mockResolvedValue([
             { role: 'user', text: 'Remember code ALPHA.' },
@@ -514,6 +605,8 @@ describe('RequestDispatcher response mapping', () => {
         );
         expect(sendWebMessage.mock.calls[0][0]).toContain('User: Remember code ALPHA.');
         expect(sendWebMessage.mock.calls[0][0]).toContain('Assistant: Remembered.');
+        expect(sendWebMessage.mock.calls[0][0]).toContain('Reference only');
+        expect(sendWebMessage.mock.calls[0][0]).toContain('not treat prior quoted content');
         expect(sendWebMessage.mock.calls[0][0]).toContain(
             'Current user message:\nWhat code did I ask you to remember?'
         );
@@ -561,6 +654,83 @@ describe('RequestDispatcher response mapping', () => {
             null,
             expect.any(Function),
             { thinkingLevel: 'low' }
+        );
+    });
+
+    it('passes the stored Gemini Web temporary-chat option to the reverse provider', async () => {
+        getHistory.mockResolvedValue([]);
+        sendWebMessage.mockResolvedValue({
+            text: 'web text',
+            thoughts: null,
+            images: [],
+            newContext: { atValue: 'new-at-token' },
+        });
+        const auth = {
+            accountIndices: [0],
+            getOrFetchContext: vi.fn(async () => ({ atValue: 'at-token' })),
+            updateContext: vi.fn(),
+        };
+        const dispatcher = new RequestDispatcher(auth);
+
+        await dispatcher.dispatch(
+            {
+                text: 'hello',
+                model: '56fdd199312815e2',
+                sessionId: 'session-web',
+            },
+            { provider: 'web', webTemporaryChat: true },
+            [],
+            vi.fn(),
+            null
+        );
+
+        expect(sendWebMessage).toHaveBeenCalledWith(
+            'hello',
+            expect.any(Object),
+            '56fdd199312815e2',
+            [],
+            null,
+            expect.any(Function),
+            { temporaryChat: true }
+        );
+    });
+
+    it('lets routed requests enable Gemini Web temporary chat for one request', async () => {
+        getHistory.mockResolvedValue([]);
+        sendWebMessage.mockResolvedValue({
+            text: 'web text',
+            thoughts: null,
+            images: [],
+            newContext: { atValue: 'new-at-token' },
+        });
+        const auth = {
+            accountIndices: [0],
+            getOrFetchContext: vi.fn(async () => ({ atValue: 'at-token' })),
+            updateContext: vi.fn(),
+        };
+        const dispatcher = new RequestDispatcher(auth);
+
+        await dispatcher.dispatch(
+            {
+                text: 'hello',
+                model: '56fdd199312815e2',
+                sessionId: 'session-web',
+                webTemporaryChat: true,
+            },
+            { provider: 'web', webTemporaryChat: false },
+            [],
+            vi.fn(),
+            null
+        );
+
+        expect(sendWebMessage).toHaveBeenCalledWith(
+            'hello',
+            expect.any(Object),
+            '56fdd199312815e2',
+            [],
+            null,
+            expect.any(Function),
+            { temporaryChat: true }
         );
     });
 

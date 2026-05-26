@@ -26,7 +26,10 @@ export class AppController {
         this.browserControlActive = false;
         this.sidePanelScope = DEFAULT_SIDE_PANEL_SCOPE;
         this.currentTabId = null;
+        this.currentTabUrl = '';
+        this.currentTabTitle = '';
         this.boundSessionId = null;
+        this.hostIsTab = false;
         this.sessionsRestored = false;
 
         // Sidebar Restore Behavior: 'auto', 'restore', 'new'
@@ -80,12 +83,13 @@ export class AppController {
             browserControlButton.classList.toggle('active', this.browserControlActive);
         }
 
-        this.ui.toggleTabSwitcher(this.browserControlActive);
+        this.ui.setBrowserControlVisible(this.browserControlActive);
 
         // Signal background to start/stop debugger session immediately
         sendToBackground({
             action: 'TOGGLE_BROWSER_CONTROL',
             enabled: this.browserControlActive,
+            hostIsTab: this.hostIsTab,
         });
     }
 
@@ -114,6 +118,16 @@ export class AppController {
 
     getSelectedModel() {
         return this.ui.modelSelect ? this.ui.modelSelect.value : DEFAULT_STORED_GEMINI_MODEL;
+    }
+
+    getConnectionProvider() {
+        const connectionData = this.ui.settings?.connectionData;
+        if (connectionData?.provider) return connectionData.provider;
+        return connectionData?.useOfficialApi === true ? 'official' : DEFAULT_PROVIDER;
+    }
+
+    setHostContext(context = {}) {
+        this.hostIsTab = context.isTab === true;
     }
 
     handleModelChange(model) {
@@ -276,13 +290,14 @@ export class AppController {
         }
         if (action === 'RESTORE_SIDE_PANEL_TAB_CONTEXT') {
             this.currentTabId = payload?.tabId || null;
+            this.currentTabUrl = payload?.url || '';
+            this.currentTabTitle = payload?.title || '';
             this.boundSessionId = payload?.sessionId || null;
             if (this.sessionsRestored && this.sidePanelScope === DEFAULT_SIDE_PANEL_SCOPE) {
                 this.restoreRememberedTabSession();
             }
             return;
         }
-
         if (action === 'RESTORE_GROUPS') {
             this.sessionManager.setGroups(payload);
             if (this.sessionsRestored) {

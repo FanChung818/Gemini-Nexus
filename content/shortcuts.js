@@ -1,5 +1,9 @@
 (function () {
-    if (window.GeminiNexusPageGuard?.isDisabled) return;
+    window.GeminiShortcuts?.destroy?.();
+    if (window.GeminiNexusPageGuard?.isDisabled) {
+        delete window.GeminiShortcuts;
+        return;
+    }
 
     const DEFAULT_SHORTCUTS = {
         quickAsk: 'Ctrl+G',
@@ -8,6 +12,18 @@
         ocrCapture: 'Alt+O',
     };
     const MODIFIER_KEYS = ['ctrl', 'alt', 'shift', 'meta', 'command'];
+
+    function normalizeShortcuts(shortcuts) {
+        const stored =
+            shortcuts && typeof shortcuts === 'object' && !Array.isArray(shortcuts)
+                ? shortcuts
+                : {};
+        return { ...DEFAULT_SHORTCUTS, ...stored };
+    }
+
+    function getStorageReadError() {
+        return chrome.runtime?.lastError?.message || null;
+    }
 
     function isEditableShortcutTarget(target) {
         if (!(target instanceof Element)) return false;
@@ -18,8 +34,10 @@
 
     class ShortcutManager {
         constructor() {
-            this.appShortcuts = { ...DEFAULT_SHORTCUTS };
+            this.appShortcuts = {};
             this.toolbarController = null;
+            this.handleStorageChange = this.handleStorageChange.bind(this);
+            this.handleDocumentKeydown = (event) => this.handleKeydown(event);
             this.init();
         }
 
@@ -29,21 +47,30 @@
 
         init() {
             chrome.storage.local.get(['geminiShortcuts'], (result) => {
-                if (result.geminiShortcuts) {
-                    this.appShortcuts = { ...this.appShortcuts, ...result.geminiShortcuts };
+                const errorMessage = getStorageReadError();
+                if (errorMessage) {
+                    console.warn('Failed to load Gemini Nexus shortcuts:', errorMessage);
+                    return;
                 }
+
+                this.appShortcuts = normalizeShortcuts(result?.geminiShortcuts);
             });
 
-            chrome.storage.onChanged.addListener((changes, area) => {
-                if (area === 'local' && changes.geminiShortcuts) {
-                    this.appShortcuts = {
-                        ...this.appShortcuts,
-                        ...changes.geminiShortcuts.newValue,
-                    };
-                }
-            });
+            chrome.storage.onChanged.addListener(this.handleStorageChange);
 
-            document.addEventListener('keydown', (event) => this.handleKeydown(event), true);
+            document.addEventListener('keydown', this.handleDocumentKeydown, true);
+        }
+
+        handleStorageChange(changes, area) {
+            if (area === 'local' && changes.geminiShortcuts) {
+                this.appShortcuts = normalizeShortcuts(changes.geminiShortcuts.newValue);
+            }
+        }
+
+        destroy() {
+            document.removeEventListener('keydown', this.handleDocumentKeydown, true);
+            chrome.storage?.onChanged?.removeListener?.(this.handleStorageChange);
+            this.toolbarController = null;
         }
 
         handleKeydown(event) {

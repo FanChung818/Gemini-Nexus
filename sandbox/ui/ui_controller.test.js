@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { UIController } from './ui_controller.js';
 
-describe('UIController tab switcher visibility', () => {
+describe('UIController browser control visibility', () => {
     it('keeps the legacy switcher hidden with the hidden attribute', () => {
         const tabSwitcherBtn = document.createElement('button');
         const tabSelector = { setControlVisible: vi.fn() };
@@ -11,7 +11,7 @@ describe('UIController tab switcher visibility', () => {
         controller.tabSwitcherBtn = tabSwitcherBtn;
         controller.tabSelector = tabSelector;
 
-        controller.toggleTabSwitcher(true);
+        controller.setBrowserControlVisible(true);
 
         expect(tabSelector.setControlVisible).toHaveBeenCalledWith(true);
         expect(tabSwitcherBtn.hidden).toBe(true);

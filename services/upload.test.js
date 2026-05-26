@@ -62,6 +62,40 @@ describe('uploadFile', () => {
         expect(uploadInit.body).toBeInstanceOf(Blob);
     });
 
+    it('normalizes generic image data URLs before creating the upload blob', async () => {
+        global.fetch = vi
+            .fn()
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                headers: new Headers({
+                    'X-Goog-Upload-URL': 'https://push.clients6.google.com/upload/session',
+                }),
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                text: () => Promise.resolve('/contrib_service/ttl_1d/upload-id'),
+            });
+
+        await uploadFile(
+            {
+                name: 'capture.bin',
+                type: 'application/octet-stream',
+                base64: 'data:application/octet-stream;base64,iVBORw0KGgoAAA',
+            },
+            undefined,
+            {
+                uploadPushId: 'feeds/upload-dynamic',
+                uploadClientPctx: 'client-pctx-token',
+            }
+        );
+
+        const [, uploadInit] = global.fetch.mock.calls[1];
+        expect(uploadInit.body).toBeInstanceOf(Blob);
+        expect(uploadInit.body.type).toBe('image/png');
+    });
+
     it('rejects uploads without current Gemini Web upload tokens', async () => {
         global.fetch = vi.fn();
 

@@ -9,6 +9,7 @@
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "lint:unused": "knip --no-progress",
+        "check:gemini-web": "node scripts/gemini-web-drift-check.mjs",
         "test": "vitest run",
         "test:watch": "vitest",
         "check": "npm run format:check && npm run build && npm exec tsc -- --noEmit && npm run lint:unused && npm run test",

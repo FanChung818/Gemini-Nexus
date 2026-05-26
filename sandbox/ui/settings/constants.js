@@ -4,6 +4,7 @@ export const DOM_IDS = {
     MODAL: 'settings-modal',
     BTN_CLOSE: 'close-settings',
     BTN_SAVE_SHORTCUTS: 'save-shortcuts',
+    SAVE_STATUS: 'settings-save-status',
     BTN_RESET_SHORTCUTS: 'reset-shortcuts',
     TAB_TITLE: 'settings-tab-title',
 
@@ -18,6 +19,8 @@ export const DOM_IDS = {
 
     PROVIDER_SELECT: 'provider-select',
     API_KEY_CONTAINER: 'api-key-container',
+    WEB_FIELDS: 'web-fields',
+    WEB_TEMPORARY_CHAT: 'web-temporary-chat-enabled',
     OFFICIAL_FIELDS: 'official-fields',
     OFFICIAL_BASE_URL: 'official-base-url',
     OFFICIAL_API_KEY: 'api-key-input',

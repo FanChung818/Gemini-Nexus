@@ -50,6 +50,7 @@ export function buildConnectionSettingsForSave(connection, previousConnectionDat
     return {
         provider: connection.provider,
         webThinkingLevel: normalizeWebThinkingLevel(previousConnectionData.webThinkingLevel),
+        webTemporaryChat: connection.webTemporaryChat === true,
         officialBaseUrl: connection.officialBaseUrl,
         apiKey: connection.apiKey,
         officialModel: connection.officialModel,

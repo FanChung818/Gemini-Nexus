@@ -65,6 +65,33 @@ describe('SettingsController', () => {
         expect(document.getElementById('account-indices-input').value).toBe('0,2');
     });
 
+    it('keeps settings open and shows saved feedback after saving', async () => {
+        vi.useFakeTimers();
+        try {
+            const { saveConnectionSettingsToStorage } =
+                await import('../../../shared/messaging/index.js');
+            const controller = new SettingsController();
+            controller.open();
+
+            document.getElementById('save-shortcuts').click();
+
+            expect(saveConnectionSettingsToStorage).toHaveBeenCalled();
+            expect(document.getElementById('settings-modal').classList.contains('visible')).toBe(
+                true
+            );
+            expect(document.getElementById('settings-save-status').hidden).toBe(false);
+            expect(document.getElementById('settings-save-status').textContent).toBe('Saved');
+            expect(document.getElementById('save-shortcuts').disabled).toBe(true);
+
+            vi.advanceTimersByTime(1800);
+
+            expect(document.getElementById('settings-save-status').hidden).toBe(true);
+            expect(document.getElementById('save-shortcuts').disabled).toBe(false);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('cleans custom selection tools before saving and reflects the saved list', async () => {
         const { saveCustomSelectionToolsToStorage } =
             await import('../../../shared/messaging/index.js');
@@ -97,5 +124,19 @@ describe('SettingsController', () => {
         ]);
         expect(document.querySelectorAll('.custom-selection-tool-row')).toHaveLength(1);
         expect(document.querySelector('.custom-selection-tool-name').value).toBe('Formal');
+    });
+
+    it('restores default shortcuts when stored shortcut settings are cleared', () => {
+        const controller = new SettingsController();
+
+        controller.updateShortcuts({ openPanel: 'Ctrl+O' });
+        expect(document.getElementById('shortcut-open-panel').value).toBe('Ctrl+O');
+
+        controller.updateShortcuts(null);
+
+        expect(document.getElementById('shortcut-quick-ask').value).toBe('Ctrl+G');
+        expect(document.getElementById('shortcut-open-panel').value).toBe('Alt+S');
+        expect(document.getElementById('shortcut-browser-control').value).toBe('Ctrl+B');
+        expect(document.getElementById('shortcut-ocr-capture').value).toBe('Alt+O');
     });
 });

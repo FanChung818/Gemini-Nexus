@@ -1,5 +1,4 @@
 import { cropImage } from '../../shared/dom/crop_image.js';
-import { WatermarkRemover } from '../../shared/media/watermark_remover.js';
 import { t } from '../core/i18n.js';
 
 export function handleImageFetchResult(request, { ui, imageManager }) {
@@ -19,13 +18,7 @@ export async function handleGeneratedImageFetchResult(request) {
     if (!imageElement) return;
 
     if (request.base64) {
-        try {
-            imageElement.src = await WatermarkRemover.process(request.base64);
-        } catch (error) {
-            console.warn('Watermark removal failed, using original', error);
-            imageElement.src = request.base64;
-        }
-
+        imageElement.src = request.base64;
         imageElement.classList.remove('loading');
         return;
     }

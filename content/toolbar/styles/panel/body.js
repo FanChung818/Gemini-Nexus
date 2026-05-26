@@ -99,11 +99,13 @@
             overflow: hidden;
             opacity: 0;
             visibility: hidden;
+            pointer-events: none;
             transition: opacity 0.25s ease, visibility 0.25s;
         }
         .gemini-image-preview.visible {
             opacity: 1;
             visibility: visible;
+            pointer-events: auto;
         }
         .gemini-image-preview.is-panning {
             cursor: grabbing;
@@ -122,6 +124,7 @@
             position: fixed;
             top: 16px;
             right: 18px;
+            z-index: 1;
             width: 36px;
             height: 36px;
             display: inline-flex;
@@ -132,6 +135,7 @@
             background: rgba(255, 255, 255, 0.92);
             color: #202124;
             cursor: pointer;
+            pointer-events: auto;
             box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
         }
     `;

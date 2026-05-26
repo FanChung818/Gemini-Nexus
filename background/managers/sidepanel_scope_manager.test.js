@@ -73,4 +73,58 @@ describe('SidePanelScopeManager tab-scoped paths', () => {
 
         expect(calls).toEqual(['disableDefault', 'enableTab:start', 'open', 'enableTab:done']);
     });
+
+    it('retries opening remembered-tab panels after tab options settle', async () => {
+        const calls = [];
+        let resolveSetOptions;
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        chrome.sidePanel.setOptions.mockImplementation((options) => {
+            if (!options.tabId) {
+                calls.push('disableDefault');
+                return Promise.resolve();
+            }
+
+            calls.push('enableTab:start');
+            return new Promise((resolve) => {
+                resolveSetOptions = () => {
+                    calls.push('enableTab:done');
+                    resolve();
+                };
+            });
+        });
+        chrome.sidePanel.open
+            .mockImplementationOnce(() => {
+                calls.push('open:first');
+                return Promise.reject(new Error('side panel is not enabled'));
+            })
+            .mockImplementationOnce(() => {
+                calls.push('open:retry');
+                return Promise.resolve();
+            });
+
+        const manager = new SidePanelScopeManager();
+        const opening = manager.openForTab(123, 456);
+
+        await Promise.resolve();
+        expect(calls).toEqual(['disableDefault', 'enableTab:start', 'open:first']);
+
+        resolveSetOptions();
+        await opening;
+
+        expect(calls).toEqual([
+            'disableDefault',
+            'enableTab:start',
+            'open:first',
+            'enableTab:done',
+            'open:retry',
+        ]);
+        expect(chrome.sidePanel.open).toHaveBeenCalledTimes(2);
+        expect(chrome.sidePanel.open).toHaveBeenNthCalledWith(1, { tabId: 123, windowId: 456 });
+        expect(chrome.sidePanel.open).toHaveBeenNthCalledWith(2, { tabId: 123, windowId: 456 });
+        expect(warnSpy).toHaveBeenCalledWith(
+            '[SidePanelScopeManager] Retrying side panel open after options settled:',
+            expect.any(Error)
+        );
+        warnSpy.mockRestore();
+    });
 });

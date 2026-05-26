@@ -41,6 +41,8 @@ describe('sidepanel downloads', () => {
     });
 
     it('uses a custom content type for text downloads', () => {
+        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
         downloadText('{"ok":true}', 'chat.json', 'application/json');
 
         expect(URL.createObjectURL.mock.calls[0][0].type).toBe('application/json');

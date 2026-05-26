@@ -50,6 +50,8 @@ export class ConnectionSection {
         this.elements = {
             providerSelect: getSettingsElement(DOM_IDS.PROVIDER_SELECT),
             apiKeyContainer: getSettingsElement(DOM_IDS.API_KEY_CONTAINER),
+            webFields: getSettingsElement(DOM_IDS.WEB_FIELDS),
+            webTemporaryChat: getSettingsElement(DOM_IDS.WEB_TEMPORARY_CHAT),
 
             officialFields: getSettingsElement(DOM_IDS.OFFICIAL_FIELDS),
             officialBaseUrl: getSettingsElement(DOM_IDS.OFFICIAL_BASE_URL),
@@ -99,6 +101,7 @@ export class ConnectionSection {
             apiKeyInput,
             officialModel,
             thinkingLevelSelect,
+            webTemporaryChat,
             officialWebSearchEnabled,
             openaiBaseUrl,
             openaiApiKey,
@@ -121,6 +124,7 @@ export class ConnectionSection {
         if (officialModel) officialModel.value = data?.officialModel || DEFAULT_OFFICIAL_MODELS;
         if (thinkingLevelSelect)
             thinkingLevelSelect.value = data?.thinkingLevel || DEFAULT_THINKING_LEVEL;
+        if (webTemporaryChat) webTemporaryChat.checked = data?.webTemporaryChat === true;
         if (officialWebSearchEnabled)
             officialWebSearchEnabled.checked = data?.officialWebSearch === true;
 
@@ -183,6 +187,7 @@ export class ConnectionSection {
             apiKeyInput,
             officialModel,
             thinkingLevelSelect,
+            webTemporaryChat,
             officialWebSearchEnabled,
             openaiBaseUrl,
             openaiApiKey,
@@ -208,6 +213,7 @@ export class ConnectionSection {
             apiKey: apiKeyInput ? apiKeyInput.value.trim() : '',
             officialModel: officialModel ? officialModel.value.trim() : DEFAULT_OFFICIAL_MODELS,
             thinkingLevel: thinkingLevelSelect ? thinkingLevelSelect.value : DEFAULT_THINKING_LEVEL,
+            webTemporaryChat: webTemporaryChat ? webTemporaryChat.checked === true : false,
             officialWebSearch: officialWebSearchEnabled
                 ? officialWebSearchEnabled.checked === true
                 : false,
@@ -234,9 +240,10 @@ export class ConnectionSection {
     }
 
     updateVisibility(provider) {
-        const { apiKeyContainer, officialFields, openaiFields } = this.elements;
+        const { apiKeyContainer, webFields, officialFields, openaiFields } = this.elements;
         if (!apiKeyContainer) return;
 
+        if (webFields) webFields.hidden = provider !== 'web';
         if (provider === 'web') {
             apiKeyContainer.hidden = true;
         } else {

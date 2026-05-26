@@ -73,6 +73,7 @@ export class SettingsController {
             provider: DEFAULT_PROVIDER,
             useOfficialApi: false,
             webThinkingLevel: DEFAULT_WEB_THINKING_LEVEL,
+            webTemporaryChat: false,
             officialBaseUrl: DEFAULT_OFFICIAL_BASE_URL,
             apiKey: '',
             officialModel: DEFAULT_OFFICIAL_MODELS,
@@ -301,10 +302,10 @@ export class SettingsController {
     }
 
     updateShortcuts(payload) {
-        if (payload) {
-            this.shortcuts = { ...this.defaultShortcuts, ...payload };
-            this.view.setShortcuts(this.shortcuts);
-        }
+        const stored =
+            payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
+        this.shortcuts = { ...this.defaultShortcuts, ...stored };
+        this.view.setShortcuts(this.shortcuts);
     }
 
     updateTextSelection(enabled) {

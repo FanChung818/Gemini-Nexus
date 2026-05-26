@@ -2,7 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-async function installContentIndex(storageResult) {
+async function installContentIndex(storageResult, options = {}) {
     vi.resetModules();
     window.history.replaceState(null, '', '/docs/page');
 
@@ -22,9 +22,18 @@ async function installContentIndex(storageResult) {
     window.GeminiToolbarController = vi.fn(() => controller);
 
     globalThis.chrome = {
+        runtime: {
+            lastError: null,
+        },
         storage: {
             local: {
-                get: vi.fn((keys, callback) => callback(storageResult)),
+                get: vi.fn((keys, callback) => {
+                    if (options.storageReadError) {
+                        chrome.runtime.lastError = { message: options.storageReadError };
+                    }
+                    callback(storageResult);
+                    chrome.runtime.lastError = null;
+                }),
             },
             onChanged: {
                 addListener: vi.fn((listener) => {
@@ -103,5 +112,31 @@ describe('content index text selection blacklist', () => {
         );
 
         expect(controller.setCustomSelectionTools).toHaveBeenLastCalledWith(nextTools);
+    });
+
+    it('keeps current toolbar state when the initial settings read fails', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        try {
+            const { controller } = await installContentIndex(
+                {
+                    geminiTextSelectionEnabled: false,
+                    geminiTextSelectionBlacklist: '',
+                    geminiCustomSelectionTools: [{ id: 'formal' }],
+                    geminiImageToolsEnabled: false,
+                },
+                { storageReadError: 'Storage unavailable' }
+            );
+
+            expect(controller.setSelectionEnabled).not.toHaveBeenCalled();
+            expect(controller.setImageToolsEnabled).not.toHaveBeenCalled();
+            expect(controller.setCustomSelectionTools).not.toHaveBeenCalled();
+            expect(warnSpy).toHaveBeenCalledWith(
+                'Failed to load content toolbar settings:',
+                'Storage unavailable'
+            );
+        } finally {
+            warnSpy.mockRestore();
+        }
     });
 });

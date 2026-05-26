@@ -151,12 +151,11 @@ export class UIController {
         this.settings.updateLanguage(lang);
     }
 
-    // Tab Selector
     openTabSelector(tabs, onSelect, lockedTabId) {
         this.tabSelector.open(tabs, onSelect, lockedTabId);
     }
 
-    toggleTabSwitcher(show) {
+    setBrowserControlVisible(show) {
         if (this.tabSelector) {
             this.tabSelector.setControlVisible(show);
         }

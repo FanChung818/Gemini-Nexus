@@ -33,6 +33,7 @@ describe('settings save helpers', () => {
             buildConnectionSettingsForSave(
                 {
                     provider: 'openai',
+                    webTemporaryChat: true,
                     openaiModel: 'gpt-5,gpt-5-mini',
                     openaiUseResponsesApi: true,
                     openaiWebSearch: true,
@@ -43,6 +44,7 @@ describe('settings save helpers', () => {
         ).toMatchObject({
             provider: 'openai',
             webThinkingLevel: 'minimal',
+            webTemporaryChat: true,
             openaiModel: 'gpt-5,gpt-5-mini',
             openaiSelectedModel: 'gpt-5-mini',
             openaiUseResponsesApi: true,

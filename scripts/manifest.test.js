@@ -24,7 +24,10 @@ async function listJavaScriptFiles(directory) {
 }
 
 const classicContentSupportFiles = [
+    'shared/config/constants_global.js',
     'shared/dom/crop_global.js',
+    'shared/media/youtube_global.js',
+    'shared/models/web_model_catalog.js',
     'shared/ui/copy_feedback.js',
     'shared/utils/id_global.js',
 ];
@@ -105,15 +108,40 @@ describe('manifest content scripts', () => {
     it('loads content model metadata before scripts that render or submit model choices', async () => {
         const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
         const listedFiles = manifest.content_scripts.flatMap((entry) => entry.js ?? []);
+        const configIndex = listedFiles.indexOf('shared/config/constants_global.js');
+        const catalogIndex = listedFiles.indexOf('shared/models/web_model_catalog.js');
         const modelOptionsIndex = listedFiles.indexOf('content/toolbar/model_options.js');
 
+        expect(configIndex).toBeGreaterThan(-1);
+        expect(catalogIndex).toBeGreaterThan(-1);
         expect(modelOptionsIndex).toBeGreaterThan(-1);
+        expect(configIndex).toBeLessThan(catalogIndex);
+        expect(catalogIndex).toBeLessThan(modelOptionsIndex);
         for (const dependentFile of [
             'content/toolbar/templates.js',
             'content/toolbar/ui/toolbar_ui.js',
             'content/toolbar/actions.js',
         ]) {
             expect(modelOptionsIndex).toBeLessThan(listedFiles.indexOf(dependentFile));
+        }
+    });
+
+    it('loads YouTube summary helpers before the page summary controller', async () => {
+        const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
+        const listedFiles = manifest.content_scripts.flatMap((entry) => entry.js ?? []);
+        const controllerIndex = listedFiles.indexOf('content/youtube_summary.js');
+
+        expect(controllerIndex).toBeGreaterThan(-1);
+        for (const helperFile of [
+            'shared/config/constants_global.js',
+            'shared/models/web_model_catalog.js',
+            'shared/media/youtube_global.js',
+            'content/youtube_summary_i18n.js',
+            'content/youtube_summary_model.js',
+            'content/youtube_summary_render.js',
+            'content/youtube_summary_view.js',
+        ]) {
+            expect(listedFiles.indexOf(helperFile), helperFile).toBeLessThan(controllerIndex);
         }
     });
 

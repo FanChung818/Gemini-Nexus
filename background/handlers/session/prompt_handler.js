@@ -10,6 +10,7 @@ import {
     persistToolOutputMessages,
     updateBrowserControlFunctionResponses,
 } from './prompt/tool_loop.js';
+import { toControlTabSummary } from '../../control/tabs.js';
 
 export { hasInlinePageSnapshot } from './prompt/tool_loop.js';
 
@@ -112,28 +113,22 @@ export class PromptHandler {
                     );
                     const currentLock = this.controlManager.getTargetTabId();
                     if (!currentLock) {
-                        const tabs = await chrome.tabs.query({
-                            active: true,
-                            lastFocusedWindow: true,
+                        await this.controlManager.enableControl({
+                            createDefaultTab: request.hostIsTab === true,
                         });
-                        if (tabs.length > 0) {
-                            const tab = tabs[0];
-                            this.controlManager.setTargetTab(tab.id);
-
-                            // Notify UI to update the Tab Switcher icon so user knows which tab is locked
-                            chrome.runtime
-                                .sendMessage({
-                                    action: 'TAB_LOCKED',
-                                    tabId: request.sidePanelTabId || null,
-                                    tab: {
-                                        id: tab.id,
-                                        title: tab.title,
-                                        favIconUrl: tab.favIconUrl,
-                                        url: tab.url,
-                                        active: tab.active,
-                                    },
-                                })
-                                .catch(() => {});
+                        const lockedTabId = this.controlManager.getTargetTabId();
+                        if (lockedTabId) {
+                            try {
+                                const tab = await chrome.tabs.get(lockedTabId);
+                                // Notify UI to update the Tab Switcher icon so user knows which tab is locked
+                                chrome.runtime
+                                    .sendMessage({
+                                        action: 'TAB_LOCKED',
+                                        tabId: request.sidePanelTabId || null,
+                                        tab: toControlTabSummary(tab),
+                                    })
+                                    .catch(() => {});
+                            } catch {}
                         }
                     }
                 }

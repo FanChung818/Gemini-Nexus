@@ -2,6 +2,7 @@ import { ConnectionSettingsTemplate } from './connection.js';
 import { GeneralSettingsTemplate } from './general.js';
 import { AppearanceSettingsTemplate } from './appearance.js';
 import { ShortcutsSettingsTemplate } from './shortcuts.js';
+import { DataManagementSettingsTemplate } from './data_management.js';
 import { AboutSettingsTemplate } from './about.js';
 import { TemplateIcons } from '../icons.js';
 
@@ -28,6 +29,10 @@ export const SettingsContentTemplate = `
                     <span class="tab-icon">${TemplateIcons.KEYBOARD}</span>
                     <span class="tab-label" data-i18n="keyboardShortcuts">Shortcuts</span>
                 </li>
+                <li class="settings-tab" data-tab="data" role="button" tabindex="0" aria-selected="false">
+                    <span class="tab-icon">${TemplateIcons.DATABASE}</span>
+                    <span class="tab-label" data-i18n="dataManagement">Data Management</span>
+                </li>
                 <li class="settings-tab" data-tab="about" role="button" tabindex="0" aria-selected="false">
                     <span class="tab-icon">${TemplateIcons.INFO}</span>
                     <span class="tab-label" data-i18n="about">About</span>
@@ -40,6 +45,7 @@ export const SettingsContentTemplate = `
                 <div class="settings-header-actions">
                     <button id="reset-shortcuts" class="btn-secondary" data-i18n="resetDefault">Reset Default</button>
                     <button id="save-shortcuts" class="btn-primary" data-i18n="saveChanges">Save Changes</button>
+                    <span id="settings-save-status" class="settings-save-status" role="status" aria-live="polite" hidden></span>
                     <button id="close-settings" class="icon-btn small" data-i18n-title="close" title="Close">${TemplateIcons.CLOSE}</button>
                 </div>
             </div>
@@ -55,6 +61,9 @@ export const SettingsContentTemplate = `
                 </div>
                 <div class="settings-section" data-section="shortcuts">
                     ${ShortcutsSettingsTemplate}
+                </div>
+                <div class="settings-section" data-section="data">
+                    ${DataManagementSettingsTemplate}
                 </div>
                 <div class="settings-section" data-section="about">
                     ${AboutSettingsTemplate}

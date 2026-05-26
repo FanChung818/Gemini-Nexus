@@ -12,6 +12,7 @@ describe('ToolDispatcher local tool registry', () => {
             'hover',
             'press_key',
             'type_text',
+            'attach_file',
             'navigate_page',
             'new_page',
             'close_page',
@@ -59,13 +60,7 @@ describe('ToolDispatcher local tool registry', () => {
     });
 
     it('does not expose visual, debugging, or narrow interaction tools', () => {
-        const nonCoreTools = [
-            'take_screenshot',
-            'resize_page',
-            'get_logs',
-            'drag_element',
-            'attach_file',
-        ];
+        const nonCoreTools = ['take_screenshot', 'resize_page', 'get_logs', 'drag_element'];
 
         for (const toolName of nonCoreTools) {
             expect(ToolDispatcher.isLocalTool(toolName)).toBe(false);
@@ -85,6 +80,7 @@ describe('ToolDispatcher includeSnapshot responses', () => {
         expect(BROWSER_CONTROL_PREAMBLE).toContain('wait_for');
         expect(BROWSER_CONTROL_PREAMBLE).toContain('hover');
         expect(BROWSER_CONTROL_PREAMBLE).toContain('type_text');
+        expect(BROWSER_CONTROL_PREAMBLE).toContain('attach_file');
         expect(BROWSER_CONTROL_PREAMBLE).toContain('handle_dialog');
     });
 
@@ -272,6 +268,34 @@ describe('ToolDispatcher includeSnapshot responses', () => {
         expect(snapshotManager.takeSnapshot).toHaveBeenCalledWith();
         expect(result).toBe(
             'Typed text: hello\n\n## Latest page snapshot\nuid=2_1 textbox "hello"'
+        );
+    });
+
+    it('routes attach_file and appends a fresh snapshot when requested', async () => {
+        const actions = {
+            attachFile: vi.fn(() =>
+                Promise.resolve('Successfully attached 1 files to element 1_2.')
+            ),
+        };
+        const snapshotManager = {
+            takeSnapshot: vi.fn(() => Promise.resolve('uid=2_1 button "Upload complete"')),
+        };
+        const dispatcher = new ToolDispatcher(actions, snapshotManager);
+
+        const result = await dispatcher.dispatch('attach_file', {
+            uid: '1_2',
+            paths: ['/tmp/photo.png'],
+            includeSnapshot: true,
+        });
+
+        expect(actions.attachFile).toHaveBeenCalledWith({
+            uid: '1_2',
+            paths: ['/tmp/photo.png'],
+            includeSnapshot: true,
+        });
+        expect(snapshotManager.takeSnapshot).toHaveBeenCalledWith();
+        expect(result).toBe(
+            'Successfully attached 1 files to element 1_2.\n\n## Latest page snapshot\nuid=2_1 button "Upload complete"'
         );
     });
 });

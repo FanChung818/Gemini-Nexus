@@ -27,6 +27,10 @@
         );
     }
 
+    function getStorageReadError() {
+        return chrome.runtime?.lastError?.message || null;
+    }
+
     function init(toolbar) {
         if (!toolbar) return;
 
@@ -40,6 +44,12 @@
         };
 
         chrome.storage.local.get(STORAGE_KEYS, (result) => {
+            const errorMessage = getStorageReadError();
+            if (errorMessage) {
+                console.warn('Failed to load content toolbar settings:', errorMessage);
+                return;
+            }
+
             const stored = result || {};
             selectionState.enabled = stored.geminiTextSelectionEnabled !== false;
             selectionState.blacklist = stored.geminiTextSelectionBlacklist || '';

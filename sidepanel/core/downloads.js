@@ -1,13 +1,13 @@
 function triggerDownload(url, filename) {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    downloadLink.download = filename;
+    document.body.appendChild(downloadLink);
 
     try {
-        a.click();
+        downloadLink.click();
     } finally {
-        document.body.removeChild(a);
+        document.body.removeChild(downloadLink);
     }
 }
 

@@ -50,7 +50,12 @@ export class ViewerController {
         this.zoomInButton.addEventListener('click', () => this.zoomIn());
         this.zoomOutButton.addEventListener('click', () => this.zoomOut());
         this.resetButton.addEventListener('click', () => this.resetTransform());
-        this.closeButton.addEventListener('click', () => this.close());
+        this.closeButton.addEventListener('mousedown', (event) => event.stopPropagation());
+        this.closeButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            this.close();
+        });
         this.downloadButton.addEventListener('click', () => this.downloadImage());
 
         this.viewer.addEventListener('click', (event) => {
@@ -127,7 +132,7 @@ export class ViewerController {
     }
 
     startPan(event) {
-        if (event.button !== 0) return;
+        if (event.button !== 0 || event.target?.closest?.('#viewer-close')) return;
         event.preventDefault();
         this.state.panning = true;
         this.state.startX = event.clientX - this.state.pointX;

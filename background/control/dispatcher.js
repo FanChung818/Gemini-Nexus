@@ -26,6 +26,7 @@ export class ToolDispatcher {
         'fill_form',
         'press_key',
         'type_text',
+        'attach_file',
 
         // Observation & Logic
         'take_snapshot',
@@ -41,6 +42,7 @@ export class ToolDispatcher {
         'fill_form',
         'press_key',
         'type_text',
+        'attach_file',
     ]);
 
     static isLocalTool(name) {
@@ -108,6 +110,9 @@ export class ToolDispatcher {
                 break;
             case 'type_text':
                 result = await this.actions.typeText(args);
+                break;
+            case 'attach_file':
+                result = await this.actions.attachFile(args);
                 break;
 
             // Observation & Logic

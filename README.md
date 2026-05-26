@@ -40,6 +40,7 @@
 Gemini Nexus currently focuses on these browser AI workflows:
 
 - Switch among **Gemini Web**, **Gemini API**, and **OpenAI Compatible API**, with custom `Base URL`, `API Key`, and `Model IDs`.
+- Enable Gemini Web temporary chats so Web-provider requests are not added to Gemini Recent chats.
 - Use Gemini API Google Search grounding and show web sources in responses.
 - Use OpenAI-compatible web search through Responses API `web_search` or Chat Completions `web_search_options`, depending on the current endpoint.
 - Limit side-panel scope by tab to reduce distraction on pages where the assistant is not needed.
@@ -55,7 +56,7 @@ The project includes three provider drivers under `services/providers` and adapt
 
 | Provider              | Entry                  | Models                             | Strength                                                                             | Requirement                     |
 | :-------------------- | :--------------------- | :--------------------------------- | :----------------------------------------------------------------------------------- | :------------------------------ |
-| **Web Client**        | `web.js`               | Gemini 3 and image preview models  | No API key; reuses the Gemini web session                                            | Keep a Google account signed in |
+| **Web Client**        | `web.js`               | Current Gemini Web chat modes      | No API key; reuses the Gemini web session; optional temporary chats                  | Keep a Google account signed in |
 | **Official API**      | `official.js`          | Gemini Flash/Pro preview models    | Fast responses with **Thinking** and Google Search grounding                         | Google AI Studio key            |
 | **OpenAI Compatible** | `openai_compatible.js` | GPT, Claude, and compatible models | Highly extensible; supports Chat Completions / Responses API and optional web search | Third-party service key         |
 
@@ -110,8 +111,13 @@ Common proxy endpoints:
     - **OCR and screenshot translation**: Canvas cropping extracts and translates selected image regions.
     - **Screen or window capture**: The side panel can use `display-capture` to select another screen or app window as image input.
     - **Floating image detection**: Detects page images and shows a floating AI analysis button.
-    - **Generated image display optimization**: Uses `watermark_remover.js` in the display pipeline.
+    - **Generated image display**: Shows fetched Gemini images without local pixel rewriting.
+    - Gemini Web currently supports image attachments through the reverse provider. Use Gemini API for PDF/text/document attachments.
 - **Safe rendering**: Markdown, LaTeX, and code blocks render inside the isolated `sandbox` environment.
+
+### Gemini Web Maintenance
+
+Gemini Web is reverse engineered and can change without notice. The current contract is documented in [`docs/gemini-web-reverse.md`](docs/gemini-web-reverse.md), including the verified tokens, RPC paths, upload flow, model hashes, temporary-chat markers, unsupported image-preview model routes, and the manual drift check command.
 
 ### Quick Start
 

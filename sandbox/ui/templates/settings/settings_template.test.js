@@ -5,6 +5,7 @@ import { GeneralSettingsTemplate } from './general.js';
 import { ConnectionSettingsTemplate } from './connection.js';
 import { ShortcutsSettingsTemplate } from './shortcuts.js';
 import { AppearanceSettingsTemplate } from './appearance.js';
+import { DataManagementSettingsTemplate } from './data_management.js';
 import { AboutSettingsTemplate } from './about.js';
 import { SettingsPageTemplate } from './index.js';
 import { DOM_IDS, CONFIG_LIMITS } from '../../settings/constants.js';
@@ -93,6 +94,7 @@ describe('settings templates', () => {
             ConnectionSettingsTemplate +
             AppearanceSettingsTemplate +
             ShortcutsSettingsTemplate +
+            DataManagementSettingsTemplate +
             AboutSettingsTemplate;
 
         expect(document.querySelectorAll('[style]')).toHaveLength(0);
@@ -108,12 +110,23 @@ describe('settings templates', () => {
         expect(missingIds).toEqual([]);
     });
 
+    it('renders a polite save status region near the save action', () => {
+        document.body.innerHTML = SettingsPageTemplate;
+
+        const status = document.getElementById('settings-save-status');
+
+        expect(status).toBeTruthy();
+        expect(status.getAttribute('role')).toBe('status');
+        expect(status.getAttribute('aria-live')).toBe('polite');
+        expect(status.hidden).toBe(true);
+    });
+
     it('uses keyboard-reachable sidebar tabs for the split settings navigation', () => {
         document.body.innerHTML = SettingsPageTemplate;
 
         const tabs = [...document.querySelectorAll('.settings-tab')];
 
-        expect(tabs).toHaveLength(5);
+        expect(tabs).toHaveLength(6);
         expect(tabs.every((tab) => tab.getAttribute('role') === 'button')).toBe(true);
         expect(tabs.every((tab) => tab.getAttribute('tabindex') === '0')).toBe(true);
         expect(tabs.map((tab) => tab.dataset.tab)).toEqual([
@@ -121,8 +134,31 @@ describe('settings templates', () => {
             'general',
             'appearance',
             'shortcuts',
+            'data',
             'about',
         ]);
+    });
+
+    it('renders data management as its own AMC-style settings tab', () => {
+        document.body.innerHTML = SettingsPageTemplate;
+
+        const dataTab = document.querySelector('.settings-tab[data-tab="data"]');
+        const dataSection = document.querySelector('.settings-section[data-section="data"]');
+        const cards = [...dataSection.querySelectorAll('.data-management-card')];
+
+        expect(dataTab.querySelector('.tab-label').getAttribute('data-i18n')).toBe(
+            'dataManagement'
+        );
+        expect(dataTab.querySelector('.tab-icon svg')).not.toBeNull();
+        expect(cards).toHaveLength(3);
+        expect(cards.map((card) => card.querySelector('h5').getAttribute('data-i18n'))).toEqual([
+            'historyDataTitle',
+            'settingsDataTitle',
+            'debugLogs',
+        ]);
+        expect(dataSection.querySelectorAll('.data-action-btn')).toHaveLength(5);
+        expect(dataSection.querySelectorAll('.data-action-icon svg').length).toBeGreaterThan(0);
+        expect(document.querySelector('#about-settings-group #export-history-data')).toBeNull();
     });
 
     it('labels the connection settings navigation item as API with a key icon', () => {

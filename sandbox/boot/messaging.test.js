@@ -12,6 +12,7 @@ describe('AppMessageBridge settings restore', () => {
             },
         };
         const app = {
+            setHostContext: vi.fn(),
             handleIncomingMessage: vi.fn(),
         };
 
@@ -31,6 +32,7 @@ describe('AppMessageBridge settings restore', () => {
             },
         };
         const app = {
+            setHostContext: vi.fn(),
             handleIncomingMessage: vi.fn(),
         };
 
@@ -49,6 +51,7 @@ describe('AppMessageBridge settings restore', () => {
             settings: {},
         };
         const app = {
+            setHostContext: vi.fn(),
             handleIncomingMessage: vi.fn(),
         };
 
@@ -57,6 +60,7 @@ describe('AppMessageBridge settings restore', () => {
         bridge.dispatch('SET_HOST_CONTEXT', { isTab: true }, {});
 
         expect(ui.setHostContext).toHaveBeenCalledWith({ isTab: true });
+        expect(app.setHostContext).toHaveBeenCalledWith({ isTab: true });
         expect(app.handleIncomingMessage).not.toHaveBeenCalled();
     });
 

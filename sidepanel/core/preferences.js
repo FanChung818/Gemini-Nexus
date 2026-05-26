@@ -4,15 +4,31 @@ import {
 } from '../../shared/config/constants.js';
 import { CUSTOM_SELECTION_TOOLS_STORAGE_KEY } from '../../shared/settings/selection_tools.js';
 
+function getRuntimeLastErrorMessage() {
+    return chrome.runtime?.lastError?.message || null;
+}
+
+function restorePreference(keys, label, handler) {
+    chrome.storage.local.get(keys, (result) => {
+        const errorMessage = getRuntimeLastErrorMessage();
+        if (errorMessage) {
+            console.warn(`[Gemini Nexus] Failed to restore ${label}:`, errorMessage);
+            return;
+        }
+
+        handler(result || {});
+    });
+}
+
 export function restoreTextSelection(frame) {
-    chrome.storage.local.get(['geminiTextSelectionEnabled'], (result) => {
+    restorePreference(['geminiTextSelectionEnabled'], 'text selection setting', (result) => {
         const enabled = result.geminiTextSelectionEnabled !== false;
         frame.postMessage({ action: 'RESTORE_TEXT_SELECTION', payload: enabled });
     });
 }
 
 export function restoreTextSelectionBlacklist(frame) {
-    chrome.storage.local.get(['geminiTextSelectionBlacklist'], (result) => {
+    restorePreference(['geminiTextSelectionBlacklist'], 'text selection blacklist', (result) => {
         frame.postMessage({
             action: 'RESTORE_TEXT_SELECTION_BLACKLIST',
             payload: result.geminiTextSelectionBlacklist || '',
@@ -21,7 +37,7 @@ export function restoreTextSelectionBlacklist(frame) {
 }
 
 export function restoreCustomSelectionTools(frame) {
-    chrome.storage.local.get([CUSTOM_SELECTION_TOOLS_STORAGE_KEY], (result) => {
+    restorePreference([CUSTOM_SELECTION_TOOLS_STORAGE_KEY], 'custom selection tools', (result) => {
         frame.postMessage({
             action: 'RESTORE_CUSTOM_SELECTION_TOOLS',
             payload: Array.isArray(result[CUSTOM_SELECTION_TOOLS_STORAGE_KEY])
@@ -32,14 +48,14 @@ export function restoreCustomSelectionTools(frame) {
 }
 
 export function restoreImageTools(frame) {
-    chrome.storage.local.get(['geminiImageToolsEnabled'], (result) => {
+    restorePreference(['geminiImageToolsEnabled'], 'image tools setting', (result) => {
         const enabled = result.geminiImageToolsEnabled !== false;
         frame.postMessage({ action: 'RESTORE_IMAGE_TOOLS', payload: enabled });
     });
 }
 
 export function restoreAccountIndices(frame) {
-    chrome.storage.local.get(['geminiAccountIndices'], (result) => {
+    restorePreference(['geminiAccountIndices'], 'account indices', (result) => {
         frame.postMessage({
             action: 'RESTORE_ACCOUNT_INDICES',
             payload: result.geminiAccountIndices || '0',
@@ -48,13 +64,17 @@ export function restoreAccountIndices(frame) {
 }
 
 export function restoreContextSettings(frame) {
-    chrome.storage.local.get(['geminiContextMode', 'geminiContextRecentTurns'], (result) => {
-        frame.postMessage({
-            action: 'RESTORE_CONTEXT_SETTINGS',
-            payload: {
-                mode: result.geminiContextMode || DEFAULT_CONTEXT_MODE,
-                recentTurns: result.geminiContextRecentTurns || DEFAULT_CONTEXT_RECENT_TURNS,
-            },
-        });
-    });
+    restorePreference(
+        ['geminiContextMode', 'geminiContextRecentTurns'],
+        'context settings',
+        (result) => {
+            frame.postMessage({
+                action: 'RESTORE_CONTEXT_SETTINGS',
+                payload: {
+                    mode: result.geminiContextMode || DEFAULT_CONTEXT_MODE,
+                    recentTurns: result.geminiContextRecentTurns || DEFAULT_CONTEXT_RECENT_TURNS,
+                },
+            });
+        }
+    );
 }

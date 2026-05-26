@@ -49,18 +49,19 @@ function buildOpenAIContent(text, images) {
     }
 
     const content = [];
-    if (text) {
-        content.push({ type: 'text', text });
-    }
-
     images.forEach((imageUrl) => {
         content.push({
             type: 'image_url',
             image_url: {
                 url: imageUrl,
+                detail: 'high',
             },
         });
     });
+
+    if (text) {
+        content.push({ type: 'text', text });
+    }
 
     return content;
 }
@@ -79,16 +80,17 @@ function buildResponsesContent(text, images) {
     }
 
     const content = [];
-    if (text) {
-        content.push({ type: 'input_text', text });
-    }
-
     images.forEach((imageUrl) => {
         content.push({
             type: 'input_image',
             image_url: imageUrl,
+            detail: 'high',
         });
     });
+
+    if (text) {
+        content.push({ type: 'input_text', text });
+    }
 
     return content;
 }
@@ -127,6 +129,14 @@ export function buildChatMessages(prompt, systemInstruction, history, files) {
     });
 
     return messages;
+}
+
+export function hasImageAttachmentsInRequest(history, files) {
+    if (getImageAttachmentDataUrls(files).length > 0) return true;
+    return (Array.isArray(history) ? history : []).some(
+        (historyMessage) =>
+            getImageAttachmentDataUrls(getMessageAttachments(historyMessage)).length > 0
+    );
 }
 
 export function buildResponsesInput(prompt, history, files) {

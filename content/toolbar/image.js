@@ -1,4 +1,70 @@
 (function () {
+    const CAPTCHA_KEYWORD_PATTERN =
+        /captcha|kaptcha|recaptcha|verify|verification|validate|validation|checkcode|check-code|securitycode|security-code|authcode|auth-code|vcode|seccode|yzm|yanzheng|验证码|驗證碼|校验码|校驗碼|图形码|圖形碼|安全码|安全碼/i;
+    const NON_CAPTCHA_SMALL_IMAGE_PATTERN =
+        /avatar|badge|brand|button|emoji|favicon|icon|logo|pixel|sprite|thumb/i;
+
+    function getImageTextSignals(imageElement) {
+        const values = [
+            imageElement.alt,
+            imageElement.title,
+            imageElement.getAttribute('aria-label'),
+            imageElement.id,
+            imageElement.className,
+            imageElement.currentSrc,
+            imageElement.src,
+        ];
+
+        if (imageElement.dataset) {
+            values.push(...Object.values(imageElement.dataset));
+        }
+
+        let parent = imageElement.parentElement;
+        for (let depth = 0; parent && depth < 3; depth++) {
+            const text = String(parent.textContent || '').trim();
+            if (text && text.length <= 200) values.push(text);
+            values.push(parent.id, parent.className, parent.getAttribute('aria-label'));
+            parent = parent.parentElement;
+        }
+
+        return values.filter(Boolean).join(' ');
+    }
+
+    function getDisplayedImageSize(imageElement) {
+        const rect =
+            typeof imageElement.getBoundingClientRect === 'function'
+                ? imageElement.getBoundingClientRect()
+                : null;
+
+        return {
+            width: imageElement.width || rect?.width || imageElement.naturalWidth || 0,
+            height: imageElement.height || rect?.height || imageElement.naturalHeight || 0,
+        };
+    }
+
+    function isSmallOcrCandidate(imageElement, width, height) {
+        if (width < 40 || height < 18) return false;
+        if (width > 260 || height > 100) return false;
+
+        const aspectRatio = width / Math.max(height, 1);
+        if (aspectRatio < 1.4 || aspectRatio > 8) return false;
+
+        const signals = getImageTextSignals(imageElement);
+        if (NON_CAPTCHA_SMALL_IMAGE_PATTERN.test(signals)) return false;
+
+        return true;
+    }
+
+    function shouldShowImageTools(imageElement) {
+        const { width, height } = getDisplayedImageSize(imageElement);
+        if (width >= 100 && height >= 100) return true;
+
+        const signals = getImageTextSignals(imageElement);
+        if (CAPTCHA_KEYWORD_PATTERN.test(signals)) return true;
+
+        return isSmallOcrCandidate(imageElement, width, height);
+    }
+
     class GeminiImageDetector {
         constructor(callbacks) {
             this.callbacks = callbacks || {}; // { onShow, onHide }
@@ -31,7 +97,7 @@
 
             // Ignore small images (icons, spacers)
             const imageElement = mouseEvent.target;
-            if (imageElement.width < 100 || imageElement.height < 100) return;
+            if (!shouldShowImageTools(imageElement)) return;
 
             if (isEnter) {
                 if (this.imageButtonTimeout) clearTimeout(this.imageButtonTimeout);

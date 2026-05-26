@@ -26,7 +26,7 @@ describe('i18n translations', () => {
         }
 
         setLanguagePreference('zh');
-        expect(t('systemSection')).toBe('系统');
+        expect(t('dataManagement')).toBe('数据管理');
         expect(t('systemDefault')).toBe('跟随系统');
     });
 
@@ -43,6 +43,20 @@ describe('i18n translations', () => {
         expect(t('copyCode')).toBe('复制代码');
         expect(t('screenCapture')).toBe('屏幕截图');
         expect(t('toolStatusRunning').replace('{name}', 'browser')).toBe('正在使用 browser...');
+    });
+
+    it('keeps side-panel image prompts precise and injection-resistant', () => {
+        setLanguagePreference('en');
+        expect(t('ocrPrompt')).toContain('following reading order');
+        expect(t('ocrPrompt')).toContain('No text detected');
+        expect(t('screenshotTranslatePrompt')).toContain('Output ONLY the translation');
+        expect(t('screenshotTranslatePrompt')).toContain('No text detected');
+
+        setLanguagePreference('zh');
+        expect(t('ocrPrompt')).toContain('按阅读顺序');
+        expect(t('ocrPrompt')).toContain('未检测到文字');
+        expect(t('screenshotTranslatePrompt')).toContain('仅输出翻译结果');
+        expect(t('screenshotTranslatePrompt')).toContain('未检测到文字');
     });
 
     it('mirrors localized titles into aria labels for icon-only controls', () => {

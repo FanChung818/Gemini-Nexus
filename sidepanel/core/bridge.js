@@ -2,11 +2,7 @@ import {
     DEFAULT_CONTEXT_MODE,
     normalizeContextRecentTurns,
 } from '../../shared/config/constants.js';
-import {
-    CONNECTION_STORAGE_KEYS,
-    createConnectionSettingsPayload,
-    createConnectionStorageUpdate,
-} from '../../shared/settings/connection.js';
+import { createConnectionStorageUpdate } from '../../shared/settings/connection.js';
 import {
     buildHistoryImportStorageUpdate,
     buildSettingsImportStorageUpdate,
@@ -18,6 +14,12 @@ import {
 } from './session_merge.js';
 import { captureDisplayStill } from './screen_capture.js';
 import { handleWindowMessageAction } from './window_actions.js';
+import {
+    getRuntimeLastError,
+    restoreConnectionSettings,
+    restoreSidebarExpanded,
+    saveSidePanelSessionBinding,
+} from './bridge_storage.js';
 
 function getModelSaveKey(payload) {
     if (payload && typeof payload === 'object') {
@@ -41,6 +43,14 @@ const FORWARDED_RESPONSE_ACTIONS = new Set([
     'MCP_TEST_CONNECTION',
     'MCP_LIST_TOOLS',
 ]);
+
+const HOST_ROUTED_ACTIONS = new Set(['GET_OPEN_TABS', 'SWITCH_TAB', 'TOGGLE_BROWSER_CONTROL']);
+
+function shouldRouteToHostTab(payload) {
+    if (!payload || typeof payload !== 'object') return false;
+    if (HOST_ROUTED_ACTIONS.has(payload.action)) return true;
+    return payload.action === 'SEND_PROMPT' && payload.enableBrowserControl === true;
+}
 
 export class MessageBridge {
     constructor(frameManager, stateManager) {
@@ -88,12 +98,15 @@ export class MessageBridge {
     isRunningInTab() {
         return new Promise((resolve) => {
             if (!chrome.tabs || typeof chrome.tabs.getCurrent !== 'function') {
+                this.state.setHostTabId?.(null);
                 resolve(false);
                 return;
             }
 
             chrome.tabs.getCurrent((tab) => {
-                resolve(Boolean(tab && Number.isInteger(tab.id) && tab.id > 0));
+                const tabId = Number.isInteger(tab?.id) && tab.id > 0 ? tab.id : null;
+                this.state.setHostTabId?.(tabId);
+                resolve(Boolean(tabId));
             });
         });
     }
@@ -131,21 +144,11 @@ export class MessageBridge {
     }
 
     restoreConnectionSettings() {
-        chrome.storage.local.get(CONNECTION_STORAGE_KEYS, (result) => {
-            this.frame.postMessage({
-                action: 'RESTORE_CONNECTION_SETTINGS',
-                payload: createConnectionSettingsPayload(result, { includeLegacyFallbacks: true }),
-            });
-        });
+        restoreConnectionSettings(this.frame);
     }
 
     restoreSidebarExpanded() {
-        chrome.storage.local.get(['geminiSidebarExpanded'], (result) => {
-            this.frame.postMessage({
-                action: 'RESTORE_SIDEBAR_EXPANDED',
-                payload: result.geminiSidebarExpanded !== false,
-            });
-        });
+        restoreSidebarExpanded(this.frame);
     }
 
     saveSidebarExpanded(payload) {
@@ -160,19 +163,7 @@ export class MessageBridge {
     }
 
     saveSidePanelSessionBinding(payload) {
-        const tabId = payload?.tabId;
-        const sessionId = payload?.sessionId || null;
-        if (!Number.isInteger(tabId) || tabId <= 0) return;
-
-        chrome.storage.session.get(['geminiSidePanelSessionBindings'], (result) => {
-            const bindings = result.geminiSidePanelSessionBindings || {};
-            if (sessionId) {
-                bindings[tabId] = sessionId;
-            } else {
-                delete bindings[tabId];
-            }
-            chrome.storage.session.set({ geminiSidePanelSessionBindings: bindings });
-        });
+        saveSidePanelSessionBinding(payload);
     }
 
     saveContextSettings(payload) {
@@ -197,11 +188,15 @@ export class MessageBridge {
         chrome.storage.local.get(
             ['geminiSessions', 'geminiGroups', 'geminiDeletedSessionIds'],
             (result) => {
+                const readError = getRuntimeLastError();
+                if (readError) {
+                    this.postDataImportResult('history', false, readError);
+                    return;
+                }
+
                 try {
                     const storageUpdate = buildHistoryImportStorageUpdate(payload, result || {});
-                    chrome.storage.local.set(storageUpdate, () => {
-                        this.postDataImportResult('history', true);
-                    });
+                    this.writeImportedStorage('history', storageUpdate);
                 } catch (error) {
                     this.postDataImportResult('history', false, error);
                 }
@@ -212,11 +207,20 @@ export class MessageBridge {
     importSettingsData(payload) {
         try {
             const storageUpdate = buildSettingsImportStorageUpdate(payload);
-            chrome.storage.local.set(storageUpdate, () => {
-                this.postDataImportResult('settings', true);
-            });
+            this.writeImportedStorage('settings', storageUpdate);
         } catch (error) {
             this.postDataImportResult('settings', false, error);
+        }
+    }
+
+    writeImportedStorage(kind, storageUpdate) {
+        try {
+            chrome.storage.local.set(storageUpdate, () => {
+                const writeError = getRuntimeLastError();
+                this.postDataImportResult(kind, !writeError, writeError);
+            });
+        } catch (error) {
+            this.postDataImportResult(kind, false, error);
         }
     }
 
@@ -246,6 +250,12 @@ export class MessageBridge {
         }
 
         chrome.storage.local.get(['geminiSessions', 'geminiDeletedSessionIds'], (result) => {
+            const readError = getRuntimeLastError();
+            if (readError) {
+                console.warn('Unable to save sessions after storage read failed:', readError);
+                return;
+            }
+
             const deletedSessionIds = normalizeDeletedSessionIds(result?.geminiDeletedSessionIds);
             if (mutation?.type === 'deleteSession' && mutation.sessionId) {
                 deletedSessionIds[mutation.sessionId] = Date.now();
@@ -285,15 +295,23 @@ export class MessageBridge {
             return payload;
         }
 
-        const currentTabId = this.state.getCurrentTabId();
-        if (!Number.isInteger(currentTabId) || currentTabId <= 0) {
+        const tabId = shouldRouteToHostTab(payload)
+            ? this._getMessageTargetTabId()
+            : this.state.getCurrentTabId();
+        if (!Number.isInteger(tabId) || tabId <= 0) {
             return payload;
         }
 
         return {
             ...payload,
-            sidePanelTabId: currentTabId,
+            sidePanelTabId: tabId,
         };
+    }
+
+    _getMessageTargetTabId() {
+        return typeof this.state.getMessageTargetTabId === 'function'
+            ? this.state.getMessageTargetTabId()
+            : this.state.getCurrentTabId();
     }
 
     _isMessageForCurrentTab(message) {
@@ -301,7 +319,7 @@ export class MessageBridge {
             return true;
         }
 
-        const currentTabId = this.state.getCurrentTabId();
-        return message.tabId == null || message.tabId === currentTabId;
+        const messageTargetTabId = this._getMessageTargetTabId();
+        return message.tabId == null || message.tabId === messageTargetTabId;
     }
 }

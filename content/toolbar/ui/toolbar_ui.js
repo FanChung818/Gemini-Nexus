@@ -14,6 +14,26 @@
         return window.GeminiToolbarStrings || {};
     }
 
+    function getConfig() {
+        return globalThis.GeminiNexusConfig || {};
+    }
+
+    function getDefaultWebModel() {
+        return (
+            window.GeminiWebModels?.DEFAULT_WEB_MODEL ||
+            getConfig().DEFAULT_STORED_GEMINI_MODEL ||
+            ''
+        );
+    }
+
+    function getDefaultOfficialModel() {
+        return getConfig().DEFAULT_OFFICIAL_MODEL || '';
+    }
+
+    function getDefaultOpenAIModel() {
+        return getConfig().DEFAULT_OPENAI_MODEL || '';
+    }
+
     function createCustomModelOptions(rawModels, fallbackOption) {
         const modelIds = String(rawModels || '')
             .split(',')
@@ -34,7 +54,7 @@
             this.domBuilder = new DOMBuilder();
             this.callbacks = {};
             this.isBuilt = false;
-            this.provider = 'web';
+            this.provider = getConfig().DEFAULT_PROVIDER || 'web';
             this.translationTargetStore = new TranslationTargetStore();
 
             this.grammarManager = null;
@@ -221,13 +241,6 @@
             }
         }
 
-        async processImage(base64) {
-            if (this.bridge) {
-                return this.bridge.processImage(base64);
-            }
-            return base64; // Fallback
-        }
-
         showError(text) {
             this.view.showError(text);
         }
@@ -260,7 +273,7 @@
         }
 
         getSelectedModel() {
-            return this.view ? this.view.getSelectedModel() : '8c46e95b1a07cecc';
+            return this.view ? this.view.getSelectedModel() : getDefaultWebModel();
         }
 
         getProvider() {
@@ -280,13 +293,14 @@
             let options = [];
 
             if (provider === 'official') {
+                const defaultOfficialModel = getDefaultOfficialModel();
                 options = createCustomModelOptions(settings.officialModel, {
-                    value: 'gemini-3-flash-preview',
-                    label: 'gemini-3-flash-preview',
+                    value: defaultOfficialModel,
+                    label: defaultOfficialModel,
                 });
             } else if (provider === 'openai') {
                 options = createCustomModelOptions(settings.openaiModel, {
-                    value: 'openai_custom',
+                    value: getDefaultOpenAIModel(),
                     label: getStrings().customModel || 'Custom Model',
                 });
             } else {

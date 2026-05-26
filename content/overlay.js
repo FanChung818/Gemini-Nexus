@@ -83,6 +83,7 @@ class SelectionOverlay {
         this.isDragging = false;
         this.startX = 0;
         this.startY = 0;
+        this.onCancelCallback = null;
 
         this.onMouseDown = this.onMouseDown.bind(this);
         this.onMouseMove = this.onMouseMove.bind(this);
@@ -91,8 +92,9 @@ class SelectionOverlay {
         this.onClick = this.onClick.bind(this);
     }
 
-    start(screenshotBase64 = null) {
+    start(screenshotBase64 = null, options = {}) {
         this.cleanup();
+        this.onCancelCallback = typeof options.onCancel === 'function' ? options.onCancel : null;
         this.createDOM(screenshotBase64);
         this.attachListeners();
     }
@@ -166,6 +168,14 @@ class SelectionOverlay {
         this.innerImgRef = null;
     }
 
+    cancel() {
+        const onCancel = this.onCancelCallback;
+        this.isDragging = false;
+        this.cleanup();
+        this.onCancelCallback = null;
+        if (onCancel) onCancel();
+    }
+
     onMouseDown(pointerEvent) {
         if (pointerEvent.button !== 0) return;
         pointerEvent.preventDefault();
@@ -220,11 +230,14 @@ class SelectionOverlay {
         this.isDragging = false;
 
         const rect = this.selectionBox.getBoundingClientRect();
-        this.cleanup();
 
         if (rect.width < 5 || rect.height < 5) {
+            this.cancel();
             return;
         }
+
+        this.cleanup();
+        this.onCancelCallback = null;
 
         setTimeout(() => {
             chrome.runtime.sendMessage({
@@ -244,7 +257,7 @@ class SelectionOverlay {
         if (keyEvent.key === 'Escape') {
             keyEvent.preventDefault();
             keyEvent.stopPropagation();
-            this.cleanup();
+            this.cancel();
         }
     }
 

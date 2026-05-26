@@ -157,6 +157,7 @@ describe('project structure', () => {
 
         expect(readme).toContain('shared/ui/');
         expect(readme).toContain('shared/logging/');
+        expect(readme).toContain('docs/gemini-web-reverse.md');
         await expect(exists('README.zh-CN.md')).resolves.toBe(true);
         await expect(exists('README.en.md')).resolves.toBe(false);
         expect(readme).toContain('README.zh-CN.md');
@@ -175,6 +176,7 @@ describe('project structure', () => {
         expect(chineseReadme).toContain('README.md');
         expect(chineseReadme).toContain('shared/ui/');
         expect(chineseReadme).toContain('shared/logging/');
+        expect(chineseReadme).toContain('docs/gemini-web-reverse.md');
         expect(chineseReadme).toContain('### 项目简介');
         expect(chineseReadme).toContain('### 快速开始');
         expect(chineseReadme).toContain('不再保留顶层 `shared/*.js` 兼容入口');
@@ -185,6 +187,28 @@ describe('project structure', () => {
         expect(chineseReadme).not.toContain('## English');
         expect(chineseReadme).not.toContain('### Project Overview');
         expect(chineseReadme).not.toContain('### Quick Start');
+    });
+
+    it('keeps the Gemini Web reverse contract documented', async () => {
+        await expect(exists('docs/gemini-web-reverse.md')).resolves.toBe(true);
+
+        const contract = await readProjectFile('docs/gemini-web-reverse.md');
+        for (const requiredText of [
+            'SNlM0e',
+            'cfb2h',
+            'FdrFJe',
+            'qKIAYe',
+            'Ylro7b',
+            'StreamGenerate',
+            'ProcessFile',
+            'push.clients6.google.com/upload/',
+            'THINKING_LEVEL_STANDARD',
+            'x-goog-ext-525001261-jspb',
+            'shared/models/web_model_catalog.js',
+            'npm run check:gemini-web',
+        ]) {
+            expect(contract).toContain(requiredText);
+        }
     });
 
     it('names shared DOM crop entry points by their runtime shape', async () => {
@@ -500,9 +524,45 @@ describe('project structure', () => {
         expect(countCodeLines(events)).toBeLessThan(95);
     });
 
+    it('keeps sidebar helpers split by UI responsibility', async () => {
+        const helperModules = [
+            'sandbox/ui/sidebar_collapsed_recent.js',
+            'sandbox/ui/sidebar_grouping.js',
+            'sandbox/ui/sidebar_menus.js',
+            'sandbox/ui/sidebar_rendering.js',
+            'sandbox/ui/sidebar_title_edit.js',
+        ];
+
+        for (const modulePath of helperModules) {
+            await expect(exists(modulePath)).resolves.toBe(true);
+        }
+        await expect(exists('sandbox/ui/sidebar')).resolves.toBe(false);
+
+        const sidebar = await readProjectFile('sandbox/ui/sidebar.js');
+        expect(sidebar).toContain("from './sidebar_collapsed_recent.js'");
+        expect(sidebar).toContain("from './sidebar_grouping.js'");
+        expect(sidebar).toContain("from './sidebar_menus.js'");
+        expect(sidebar).toContain("from './sidebar_rendering.js'");
+        expect(sidebar).toContain("from './sidebar_title_edit.js'");
+        expect(sidebar).not.toContain('TemplateIcons');
+        expect(sidebar).not.toContain('COLLAPSED_RECENT_PANEL_WIDTH');
+        expect(sidebar).not.toContain('history-menu-item');
+        expect(sidebar).not.toContain('history-session-edit-input');
+        expect(sidebar).not.toContain('collapsed-recent-title');
+        expect(sidebar).not.toContain('confirm(t(');
+        expect(sidebar).not.toMatch(/\bfunction getValidSessionDate\s*\(/);
+        expect(countCodeLines(sidebar)).toBeLessThan(540);
+    });
+
     it('keeps UI message helper branches split by responsibility', async () => {
         const helperModules = [
+            'background/handlers/ui_browser_control.js',
+            'background/handlers/ui_async.js',
+            'background/handlers/ui_capture.js',
+            'background/handlers/ui_image_fetching.js',
             'background/handlers/ui_mcp_tools.js',
+            'background/handlers/ui_page_context.js',
+            'background/handlers/ui_sidepanel.js',
             'background/handlers/ui_tab_actions.js',
         ];
 
@@ -511,12 +571,23 @@ describe('project structure', () => {
         }
 
         const handler = await readProjectFile('background/handlers/ui.js');
+        expect(handler).toContain("from './ui_browser_control.js'");
+        expect(handler).toContain("from './ui_capture.js'");
+        expect(handler).toContain("from './ui_image_fetching.js'");
         expect(handler).toContain("from './ui_mcp_tools.js'");
+        expect(handler).toContain("from './ui_page_context.js'");
+        expect(handler).toContain("from './ui_sidepanel.js'");
         expect(handler).toContain("from './ui_tab_actions.js'");
+        expect(handler).not.toMatch(/^\s{4}_handle(OpenSidePanel|ToggleSidePanelControl)\s*\(/m);
+        expect(handler).not.toMatch(
+            /^\s{4}async _handle(OpenSidePanel|ToggleSidePanelControl)\s*\(/m
+        );
         expect(handler).not.toMatch(/^\s{4}_loadMcpTools\s*\(/m);
         expect(handler).not.toMatch(/^\s{4}_toSafeMcpTools\s*\(/m);
+        expect(handler).not.toContain('captureScreenshot');
+        expect(handler).not.toContain('captureArea');
         expect(handler).not.toContain('toControlTabSummary');
-        expect(countCodeLines(handler)).toBeLessThan(340);
+        expect(countCodeLines(handler)).toBeLessThan(130);
     });
 
     it('keeps sidepanel session merge helpers split from the message bridge', async () => {

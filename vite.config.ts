@@ -30,6 +30,7 @@ export default defineConfig(() => {
         },
         plugins: [copySidepanelPreload()],
         build: {
+            chunkSizeWarningLimit: 1600,
             rollupOptions: {
                 input: {
                     sidepanel: path.resolve(__dirname, 'sidepanel/index.html'),

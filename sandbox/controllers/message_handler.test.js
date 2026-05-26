@@ -28,10 +28,6 @@ vi.mock('../core/i18n.js', () => ({
     t: (key) => key,
 }));
 
-vi.mock('../../shared/media/watermark_remover.js', () => ({
-    WatermarkRemover: vi.fn(),
-}));
-
 function createMessageHandlerHarness() {
     const sessionManager = new SessionManager();
     sessionManager.setSessions([

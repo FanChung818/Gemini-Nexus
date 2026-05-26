@@ -1,3 +1,5 @@
+import { respondWithUiTask } from './ui_async.js';
+
 async function loadMcpTools(mcpManager, request, fallbackServerId) {
     if (!mcpManager) throw new Error('MCP manager not available');
 
@@ -17,37 +19,40 @@ async function loadMcpTools(mcpManager, request, fallbackServerId) {
 }
 
 export function handleMcpTestConnection(mcpManager, request, sendResponse) {
-    (async () => {
-        try {
+    respondWithUiTask(
+        sendResponse,
+        async () => {
             const { tools, transport, url } = await loadMcpTools(mcpManager, request, '_test_');
 
-            sendResponse({
+            return {
                 action: 'MCP_TEST_RESULT',
                 ok: true,
                 serverId: request.serverId || null,
                 transport,
                 url,
                 toolsCount: Array.isArray(tools) ? tools.length : 0,
-            });
-        } catch (error) {
-            sendResponse({
+            };
+        },
+        {
+            errorResponse: (error) => ({
                 action: 'MCP_TEST_RESULT',
                 ok: false,
                 serverId: request.serverId || null,
                 transport: request.transport || 'sse',
                 url: request.url || '',
                 error: error.message || String(error),
-            });
+            }),
         }
-    })();
+    );
 }
 
 export function handleMcpListTools(mcpManager, request, sendResponse) {
-    (async () => {
-        try {
+    respondWithUiTask(
+        sendResponse,
+        async () => {
             const { tools, transport, url } = await loadMcpTools(mcpManager, request, '_tools_');
 
-            sendResponse({
+            return {
                 action: 'MCP_TOOLS_RESULT',
                 ok: true,
                 serverId: request.serverId || null,
@@ -55,9 +60,10 @@ export function handleMcpListTools(mcpManager, request, sendResponse) {
                 transport,
                 url,
                 tools: toSafeMcpTools(tools),
-            });
-        } catch (error) {
-            sendResponse({
+            };
+        },
+        {
+            errorResponse: (error) => ({
                 action: 'MCP_TOOLS_RESULT',
                 ok: false,
                 serverId: request.serverId || null,
@@ -66,9 +72,9 @@ export function handleMcpListTools(mcpManager, request, sendResponse) {
                 url: request.url || '',
                 error: error.message || String(error),
                 tools: [],
-            });
+            }),
         }
-    })();
+    );
 }
 
 function toSafeMcpTools(tools) {

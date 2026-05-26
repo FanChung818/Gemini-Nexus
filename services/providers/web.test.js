@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { applyWebThinkingInstruction, sendWebMessage } from './web.js';
+import { sendWebMessage } from './web.js';
 
 function makeStream(text) {
     const encoder = new TextEncoder();
@@ -29,18 +29,6 @@ function buildGeminiLine(text = 'PROJECT_OK') {
 }
 
 describe('sendWebMessage', () => {
-    it('applies Gemini Web thinking instructions only for non-high modes', () => {
-        expect(applyWebThinkingInstruction('Solve it.', '8c46e95b1a07cecc', 'minimal')).toContain(
-            'Gemini Nexus thinking mode: Minimal'
-        );
-        expect(applyWebThinkingInstruction('Solve it.', '8c46e95b1a07cecc', 'high')).toBe(
-            'Solve it.'
-        );
-        expect(applyWebThinkingInstruction('Solve it.', 'e6fa609c3fa255c0', 'minimal')).toContain(
-            'Gemini Nexus thinking mode: Low'
-        );
-    });
-
     it('uses current Gemini web endpoint query and request headers while preserving stream parsing', async () => {
         global.fetch = vi.fn().mockResolvedValue({
             ok: true,
@@ -78,14 +66,24 @@ describe('sendWebMessage', () => {
         expect(init.headers['x-goog-ext-73010989-jspb']).toBe('[0]');
         expect(init.headers['x-goog-ext-73010990-jspb']).toBe('[0,0,0]');
         expect(init.headers['x-goog-ext-525005358-jspb']).toMatch(/^\["[0-9A-F-]{36}",1\]$/);
-        expect(init.headers['x-goog-ext-525001261-jspb']).toContain('56fdd199312815e2');
+        const modelHeader = JSON.parse(init.headers['x-goog-ext-525001261-jspb']);
+        expect(modelHeader[4]).toBe('56fdd199312815e2');
+        expect(modelHeader[8]).toEqual([4, 5, 6, 8]);
+        expect(modelHeader[11]).toBe(1);
+        expect(modelHeader[14]).toBe(1);
+        expect(modelHeader[15]).toBe(2);
+        expect(modelHeader[16]).toMatch(/^[0-9A-F-]{36}$/);
+        expect(init.credentials).toBe('include');
 
         const body = init.body;
         expect(body.get('at')).toBe('at-token');
         expect(body.get('f.req')).toContain('只回复 PROJECT_OK');
+        const requestPayload = JSON.parse(JSON.parse(body.get('f.req'))[1]);
+        expect(requestPayload[45]).toBeUndefined();
+        expect(modelHeader[7]).toBe(0);
     });
 
-    it('sends the selected Gemini Web thinking mode inside the request payload', async () => {
+    it('sends the selected Gemini Web thinking mode as native side-channel metadata', async () => {
         global.fetch = vi.fn().mockResolvedValue({
             ok: true,
             body: makeStream(buildGeminiLine()),
@@ -109,8 +107,73 @@ describe('sendWebMessage', () => {
 
         const [, init] = global.fetch.mock.calls[0];
         const fReq = init.body.get('f.req');
-        expect(fReq).toContain('Gemini Nexus thinking mode: Minimal');
         expect(fReq).toContain('只回复 PROJECT_OK');
+        expect(fReq).not.toContain('Gemini Nexus thinking mode');
+        const modelHeader = JSON.parse(init.headers['x-goog-ext-525001261-jspb']);
+        expect(modelHeader[14]).toBe(6);
+        expect(modelHeader[15]).toBe(1);
+    });
+
+    it('marks Gemini Web requests as temporary chats in the native payload and header', async () => {
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            body: makeStream(buildGeminiLine()),
+        });
+
+        await sendWebMessage(
+            '只回复 PROJECT_OK',
+            {
+                atValue: 'at-token',
+                blValue: 'boq_assistant-bard-web-server_20260511.16_p5',
+                fSid: '3956664217185504700',
+                locale: 'zh-CN',
+                authUser: '0',
+            },
+            '56fdd199312815e2',
+            [],
+            undefined,
+            undefined,
+            { temporaryChat: true }
+        );
+
+        const [, init] = global.fetch.mock.calls[0];
+        const fReq = init.body.get('f.req');
+        const requestPayload = JSON.parse(JSON.parse(fReq)[1]);
+        const modelHeader = JSON.parse(init.headers['x-goog-ext-525001261-jspb']);
+
+        expect(requestPayload[45]).toBe(true);
+        expect(modelHeader[7]).toBe(true);
+    });
+
+    it('normalizes Pro minimal thinking to native standard without prompt prefixes', async () => {
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            body: makeStream(buildGeminiLine()),
+        });
+
+        await sendWebMessage(
+            'Solve it.',
+            {
+                atValue: 'at-token',
+                blValue: 'boq_assistant-bard-web-server_20260511.16_p5',
+                fSid: '3956664217185504700',
+                locale: 'zh-CN',
+                authUser: '0',
+            },
+            'e6fa609c3fa255c0',
+            [],
+            undefined,
+            undefined,
+            { thinkingLevel: 'minimal' }
+        );
+
+        const [, init] = global.fetch.mock.calls[0];
+        const fReq = init.body.get('f.req');
+        expect(fReq).toContain('Solve it.');
+        expect(fReq).not.toContain('Gemini Nexus thinking mode');
+        const modelHeader = JSON.parse(init.headers['x-goog-ext-525001261-jspb']);
+        expect(modelHeader[14]).toBe(3);
+        expect(modelHeader[15]).toBe(1);
     });
 
     it('does not send, persist, or mutate stale native three-id conversation context', async () => {
@@ -238,6 +301,88 @@ describe('sendWebMessage', () => {
 
         const [, streamInit] = global.fetch.mock.calls[2];
         expect(streamInit.body.get('f.req')).toContain('/contrib_service/ttl_1d/upload-id');
+    });
+
+    it('normalizes generic image attachments before Gemini Web upload', async () => {
+        global.fetch = vi
+            .fn()
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                headers: new Headers({
+                    'X-Goog-Upload-URL': 'https://push.clients6.google.com/upload/session',
+                }),
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                text: () => Promise.resolve('/contrib_service/ttl_1d/upload-id'),
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                body: makeStream(buildGeminiLine()),
+            });
+
+        await sendWebMessage(
+            '分析这张图',
+            {
+                atValue: 'at-token',
+                blValue: 'boq_assistant-bard-web-server_20260511.16_p5',
+                fSid: '3956664217185504700',
+                locale: 'zh-CN',
+                authUser: '0',
+                uploadPushId: 'feeds/upload-dynamic',
+                uploadClientPctx: 'client-pctx-token',
+            },
+            '8c46e95b1a07cecc',
+            [
+                {
+                    name: 'capture.bin',
+                    type: 'application/octet-stream',
+                    base64: 'data:application/octet-stream;base64,iVBORw0KGgoAAA',
+                },
+            ],
+            undefined
+        );
+
+        const [, uploadSessionInit] = global.fetch.mock.calls[1];
+        expect(uploadSessionInit.body).toBeInstanceOf(Blob);
+        expect(uploadSessionInit.body.type).toBe('image/png');
+
+        const [, streamInit] = global.fetch.mock.calls[2];
+        expect(streamInit.body.get('f.req')).toContain('capture.bin');
+        expect(streamInit.body.get('f.req')).toContain('/contrib_service/ttl_1d/upload-id');
+    });
+
+    it('rejects non-image attachments until the native ProcessFile flow is implemented', async () => {
+        global.fetch = vi.fn();
+
+        await expect(
+            sendWebMessage(
+                '总结这个文件',
+                {
+                    atValue: 'at-token',
+                    blValue: 'boq_assistant-bard-web-server_20260511.16_p5',
+                    fSid: '3956664217185504700',
+                    locale: 'zh-CN',
+                    authUser: '0',
+                    uploadPushId: 'feeds/upload-dynamic',
+                    uploadClientPctx: 'client-pctx-token',
+                },
+                '8c46e95b1a07cecc',
+                [
+                    {
+                        name: 'brief.pdf',
+                        type: 'application/pdf',
+                        base64: 'data:application/pdf;base64,BBBB',
+                    },
+                ],
+                undefined
+            )
+        ).rejects.toThrow(
+            'Gemini Web Client currently supports image attachments only. Remove non-image files (brief.pdf) or switch to Gemini Official API.'
+        );
+        expect(global.fetch).not.toHaveBeenCalled();
     });
 
     it('rejects unknown Web model names instead of silently falling back', async () => {

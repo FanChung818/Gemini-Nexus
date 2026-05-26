@@ -63,14 +63,6 @@
                     this.scheduleCleanup();
                 }
             }
-            if (event.data.action === 'PROCESS_IMAGE_RESULT') {
-                const { base64, reqId: requestId } = event.data;
-                if (Object.prototype.hasOwnProperty.call(this.callbacksByRequestId, requestId)) {
-                    this.callbacksByRequestId[requestId](base64);
-                    delete this.callbacksByRequestId[requestId];
-                    this.scheduleCleanup();
-                }
-            }
         }
 
         scheduleCleanup() {
@@ -112,25 +104,6 @@
                     delete this.callbacksByRequestId[requestId];
                     this.scheduleCleanup();
                     resolve({ html: text, fetchTasks: [] });
-                }
-            });
-        }
-
-        async processImage(base64) {
-            const requestId = this.createRequestId();
-            const iframe = this.ensureIframe();
-            await this.waitForIframe(iframe);
-            return new Promise((resolve) => {
-                this.callbacksByRequestId[requestId] = resolve;
-                if (iframe === this.iframe && iframe.contentWindow) {
-                    iframe.contentWindow.postMessage(
-                        { action: 'PROCESS_IMAGE', base64, reqId: requestId },
-                        '*'
-                    );
-                } else {
-                    delete this.callbacksByRequestId[requestId];
-                    this.scheduleCleanup();
-                    resolve(base64);
                 }
             });
         }

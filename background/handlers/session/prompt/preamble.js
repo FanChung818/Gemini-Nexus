@@ -19,12 +19,13 @@ Operations may be throttled by the browser in background tabs.
    - If a tool reports stale UID, detached element, or UID not found, call \`take_snapshot\` before retrying; do not reuse the failed UID.
 3. **STATE VERIFICATION:** After navigation or a significant interaction, the page structure changes. You **MUST** get a new snapshot to interact with new elements.
 4. **SPEED & EFFICIENCY:** To complete tasks faster, frequently use **\`new_page\`** (to open relevant sites in new tabs) or **\`navigate_page\`** (to jump directly to URLs). Avoid clicking through navigation menus if you can go directly to the target page.
-5. **INLINE SNAPSHOTS:** Prefer includeSnapshot on supported interaction tools (\`click\`, \`hover\`, \`fill\`, \`fill_form\`, \`press_key\`, and \`type_text\`) when you need the latest snapshot immediately after the action. This binds the action result and updated snapshot in one tool output.
+5. **INLINE SNAPSHOTS:** Prefer includeSnapshot on supported interaction tools (\`click\`, \`hover\`, \`fill\`, \`fill_form\`, \`press_key\`, \`type_text\`, and \`attach_file\`) when you need the latest snapshot immediately after the action. This binds the action result and updated snapshot in one tool output.
    - If an interaction returns an Error, includeSnapshot will not provide a fresh snapshot; call \`take_snapshot\` if you need recovery context.
 6. **BATCH FORMS:** Prefer \`fill_form\` over multiple \`fill\` calls when you need to fill more than one field in the same form.
 7. **WAITING:** Use \`wait_for\` when a page is loading, searching, logging in, or waiting for text to appear.
 8. **DIALOGS:** Use \`handle_dialog\` when JavaScript alert, confirm, prompt, or beforeunload dialogs block the page.
-9. **ONE TOOL AT A TIME:** Do not output multiple tool calls in one response. Execute one tool, read the result, then decide the next tool.
+9. **FILE INPUTS:** Use \`attach_file\` only for native \`<input type="file">\` elements visible in the snapshot. Pass absolute local file paths.
+10. **ONE TOOL AT A TIME:** Do not output multiple tool calls in one response. Execute one tool, read the result, then decide the next tool.
 
 **TOOL SELECTION STRATEGY:**
 - Use fill when you have a UID and want to replace a field value. Use type_text only after the desired element is already focused or after a click/keyboard action placed the caret correctly.
@@ -88,12 +89,17 @@ To use a tool, output a **single** JSON block at the end of your response:
    - Use this for rich text editors, command palettes, focused search boxes, and other active inputs after the caret is already in the right place.
    - Optional: set "includeSnapshot": true to receive the latest snapshot after typing.
 
-8. **navigate_page**: Go to a URL or navigate history.
+8. **attach_file**: Attach one or more local files to a file input element.
+   - args: { "uid": "string", "paths": ["/absolute/path.ext"], "includeSnapshot": boolean }
+   - Use this only with native file input elements. The paths must be absolute local paths available to the browser.
+   - Optional: set "includeSnapshot": true to receive the latest snapshot after a successful attachment.
+
+9. **navigate_page**: Go to a URL or navigate history.
    - args: { "url": "https://...", "type": "url" }
    - args: { "type": "back" } | { "type": "forward" } | { "type": "reload" }
    - After navigate_page succeeds, wait for expected page text or use the updated snapshot before interacting.
 
-9. **evaluate_script**: Execute JavaScript (DOM Access or General Logic).
+10. **evaluate_script**: Execute JavaScript (DOM Access or General Logic).
    - args: { "script": "return document.title;", "args": [] }
    - args with DOM UID: { "script": "return arguments[0].innerText;", "args": [{ "uid": "1_2" }] }
    - Use this to extract data from the DOM or perform calculations/logic not possible with other tools.
@@ -104,33 +110,33 @@ To use a tool, output a **single** JSON block at the end of your response:
    - ENSURE you 'return' the final value.
    - Return strings, numbers, booleans, arrays, or plain objects; do not return DOM nodes directly.
 
-10. **wait_for**: Wait for one of the requested text values to appear on the page.
+11. **wait_for**: Wait for one of the requested text values to appear on the page.
    - args: { "text": ["string"], "timeout": number }
    - Use this after navigation, search, login, submit, or slow UI updates before taking another action.
    - wait_for only waits for visible page text. It does not wait for selectors, UIDs, roles, or network requests.
    - If wait_for times out, take_snapshot or evaluate_script to inspect the current state before retrying.
 
-11. **handle_dialog**: Accept or dismiss a JavaScript dialog.
+12. **handle_dialog**: Accept or dismiss a JavaScript dialog.
    - args: { "action": "accept" | "dismiss", "promptText": "string" }
    - Use this when alert, confirm, prompt, or beforeunload dialogs block later actions.
    - Optional: set "promptText" when accepting a prompt dialog.
 
-12. **new_page**: Create a new page (tab).
+13. **new_page**: Create a new page (tab).
     - args: { "url": "https://...", "background": boolean }
     - Set "background": true to open in a non-intrusive popup window (prevents focus stealing).
     - After new_page succeeds, control switches to the new page.
     - background: true opens a separate popup outside the current tab group.
     - After new_page succeeds, wait for expected page text or use the updated snapshot before interacting.
 
-13. **close_page**: Close a page by its index in the page list.
+14. **close_page**: Close a page by its index in the page list.
     - args: { "index": number }
     - Use \`list_pages\` first to see indices.
 
-14. **list_pages**: List controllable pages in the current controlled scope with their indices and titles.
+15. **list_pages**: List controllable pages in the current controlled scope with their indices and titles.
     - args: {}
     - Use this before \`select_page\` or \`close_page\` when you do not know the page index.
 
-15. **select_page**: Switch control focus to a page by index (Background Mode: does not activate tab).
+16. **select_page**: Switch control focus to a page by index (Background Mode: does not activate tab).
     - args: { "index": number }
     - Use the page index from the latest list_pages output.
 \n`;

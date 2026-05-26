@@ -139,4 +139,50 @@ describe('GeminiSessionManager cancellation', () => {
         expect(result.text).toContain('class="gemini-auth-link"');
         expect(result.text).not.toContain('style=');
     });
+
+    it('passes request provider overrides to connection settings lookup', async () => {
+        getConnectionSettings.mockResolvedValue({ provider: 'openai' });
+        const manager = new GeminiSessionManager();
+        manager.dispatcher = {
+            dispatch: vi.fn(async () => ({
+                action: 'GEMINI_REPLY',
+                status: 'success',
+                text: 'ok',
+            })),
+        };
+
+        await manager.handleSendPrompt(
+            {
+                text: 'describe image',
+                provider: 'openai',
+                model: 'grok-4.3',
+                files: [
+                    {
+                        base64: 'data:image/png;base64,AAAA',
+                        type: 'image/png',
+                        name: 'image.png',
+                    },
+                ],
+            },
+            vi.fn()
+        );
+
+        expect(getConnectionSettings).toHaveBeenCalledWith({ provider: 'openai' });
+        expect(manager.dispatcher.dispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                provider: 'openai',
+                model: 'grok-4.3',
+            }),
+            expect.objectContaining({ provider: 'openai' }),
+            [
+                {
+                    base64: 'data:image/png;base64,AAAA',
+                    type: 'image/png',
+                    name: 'image.png',
+                },
+            ],
+            expect.any(Function),
+            expect.any(AbortSignal)
+        );
+    });
 });

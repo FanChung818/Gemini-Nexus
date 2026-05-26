@@ -34,4 +34,27 @@ describe('TemplateIcons', () => {
         );
         expect(TemplateIcons.NEW_GROUP).toContain('M2 8v11a2 2 0 0 0 2 2h14');
     });
+
+    it('uses a release tag icon for the GitHub releases link', () => {
+        expect(TemplateIcons.RELEASES).toContain(
+            'M12.586 2.586A2 2 0 0 0 11.172 2H4'
+        );
+        expect(TemplateIcons.RELEASES).toContain(
+            '<circle cx="7.5" cy="7.5" r=".5" fill="currentColor"></circle>'
+        );
+        expect(TemplateIcons.RELEASES).not.toContain('M18 8h1a4 4 0 0 1 0 8h-1');
+        expect(TemplateIcons.RELEASES).not.toContain('M2 8h16v9a4 4 0 0 1-4 4H6');
+    });
+
+    it('uses stacked browser tabs for the tab switcher trigger', () => {
+        expect(TemplateIcons.TAB_STACK).toContain(
+            '<rect x="7" y="3" width="14" height="12" rx="2"></rect>'
+        );
+        expect(TemplateIcons.TAB_STACK).toContain('M7 7h14');
+        expect(TemplateIcons.TAB_STACK).toContain('M3 8v11a2 2 0 0 0 2 2h12');
+        expect(TemplateIcons.TAB_STACK).not.toContain(
+            'M2 6h20v13a2 2 0 0 1-2 2H4'
+        );
+        expect(TemplateIcons.TAB_STACK).not.toContain('M2 6l2.5-3.5A2 2 0 0 1');
+    });
 });

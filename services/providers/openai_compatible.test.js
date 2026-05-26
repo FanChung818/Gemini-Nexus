@@ -59,13 +59,14 @@ describe('sendOpenAIMessage', () => {
         expect(payload.messages[0]).toEqual({
             role: 'user',
             content: [
-                { type: 'text', text: 'Look at this' },
                 {
                     type: 'image_url',
                     image_url: {
                         url: 'data:image/png;base64,AAAA',
+                        detail: 'high',
                     },
                 },
+                { type: 'text', text: 'Look at this' },
             ],
         });
     });
@@ -127,5 +128,143 @@ describe('sendOpenAIMessage', () => {
         ).rejects.toThrow(/supports image attachments only/);
 
         expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('keeps image data URLs with generic MIME metadata in Chat Completions payloads', async () => {
+        await sendOpenAIMessage(
+            'Describe this image',
+            '',
+            [],
+            {
+                baseUrl: 'https://api.x.ai/v1',
+                model: 'grok-4.3',
+            },
+            [
+                {
+                    base64: 'data:application/octet-stream;base64,iVBORw0KGgoAAA',
+                    type: 'application/octet-stream',
+                    name: 'capture.bin',
+                },
+            ],
+            null,
+            vi.fn()
+        );
+
+        const [, init] = global.fetch.mock.calls[0];
+        const payload = JSON.parse(init.body);
+        expect(payload.messages[payload.messages.length - 1]).toEqual({
+            role: 'user',
+            content: [
+                {
+                    type: 'image_url',
+                    image_url: {
+                        url: 'data:image/png;base64,iVBORw0KGgoAAA',
+                        detail: 'high',
+                    },
+                },
+                { type: 'text', text: 'Describe this image' },
+            ],
+        });
+    });
+
+    it('keeps image data URLs in Responses API payloads with high detail', async () => {
+        await sendOpenAIMessage(
+            'Describe this image',
+            '',
+            [],
+            {
+                baseUrl: 'https://api.x.ai/v1',
+                model: 'grok-4.3',
+                useResponsesApi: true,
+            },
+            [
+                {
+                    base64: 'data:image/png;base64,AAAA',
+                    type: 'image/png',
+                    name: 'capture.png',
+                },
+            ],
+            null,
+            vi.fn()
+        );
+
+        const [url, init] = global.fetch.mock.calls[0];
+        const payload = JSON.parse(init.body);
+        expect(url).toBe('https://api.x.ai/v1/responses');
+        expect(payload.input[payload.input.length - 1]).toEqual({
+            role: 'user',
+            content: [
+                {
+                    type: 'input_image',
+                    image_url: 'data:image/png;base64,AAAA',
+                    detail: 'high',
+                },
+                { type: 'input_text', text: 'Describe this image' },
+            ],
+        });
+        expect(payload.store).toBe(false);
+    });
+
+    it('does not disable storage for non-xAI Responses API image payloads', async () => {
+        await sendOpenAIMessage(
+            'Describe this image',
+            '',
+            [],
+            {
+                baseUrl: 'https://api.openai.com/v1',
+                model: 'gpt-5',
+                useResponsesApi: true,
+            },
+            [
+                {
+                    base64: 'data:image/png;base64,AAAA',
+                    type: 'image/png',
+                    name: 'capture.png',
+                },
+            ],
+            null,
+            vi.fn()
+        );
+
+        const [, init] = global.fetch.mock.calls[0];
+        const payload = JSON.parse(init.body);
+        expect(payload.input[payload.input.length - 1].content[0]).toEqual({
+            type: 'input_image',
+            image_url: 'data:image/png;base64,AAAA',
+            detail: 'high',
+        });
+        expect(payload).not.toHaveProperty('store');
+    });
+
+    it('disables xAI Responses storage when replayed history contains image attachments', async () => {
+        await sendOpenAIMessage(
+            'Continue',
+            '',
+            [
+                {
+                    role: 'user',
+                    text: 'Earlier image',
+                    attachments: [
+                        {
+                            base64: 'data:image/png;base64,BBBB',
+                            type: 'image/png',
+                            name: 'earlier.png',
+                        },
+                    ],
+                },
+            ],
+            {
+                baseUrl: 'https://api.x.ai/v1',
+                model: 'grok-4.3',
+                useResponsesApi: true,
+            },
+            [],
+            null,
+            vi.fn()
+        );
+
+        const [, init] = global.fetch.mock.calls[0];
+        const payload = JSON.parse(init.body);
+        expect(payload.store).toBe(false);
     });
 });

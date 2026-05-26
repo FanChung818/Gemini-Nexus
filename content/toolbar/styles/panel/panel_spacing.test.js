@@ -14,4 +14,16 @@ describe('content toolbar panel spacing', () => {
         expect(window.GeminiStyles.PanelHeader).toContain('padding: 8px 16px 4px 16px;');
         expect(window.GeminiStyles.PanelBody).toContain('padding: 4px 16px 16px 16px;');
     });
+
+    it('lets the full-screen image preview receive pointer events inside the toolbar host', async () => {
+        await import('./body.js?image-preview-pointer-events-test');
+
+        const css = window.GeminiStyles.PanelBody;
+        expect(css).toContain('.gemini-image-preview {');
+        expect(css).toContain('pointer-events: none;');
+        expect(css).toContain('.gemini-image-preview.visible {');
+        expect(css).toContain('pointer-events: auto;');
+        expect(css).toContain('.gemini-image-preview-close {');
+        expect(css).toContain('pointer-events: auto;');
+    });
 });

@@ -60,12 +60,14 @@ describe('ConnectionSection provider visibility', () => {
         const section = Object.create(ConnectionSection.prototype);
         section.elements = {
             apiKeyContainer: document.createElement('div'),
+            webFields: document.createElement('div'),
             officialFields: document.createElement('div'),
             openaiFields: document.createElement('div'),
         };
 
         section.updateVisibility('official');
 
+        expect(section.elements.webFields.hidden).toBe(true);
         expect(section.elements.apiKeyContainer.hidden).toBe(false);
         expect(section.elements.officialFields.hidden).toBe(false);
         expect(section.elements.openaiFields.hidden).toBe(true);
@@ -73,7 +75,35 @@ describe('ConnectionSection provider visibility', () => {
 
         section.updateVisibility('web');
 
+        expect(section.elements.webFields.hidden).toBe(false);
         expect(section.elements.apiKeyContainer.hidden).toBe(true);
+    });
+
+    it('restores and reads the Gemini Web temporary chat checkbox', () => {
+        const section = Object.create(ConnectionSection.prototype);
+        const providerSelect = document.createElement('select');
+        providerSelect.innerHTML = '<option value="web">Web</option>';
+        const webTemporaryChat = document.createElement('input');
+        webTemporaryChat.type = 'checkbox';
+        section.elements = {
+            providerSelect,
+            webTemporaryChat,
+        };
+        section.mcpServers = [];
+        section.mcpActiveServerId = null;
+        section.updateVisibility = () => {};
+        section._renderMcpServerOptions = () => {};
+        section._loadActiveServerIntoForm = () => {};
+        section.setMcpTestStatus = () => {};
+        section._saveCurrentServerEdits = () => {};
+
+        section.setData({ provider: 'web', webTemporaryChat: true });
+
+        expect(webTemporaryChat.checked).toBe(true);
+        expect(section.getData()).toMatchObject({
+            provider: 'web',
+            webTemporaryChat: true,
+        });
     });
 
     it('toggles MCP settings with a hidden attribute', () => {

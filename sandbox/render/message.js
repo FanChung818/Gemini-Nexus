@@ -138,7 +138,6 @@ export function appendMessage(
 
     // Allow creating empty AI bubbles for streaming
     if (currentText || currentThoughts || role === 'ai' || role === 'user') {
-        // --- Thinking Process (Optional) ---
         if (role === 'ai') {
             thoughtsController = createThoughtsBlock(currentThoughts, options, syncCompactSpacing);
             contentHost.appendChild(thoughtsController.root);
@@ -190,7 +189,6 @@ export function appendMessage(
     container.appendChild(messageElement);
     syncCompactSpacing();
 
-    // --- Scroll Logic ---
     // Instead of scrolling to bottom, we scroll to the top of the NEW message.
     // This allows users to read from the start while content streams in below.
     // Restored history renders disable this and let the session flow choose one

@@ -13,7 +13,7 @@ function renderViewer() {
             <button id="viewer-zoom-out"></button>
             <button id="viewer-reset"></button>
             <button id="viewer-download"></button>
-            <button id="viewer-close"></button>
+            <button id="viewer-close"><svg><path d="M0 0"></path></svg></button>
             <span id="viewer-zoom-level"></span>
         </div>
     `;
@@ -86,5 +86,27 @@ describe('ViewerController', () => {
             }),
             '*'
         );
+    });
+
+    it('closes from the nested close icon without starting image panning', () => {
+        const controller = new ViewerController();
+        controller.open('data:image/png;base64,CCCC');
+
+        const viewer = document.getElementById('image-viewer');
+        const closeIconPath = document.querySelector('#viewer-close path');
+
+        closeIconPath.dispatchEvent(
+            new MouseEvent('mousedown', {
+                button: 0,
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+
+        expect(controller.state.panning).toBe(false);
+
+        closeIconPath.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+        expect(viewer.classList.contains('visible')).toBe(false);
     });
 });

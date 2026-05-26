@@ -21,7 +21,6 @@ export class BrowserActions {
         this.observation = new ObservationActions(connection, snapshotManager, this.waitHelper);
     }
 
-    // --- Navigation Delegates ---
     async navigatePage(args) {
         return this.navigation.navigatePage(args);
     }
@@ -38,7 +37,6 @@ export class BrowserActions {
         return this.navigation.selectPage(args);
     }
 
-    // --- Input Delegates ---
     async clickElement(args) {
         return this.input.clickElement(args);
     }
@@ -61,7 +59,6 @@ export class BrowserActions {
         return this.input.attachFile(args);
     }
 
-    // --- Observation Delegates ---
     async waitFor(args) {
         return this.observation.waitFor(args);
     }

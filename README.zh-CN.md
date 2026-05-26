@@ -40,6 +40,7 @@
 Gemini Nexus 当前围绕浏览器内 AI 工作流提供以下能力：
 
 - **Gemini Web**、**Gemini API** 与 **OpenAI Compatible API** 三种提供方切换，支持自定义 `Base URL`、`API Key` 与 `Model IDs`。
+- **Gemini Web 临时对话** 开关，可让 Web 渠道请求不进入 Gemini 近期对话。
 - **Gemini API Google Search grounding** 支持，并在回复中展示联网来源。
 - **OpenAI Compatible API 联网搜索** 支持，可按当前接口使用 Responses API `web_search` 或 Chat Completions `web_search_options`。
 - **侧边栏按标签页显示范围控制**，支持减少在不需要标签页中的干扰。
@@ -53,11 +54,11 @@ Gemini Nexus 当前围绕浏览器内 AI 工作流提供以下能力：
 
 项目内置了三种驱动方案，位于 `services/providers`，并通过代码逻辑动态适配不同的使用场景：
 
-| 驱动方案              | 逻辑入口               | 支持模型                | 核心优势                                                           | 使用前提                |
-| :-------------------- | :--------------------- | :---------------------- | :----------------------------------------------------------------- | :---------------------- |
-| **Web Client**        | `web.js`               | Gemini 3 与图像预览模型 | **免 API Key**，复用 Gemini 网页版会话                             | 需保持 Google 账号登录  |
-| **Official API**      | `official.js`          | Gemini Flash/Pro 预览版 | **极速响应**，支持 **Thinking** 与 Google Search grounding         | 需 Google AI Studio Key |
-| **OpenAI Compatible** | `openai_compatible.js` | GPT/Claude/兼容模型     | **高扩展性**，支持 Chat Completions / Responses API 与可选联网搜索 | 需第三方服务密钥        |
+| 驱动方案              | 逻辑入口               | 支持模型                 | 核心优势                                                           | 使用前提                |
+| :-------------------- | :--------------------- | :----------------------- | :----------------------------------------------------------------- | :---------------------- |
+| **Web Client**        | `web.js`               | 当前 Gemini Web 聊天模式 | **免 API Key**，复用 Gemini 网页版会话，支持可选临时对话            | 需保持 Google 账号登录  |
+| **Official API**      | `official.js`          | Gemini Flash/Pro 预览版  | **极速响应**，支持 **Thinking** 与 Google Search grounding         | 需 Google AI Studio Key |
+| **OpenAI Compatible** | `openai_compatible.js` | GPT/Claude/兼容模型      | **高扩展性**，支持 Chat Completions / Responses API 与可选联网搜索 | 需第三方服务密钥        |
 
 ### 浏览器控制能力集
 
@@ -110,8 +111,13 @@ Gemini Nexus 可以选择连接到一个或多个外部 MCP 服务器（通过 *
     - **OCR & 截图翻译**：集成 Canvas 裁剪技术，框选图片区域即刻提取文字并翻译。
     - **屏幕/窗口截图**：侧边栏可通过浏览器的 `display-capture` 能力选择其他屏幕或应用窗口作为图像输入。
     - **浮窗探测**：自动识别网页图片并生成悬浮 AI 分析按钮。
-    - **生成图像展示优化**：内置 `watermark_remover.js` 处理链路，用于优化生成图像在侧边栏中的展示效果。
+    - **生成图像展示**：展示拉取到的 Gemini 原图，不在本地重写图片像素。
+    - Gemini Web 逆向驱动当前支持图片附件；PDF、文本、文档类附件请使用 Gemini API 渠道。
 - **安全渲染**：所有 Markdown、LaTeX 公式及代码块均在 `sandbox` 隔离环境中渲染，确保主页面安全。
+
+### Gemini Web 维护说明
+
+Gemini Web 依赖逆向协议，可能随网站更新而变化。当前契约记录在 [`docs/gemini-web-reverse.md`](docs/gemini-web-reverse.md)，包含已验证 token、RPC 路径、上传流程、模型 hash、临时对话标记、暂不支持的 image-preview 模型路由，以及手动漂移检查命令。
 
 ### 快速开始
 

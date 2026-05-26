@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
     DEFAULT_WEB_THINKING_LEVEL,
+    WEB_NATIVE_THINKING_LEVELS,
     getNextWebThinkingLevel,
+    getWebNativeThinkingLevel,
     getWebThinkingFastLevel,
     normalizeWebThinkingLevel,
     normalizeWebThinkingLevelForModel,
@@ -27,6 +29,21 @@ describe('web thinking helpers', () => {
         expect(getNextWebThinkingLevel('8c46e95b1a07cecc', 'minimal')).toBe('high');
         expect(getNextWebThinkingLevel('e6fa609c3fa255c0', 'high')).toBe('low');
         expect(getNextWebThinkingLevel('e6fa609c3fa255c0', 'low')).toBe('high');
+    });
+
+    it('maps Nexus Web thinking levels to Gemini Web native levels', () => {
+        expect(getWebNativeThinkingLevel('8c46e95b1a07cecc', 'minimal')).toBe(
+            WEB_NATIVE_THINKING_LEVELS.STANDARD
+        );
+        expect(getWebNativeThinkingLevel('e6fa609c3fa255c0', 'minimal')).toBe(
+            WEB_NATIVE_THINKING_LEVELS.STANDARD
+        );
+        expect(getWebNativeThinkingLevel('8c46e95b1a07cecc', 'medium')).toBe(
+            WEB_NATIVE_THINKING_LEVELS.EXTENDED
+        );
+        expect(getWebNativeThinkingLevel('8c46e95b1a07cecc', 'high')).toBe(
+            WEB_NATIVE_THINKING_LEVELS.EXTENDED
+        );
     });
 
     it('only supports known Gemini Web reverse models', () => {

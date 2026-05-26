@@ -37,6 +37,7 @@ describe('ShortcutManager', () => {
                 },
             },
             runtime: {
+                lastError: null,
                 sendMessage: vi.fn(),
             },
         };
@@ -79,6 +80,59 @@ describe('ShortcutManager', () => {
         document.dispatchEvent(createKeyboardEvent('O', { ctrlKey: true }));
 
         expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ action: 'OPEN_SIDE_PANEL' });
+    });
+
+    it('restores default shortcuts when the stored shortcut config is removed', () => {
+        storageChangeListener(
+            {
+                geminiShortcuts: {
+                    newValue: {
+                        openPanel: 'Ctrl+O',
+                    },
+                },
+            },
+            'local'
+        );
+        storageChangeListener(
+            {
+                geminiShortcuts: {
+                    newValue: undefined,
+                },
+            },
+            'local'
+        );
+
+        document.dispatchEvent(createKeyboardEvent('O', { ctrlKey: true }));
+        expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
+
+        document.dispatchEvent(createKeyboardEvent('S', { altKey: true }));
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ action: 'OPEN_SIDE_PANEL' });
+    });
+
+    it('does not enable default shortcuts when the initial shortcut read fails', async () => {
+        vi.resetModules();
+        storageChangeListener = null;
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        chrome.storage.local.get.mockImplementation((keys, callback) => {
+            chrome.runtime.lastError = { message: 'Storage unavailable' };
+            callback({});
+            chrome.runtime.lastError = null;
+        });
+        chrome.runtime.sendMessage.mockClear();
+
+        try {
+            await installShortcuts();
+
+            document.dispatchEvent(createKeyboardEvent('S', { altKey: true }));
+
+            expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
+            expect(warnSpy).toHaveBeenCalledWith(
+                'Failed to load Gemini Nexus shortcuts:',
+                'Storage unavailable'
+            );
+        } finally {
+            warnSpy.mockRestore();
+        }
     });
 
     it('opens quick ask through the attached toolbar controller', () => {

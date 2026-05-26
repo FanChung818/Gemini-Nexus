@@ -28,37 +28,37 @@ function averageSampleColor(canvasContext, x, y) {
     const imageData = canvasContext.getImageData(x, y, SAMPLE_SIZE, SAMPLE_SIZE);
     const { data } = imageData;
     const count = data.length / 4;
-    let r = 0;
-    let g = 0;
-    let b = 0;
+    let redTotal = 0;
+    let greenTotal = 0;
+    let blueTotal = 0;
 
-    for (let i = 0; i < data.length; i += 4) {
-        r += data[i];
-        g += data[i + 1];
-        b += data[i + 2];
+    for (let colorIndex = 0; colorIndex < data.length; colorIndex += 4) {
+        redTotal += data[colorIndex];
+        greenTotal += data[colorIndex + 1];
+        blueTotal += data[colorIndex + 2];
     }
 
     return {
-        r: Math.floor(r / count),
-        g: Math.floor(g / count),
-        b: Math.floor(b / count),
+        red: Math.floor(redTotal / count),
+        green: Math.floor(greenTotal / count),
+        blue: Math.floor(blueTotal / count),
     };
 }
 
 function coverWatermark(canvasContext, canvas, width, height) {
     const { size, margin } = getWatermarkBox(width, height);
-    const x = width - margin - size;
-    const y = height - margin - size;
+    const watermarkX = width - margin - size;
+    const watermarkY = height - margin - size;
 
-    const fillX = Math.max(0, x - PADDING);
-    const fillY = Math.max(0, y - PADDING);
+    const fillX = Math.max(0, watermarkX - PADDING);
+    const fillY = Math.max(0, watermarkY - PADDING);
     const fillW = Math.min(width - fillX, size + PADDING * 2);
     const fillH = Math.min(height - fillY, size + PADDING * 2);
     const sampleY = Math.max(0, fillY - SAMPLE_OFFSET_Y);
     const sampleX = Math.min(fillX, Math.max(0, width - SAMPLE_SIZE));
 
-    const { r, g, b } = averageSampleColor(canvasContext, sampleX, sampleY);
-    canvasContext.fillStyle = `rgb(${r}, ${g}, ${b})`;
+    const { red, green, blue } = averageSampleColor(canvasContext, sampleX, sampleY);
+    canvasContext.fillStyle = `rgb(${red}, ${green}, ${blue})`;
     canvasContext.fillRect(fillX, fillY, fillW, fillH);
 
     if (fillX > fillW) {

@@ -12,12 +12,14 @@ describe('project code hygiene', () => {
         const officialFunctionResponse = await readProjectFile(
             'background/handlers/session/official_function_response.js'
         );
+        const uiAsync = await readProjectFile('background/handlers/ui_async.js');
         const packageExtension = await readProjectFile('scripts/package-extension.mjs');
 
         expect(webModels).not.toMatch(/export function normalizeWebModel\s*\(/);
         expect(officialFunctionResponse).not.toMatch(
             /export function createOfficialFunctionResponsePart\s*\(/
         );
+        expect(uiAsync).not.toMatch(/export function createErrorResponse\s*\(/);
         expect(packageExtension).not.toMatch(/export function getLocalDependencyAssets\s*\(/);
     });
 
@@ -284,6 +286,7 @@ describe('project code hygiene', () => {
             'sandbox/controllers/app_controller.js',
             'sandbox/ui/chat.js',
             'sandbox/ui/settings/sections/general.js',
+            'sidepanel/core/downloads.js',
         ];
 
         for (const sourcePath of sourceFiles) {
@@ -345,6 +348,7 @@ describe('project code hygiene', () => {
             '// Content',
             '// Tab Icon/Favicon',
             '// Icons',
+            '// Tab Selector',
         ];
 
         for (const sourcePath of sourceFiles) {
@@ -762,10 +766,12 @@ describe('project code hygiene', () => {
             'background/managers/session/settings_store.js',
             'background/managers/session/request_dispatcher.js',
             'background/handlers/session/prompt/tool_executor.js',
+            'background/handlers/ui.js',
             'content/index.js',
             'content/messages.js',
             'content/toolbar/i18n.js',
             'content/toolbar/stream.js',
+            'content/toolbar/ui/grammar.js',
             'content/toolbar/view/index.js',
             'content/toolbar/view/window.js',
             'background/menus.js',
@@ -903,6 +909,18 @@ describe('project code hygiene', () => {
             'Finished: Scroll to top',
             'Reset Copy Icon',
             'Show Footer with Actions',
+            '--- IMAGE FETCHING (USER INPUT) ---',
+            '--- IMAGE FETCHING (GENERATED DISPLAY) ---',
+            '--- SIDEPANEL & SELECTION ---',
+            '--- PAGE CONTEXT CHECK ---',
+            '--- MCP (External Tools) ---',
+            '--- TAB MANAGEMENT ---',
+            '--- BROWSER CONTROL TOGGLE ---',
+            '--- Thinking Process (Optional) ---',
+            '--- Scroll Logic ---',
+            '--- AI Prompts (Centralized) ---',
+            'Image Actions',
+            '--- View Manipulation ---',
         ];
 
         for (const sourcePath of sourceFiles) {
@@ -1030,8 +1048,28 @@ describe('project code hygiene', () => {
         const downloads = await readProjectFile('sidepanel/core/downloads.js');
 
         expect(downloads).toContain('triggerDownload');
+        expect(downloads).toContain('downloadLink');
+        expect(downloads).not.toMatch(/\bconst\s+a\s*=/);
         expect(downloads.match(/document\.createElement\('a'\)/g) ?? []).toHaveLength(1);
         expect(downloads.match(/document\.body\.appendChild\(/g) ?? []).toHaveLength(1);
         expect(downloads.match(/document\.body\.removeChild\(/g) ?? []).toHaveLength(1);
+    });
+
+    it('uses descriptive fallback UUID and sampled color variable names', async () => {
+        const utils = await readProjectFile('shared/utils/index.js');
+        const watermarkRemover = await readProjectFile('shared/media/watermark_remover.js');
+
+        expect(utils).toContain('randomNibble');
+        expect(utils).toContain('uuidNibble');
+        expect(utils).not.toMatch(/\.replace\(\s*\/\[xy\]\/g,\s*\(c\)\s*=>/);
+        expect(utils).not.toMatch(/\bconst\s+(?:r|v)\s*=/);
+
+        expect(watermarkRemover).toContain('redTotal');
+        expect(watermarkRemover).toContain('greenTotal');
+        expect(watermarkRemover).toContain('blueTotal');
+        expect(watermarkRemover).toContain('watermarkX');
+        expect(watermarkRemover).toContain('watermarkY');
+        expect(watermarkRemover).not.toMatch(/\blet\s+(?:r|g|b)\s*=/);
+        expect(watermarkRemover).not.toMatch(/\bconst\s+\{\s*r,\s*g,\s*b\s*\}/);
     });
 });

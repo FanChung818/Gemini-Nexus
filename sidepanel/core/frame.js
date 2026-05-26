@@ -5,8 +5,7 @@ export class FrameManager {
     }
 
     init() {
-        // --- Optimization: Instant Load (Sync) ---
-        // Use localStorage for Theme/Lang to avoid waiting for async chrome.storage
+        // Read cached shell preferences synchronously before the iframe loads.
         const cachedTheme = localStorage.getItem('geminiTheme') || 'system';
         const cachedLang = localStorage.getItem('geminiLanguage') || 'system';
         const cachedSidebarExpanded = localStorage.getItem('geminiSidebarExpanded');

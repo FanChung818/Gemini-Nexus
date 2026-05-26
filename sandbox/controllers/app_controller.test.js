@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionManager } from '../core/session_manager.js';
 import { AppController } from './app_controller.js';
-import { saveSessionsToStorage } from '../../shared/messaging/index.js';
+import { saveSessionsToStorage, sendToBackground } from '../../shared/messaging/index.js';
 
 vi.mock('../render/message.js', () => ({
     appendMessage: vi.fn(),
@@ -28,16 +28,15 @@ vi.mock('../core/i18n.js', () => ({
     t: (key) => key,
 }));
 
-vi.mock('../../shared/media/watermark_remover.js', () => ({
-    WatermarkRemover: vi.fn(),
-}));
-
 function createUi() {
+    const inputFn = document.createElement('textarea');
+    inputFn.focus = vi.fn();
+
     return {
         chat: { togglePageContext: vi.fn() },
         clearChatHistory: vi.fn(),
         historyDiv: document.createElement('div'),
-        inputFn: { focus: vi.fn(), value: '' },
+        inputFn,
         modelSelect: { value: 'gemini-test' },
         renderHistoryList: vi.fn(),
         resetInput: vi.fn(),
@@ -51,7 +50,8 @@ function createUi() {
             updateSidebarBehavior: vi.fn(),
             updateSidePanelScope: vi.fn(),
         },
-        toggleTabSwitcher: vi.fn(),
+        setBrowserControlVisible: vi.fn(),
+        setLoading: vi.fn(),
         updateBrowserControlState: vi.fn(),
         updateWebThinkingToggle: vi.fn(),
         setBrowserControlCallbacks: vi.fn(),
@@ -63,7 +63,10 @@ function createUi() {
 function createAppHarness() {
     const sessionManager = new SessionManager();
     const ui = createUi();
-    const imageManager = {};
+    const imageManager = {
+        getFiles: vi.fn(() => []),
+        clearFile: vi.fn(),
+    };
     const app = new AppController(sessionManager, ui, imageManager);
     return { app, sessionManager, ui };
 }
@@ -287,6 +290,21 @@ describe('AppController session restore behavior', () => {
             '*'
         );
         expect(ui.updateWebThinkingToggle).toHaveBeenCalledWith(ui.settings.connectionData);
+    });
+
+    it('sends the standalone host flag when enabling browser control', () => {
+        const { app, ui } = createAppHarness();
+
+        app.setHostContext({ isTab: true });
+        app.toggleBrowserControl(true);
+
+        expect(app.browserControlActive).toBe(true);
+        expect(ui.setBrowserControlVisible).toHaveBeenCalledWith(true);
+        expect(sendToBackground).toHaveBeenCalledWith({
+            action: 'TOGGLE_BROWSER_CONTROL',
+            enabled: true,
+            hostIsTab: true,
+        });
     });
 
     it('forwards locked tab updates to the browser control bar state', async () => {

@@ -46,6 +46,20 @@ describe('web thinking toggle UI', () => {
         expect(button.title).toBe('Thinking: Low (Fast Mode)');
     });
 
+    it('uses deep mode wording for the high state', () => {
+        syncWebThinkingToggle(
+            button,
+            { provider: 'web', webThinkingLevel: 'high' },
+            'e6fa609c3fa255c0'
+        );
+
+        expect(button.hidden).toBe(false);
+        expect(button.classList.contains('is-fast')).toBe(false);
+        expect(button.dataset.thinkingLevel).toBe('high');
+        expect(button.getAttribute('aria-pressed')).toBe('false');
+        expect(button.title).toBe('Thinking: High (Deep Mode)');
+    });
+
     it('hides outside the Gemini Web reverse provider', () => {
         syncWebThinkingToggle(
             button,

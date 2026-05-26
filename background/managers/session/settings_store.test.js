@@ -68,4 +68,43 @@ describe('getConnectionSettings', () => {
             })
         );
     });
+
+    it('restores the Gemini Web temporary chat switch', async () => {
+        storedSettings = {
+            geminiProvider: 'web',
+            geminiWebTemporaryChat: true,
+        };
+
+        await expect(getConnectionSettings()).resolves.toEqual(
+            expect.objectContaining({
+                provider: 'web',
+                webTemporaryChat: true,
+            })
+        );
+
+        storedSettings = { geminiProvider: 'web' };
+        await expect(getConnectionSettings()).resolves.toEqual(
+            expect.objectContaining({
+                webTemporaryChat: false,
+            })
+        );
+    });
+
+    it('lets routed toolbar requests override the stored provider for one request', async () => {
+        storedSettings = {
+            geminiProvider: 'web',
+            geminiOpenaiBaseUrl: 'https://api.x.ai/v1',
+            geminiOpenaiApiKey: 'xai-key',
+            geminiOpenaiModel: 'grok-4.3',
+        };
+
+        await expect(getConnectionSettings({ provider: 'openai' })).resolves.toEqual(
+            expect.objectContaining({
+                provider: 'openai',
+                openaiBaseUrl: 'https://api.x.ai/v1',
+                openaiApiKey: 'xai-key',
+                openaiModel: 'grok-4.3',
+            })
+        );
+    });
 });

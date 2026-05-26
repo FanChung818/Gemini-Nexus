@@ -2,7 +2,6 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cropImage } from '../../shared/dom/crop_image.js';
-import { WatermarkRemover } from '../../shared/media/watermark_remover.js';
 import {
     handleCropScreenshotResult,
     handleGeneratedImageFetchResult,
@@ -12,12 +11,6 @@ import {
 
 vi.mock('../../shared/dom/crop_image.js', () => ({
     cropImage: vi.fn(),
-}));
-
-vi.mock('../../shared/media/watermark_remover.js', () => ({
-    WatermarkRemover: {
-        process: vi.fn(),
-    },
 }));
 
 vi.mock('../core/i18n.js', () => ({
@@ -54,18 +47,16 @@ describe('message result helpers', () => {
         );
     });
 
-    it('cleans generated images and removes their loading state', async () => {
-        WatermarkRemover.process.mockResolvedValue('cleaned-image');
+    it('uses fetched generated images without rewriting pixels and removes their loading state', async () => {
         document.body.innerHTML = '<img data-req-id="req-1" class="generated-image loading">';
 
         await handleGeneratedImageFetchResult({
             reqId: 'req-1',
-            base64: 'raw-image',
+            base64: 'data:image/png;base64,raw-image',
         });
 
         const img = document.querySelector('img[data-req-id="req-1"]');
-        expect(WatermarkRemover.process).toHaveBeenCalledWith('raw-image');
-        expect(img.src).toContain('cleaned-image');
+        expect(img.src).toContain('data:image/png;base64,raw-image');
         expect(img.classList.contains('loading')).toBe(false);
         expect(img.hasAttribute('style')).toBe(false);
     });

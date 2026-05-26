@@ -1,4 +1,12 @@
 (function () {
+    function getDefaultToolbarModel() {
+        return (
+            window.GeminiWebModels?.DEFAULT_WEB_MODEL ||
+            globalThis.GeminiNexusConfig?.DEFAULT_STORED_GEMINI_MODEL ||
+            ''
+        );
+    }
+
     /**
      * Main View Facade
      * Orchestrates WidgetView and WindowView
@@ -149,7 +157,7 @@
         getSelectedModel() {
             return this.elements.askModelSelect
                 ? this.elements.askModelSelect.value
-                : '8c46e95b1a07cecc';
+                : getDefaultToolbarModel();
         }
 
         setSelectedProvider(provider) {

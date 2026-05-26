@@ -2,15 +2,18 @@ import { ConnectionSection } from './sections/connection.js';
 import { GeneralSection } from './sections/general.js';
 import { AppearanceSection } from './sections/appearance.js';
 import { ShortcutsSection } from './sections/shortcuts.js';
+import { DataManagementSection } from './sections/data_management.js';
 import { AboutSection } from './sections/about.js';
 import { DOM_IDS } from './constants.js';
 import { getSettingsElement } from './dom.js';
+import { t } from '../../core/i18n.js';
 
 export class SettingsView {
     constructor(callbacks) {
         this.callbacks = callbacks || {};
         this.elements = {};
         this._escapeKeyHandler = null;
+        this._saveFeedbackTimer = null;
 
         this.connection = new ConnectionSection();
 
@@ -28,13 +31,15 @@ export class SettingsView {
 
         this.shortcuts = new ShortcutsSection();
 
-        this.about = new AboutSection({
+        this.dataManagement = new DataManagementSection({
             onDownloadLogs: () => this.fire('onDownloadLogs'),
             onExportHistory: () => this.fire('onExportHistory'),
             onImportHistory: (payload) => this.fire('onImportHistory', payload),
             onExportSettings: () => this.fire('onExportSettings'),
             onImportSettings: (payload) => this.fire('onImportSettings', payload),
         });
+
+        this.about = new AboutSection();
 
         this.queryElements();
         this.bindEvents();
@@ -45,6 +50,7 @@ export class SettingsView {
             modal: getSettingsElement(DOM_IDS.MODAL),
             btnClose: getSettingsElement(DOM_IDS.BTN_CLOSE),
             btnSave: getSettingsElement(DOM_IDS.BTN_SAVE_SHORTCUTS),
+            saveStatus: getSettingsElement(DOM_IDS.SAVE_STATUS),
             btnReset: getSettingsElement(DOM_IDS.BTN_RESET_SHORTCUTS),
         };
     }
@@ -110,7 +116,40 @@ export class SettingsView {
         const settingsData = this.getFormData();
 
         this.fire('onSave', settingsData);
-        this.close();
+        this.showSaveFeedback();
+    }
+
+    showSaveFeedback() {
+        const { btnSave, saveStatus } = this.elements;
+
+        if (this._saveFeedbackTimer) {
+            clearTimeout(this._saveFeedbackTimer);
+            this._saveFeedbackTimer = null;
+        }
+
+        if (btnSave) {
+            btnSave.classList.add('is-saved');
+            btnSave.disabled = true;
+        }
+
+        if (saveStatus) {
+            saveStatus.textContent = t('settingsSaved');
+            saveStatus.hidden = false;
+            saveStatus.classList.add('is-visible');
+        }
+
+        this._saveFeedbackTimer = setTimeout(() => {
+            if (btnSave) {
+                btnSave.classList.remove('is-saved');
+                btnSave.disabled = false;
+            }
+            if (saveStatus) {
+                saveStatus.classList.remove('is-visible');
+                saveStatus.hidden = true;
+                saveStatus.textContent = '';
+            }
+            this._saveFeedbackTimer = null;
+        }, 1800);
     }
 
     getFormData() {
@@ -169,6 +208,11 @@ export class SettingsView {
         if (this._escapeKeyHandler) {
             document.removeEventListener('keydown', this._escapeKeyHandler);
             this._escapeKeyHandler = null;
+        }
+
+        if (this._saveFeedbackTimer) {
+            clearTimeout(this._saveFeedbackTimer);
+            this._saveFeedbackTimer = null;
         }
     }
 

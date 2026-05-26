@@ -1,6 +1,5 @@
 import { loadLibs } from './loader.js';
 import { transformMarkdown } from '../render/pipeline.js';
-import { WatermarkRemover } from '../../shared/media/watermark_remover.js';
 import { createPrefixedId, getHighResImageUrl } from '../../shared/utils/index.js';
 import { t } from '../core/i18n.js';
 
@@ -89,23 +88,6 @@ export function initRendererMode() {
                 console.error('Render error', error);
                 event.source.postMessage(
                     { action: 'RENDER_RESULT', html: text, reqId },
-                    { targetOrigin: '*' }
-                );
-            }
-        }
-
-        if (message.action === 'PROCESS_IMAGE') {
-            const { base64, reqId } = message;
-            try {
-                const result = await WatermarkRemover.process(base64);
-                event.source.postMessage(
-                    { action: 'PROCESS_IMAGE_RESULT', base64: result, reqId },
-                    { targetOrigin: '*' }
-                );
-            } catch (error) {
-                console.warn('Watermark removal failed in renderer', error);
-                event.source.postMessage(
-                    { action: 'PROCESS_IMAGE_RESULT', base64, reqId, error: error.message },
                     { targetOrigin: '*' }
                 );
             }

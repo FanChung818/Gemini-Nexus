@@ -5,6 +5,8 @@ import { ToolDispatcher } from '../control/dispatcher.js';
 import { getTabControlAvailability, toControlTabSummary } from '../control/tabs.js';
 import { debugLog } from '../../shared/logging/debug.js';
 
+export const DEFAULT_BROWSER_CONTROL_START_URL = 'https://www.google.com/search?q=';
+
 /**
  * Main Controller handling Chrome DevTools MCP functionalities.
  * Orchestrates connection, snapshots, and action execution.
@@ -54,10 +56,12 @@ export class BrowserControlManager {
         debugLog(`[ControlManager] Target tab locked to: ${tabId}`);
 
         if (tabId) {
+            const requestedTabId = tabId;
             // Fetch tab info to broadcast state immediately
             chrome.tabs
                 .get(tabId)
                 .then((tab) => {
+                    if (this.lockedTabId !== requestedTabId) return;
                     if (options.skipNativeGroup === true) {
                         this.nativeGroupDisabledForTabId = tab.id;
                     } else if (this.nativeGroupDisabledForTabId === tab.id) {
@@ -69,6 +73,7 @@ export class BrowserControlManager {
                     this._broadcastLockState(tab);
                 })
                 .catch(() => {
+                    if (this.lockedTabId !== requestedTabId) return;
                     // Tab might have closed or invalid ID
                     this.lockedTabId = null;
                     this.connection.targetTabId = null;
@@ -117,6 +122,7 @@ export class BrowserControlManager {
         chrome.tabs
             .get(this.lockedTabId)
             .then((tab) => {
+                if (this.lockedTabId !== tab.id) return;
                 this._applyNativeTabGroup(tab, {
                     skipNativeGroup: this.nativeGroupDisabledForTabId === tab.id,
                 });
@@ -256,21 +262,71 @@ export class BrowserControlManager {
         return this.lockedTabId;
     }
 
+    async _getActiveTab() {
+        const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+        return tab || null;
+    }
+
+    async _createDefaultControlTab() {
+        const activeTab = await this._getActiveTab().catch(() => null);
+        const createOptions = {
+            url: DEFAULT_BROWSER_CONTROL_START_URL,
+            active: false,
+        };
+        if (Number.isInteger(activeTab?.windowId) && activeTab.windowId > 0) {
+            createOptions.windowId = activeTab.windowId;
+        }
+
+        return await chrome.tabs.create(createOptions);
+    }
+
+    async _ensureControllableTarget({ createDefaultTab = false } = {}) {
+        if (this.lockedTabId) {
+            try {
+                const lockedTab = await chrome.tabs.get(this.lockedTabId);
+                if (getTabControlAvailability(lockedTab).controllable) {
+                    this.connection.targetTabId = lockedTab.id;
+                    this._rememberControlledWindow(lockedTab);
+                    return lockedTab;
+                }
+            } catch (error) {
+                console.warn('[ControlManager] Locked tab not found, clearing lock.', error);
+            }
+
+            this.lockedTabId = null;
+            this.connection.targetTabId = null;
+        }
+
+        if (createDefaultTab && chrome.tabs?.create) {
+            const defaultTab = await this._createDefaultControlTab();
+            if (defaultTab?.id) {
+                this.setTargetTab(defaultTab.id);
+                this._rememberControlledWindow(defaultTab);
+                return defaultTab;
+            }
+        }
+
+        const activeTab = await this._getActiveTab().catch(() => null);
+        if (activeTab?.id && getTabControlAvailability(activeTab).controllable) {
+            this.setTargetTab(activeTab.id);
+            this._rememberControlledWindow(activeTab);
+            return activeTab;
+        }
+
+        return null;
+    }
+
     // --- Control Lifecycle ---
 
-    async enableControl() {
+    async enableControl(options = {}) {
         // If already connected, do nothing (or verify tab)
         if (this.connection.attached && this.lockedTabId === this.connection.currentTabId) {
             return true;
         }
 
-        // Auto-lock to active tab if not currently locked
-        if (!this.lockedTabId) {
-            const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-            if (tab) {
-                this.setTargetTab(tab.id);
-            }
-        }
+        await this._ensureControllableTarget({
+            createDefaultTab: options.createDefaultTab === true,
+        });
 
         // Force attachment which shows the "Started debugging" bar
         const enabled = await this.ensureConnection();
@@ -291,24 +347,9 @@ export class BrowserControlManager {
     // --- Internal Helpers ---
 
     async ensureConnection() {
-        let tabId = this.lockedTabId;
-
-        if (tabId) {
-            // Verify if locked tab still exists
-            try {
-                await chrome.tabs.get(tabId);
-            } catch (error) {
-                console.warn('[ControlManager] Locked tab not found, clearing lock.', error);
-                this.lockedTabId = null;
-                tabId = null;
-            }
-        }
-
-        if (!tabId) {
-            const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-            if (!tab) return false;
-            tabId = tab.id;
-        }
+        const targetTab = await this._ensureControllableTarget();
+        if (!targetTab?.id) return false;
+        const tabId = targetTab.id;
 
         // Perform quick check on URL before attaching
         let tabObj;
@@ -324,33 +365,14 @@ export class BrowserControlManager {
             return false;
         }
 
-        await this.connection.attach(tabId);
+        const attached = await this.connection.attach(tabId);
         this._broadcastCurrentLockState();
-        return true;
+        return attached === true && this.connection.attached === true;
     }
 
     async ensureTargetReference() {
-        let tabId = this.lockedTabId;
-
-        if (tabId) {
-            try {
-                const tab = await chrome.tabs.get(tabId);
-                this.connection.targetTabId = tabId;
-                this._rememberControlledWindow(tab);
-                return true;
-            } catch (error) {
-                console.warn('[ControlManager] Locked tab not found, clearing lock.', error);
-                this.lockedTabId = null;
-                this.connection.targetTabId = null;
-                tabId = null;
-            }
-        }
-
-        const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-        if (!tab?.id) return false;
-        this.setTargetTab(tab.id);
-        this._rememberControlledWindow(tab);
-        return true;
+        const tab = await this._ensureControllableTarget();
+        return Boolean(tab?.id);
     }
 
     async getSnapshot() {

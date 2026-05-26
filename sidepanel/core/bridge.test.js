@@ -15,8 +15,10 @@ function createFrame() {
 function createState() {
     return {
         getCurrentTabId: vi.fn(() => null),
+        getMessageTargetTabId: vi.fn(() => null),
         markUiReady: vi.fn(),
         save: vi.fn(),
+        setHostTabId: vi.fn(),
         updateSessions: vi.fn(),
     };
 }
@@ -26,6 +28,7 @@ describe('MessageBridge model persistence', () => {
         vi.clearAllMocks();
         globalThis.chrome = {
             runtime: {
+                lastError: null,
                 onMessage: { addListener: vi.fn() },
                 sendMessage: vi.fn(() => Promise.resolve()),
             },
@@ -82,6 +85,68 @@ describe('MessageBridge model persistence', () => {
         expect(state.save).toHaveBeenCalledWith('geminiModel', 'gemini-3-flash');
     });
 
+    it('merges side panel session bindings with existing session storage', () => {
+        const frame = createFrame();
+        const state = createState();
+        const bridge = new MessageBridge(frame, state);
+        chrome.storage.session.get.mockImplementation((keys, callback) =>
+            callback({
+                geminiSidePanelSessionBindings: {
+                    7: 'existing-session',
+                },
+            })
+        );
+
+        bridge.handleWindowMessage({
+            source: frame.getWindow(),
+            data: {
+                action: 'SAVE_SIDE_PANEL_SESSION_BINDING',
+                payload: {
+                    tabId: 42,
+                    sessionId: 'session-42',
+                },
+            },
+        });
+
+        expect(chrome.storage.session.set).toHaveBeenCalledWith({
+            geminiSidePanelSessionBindings: {
+                7: 'existing-session',
+                42: 'session-42',
+            },
+        });
+    });
+
+    it('does not overwrite side panel session bindings when session storage read fails', () => {
+        const frame = createFrame();
+        const state = createState();
+        const bridge = new MessageBridge(frame, state);
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        chrome.storage.session.get.mockImplementation((keys, callback) => {
+            chrome.runtime.lastError = { message: 'Session storage read failed' };
+            callback({});
+            chrome.runtime.lastError = null;
+        });
+
+        bridge.handleWindowMessage({
+            source: frame.getWindow(),
+            data: {
+                action: 'SAVE_SIDE_PANEL_SESSION_BINDING',
+                payload: {
+                    tabId: 42,
+                    sessionId: 'session-42',
+                },
+            },
+        });
+
+        expect(chrome.storage.session.set).not.toHaveBeenCalled();
+        expect(warn).toHaveBeenCalledWith(
+            'Unable to save side panel session binding after storage read failed:',
+            expect.any(Error)
+        );
+
+        warn.mockRestore();
+    });
+
     it('publishes tab host context when the sandbox UI is ready', async () => {
         const frame = createFrame();
         const state = createState();
@@ -98,6 +163,7 @@ describe('MessageBridge model persistence', () => {
         await Promise.resolve();
 
         expect(state.markUiReady).toHaveBeenCalled();
+        expect(state.setHostTabId).toHaveBeenCalledWith(42);
         expect(frame.postMessage).toHaveBeenCalledWith({
             action: 'SET_HOST_CONTEXT',
             payload: { isTab: true },
@@ -118,9 +184,104 @@ describe('MessageBridge model persistence', () => {
 
         await Promise.resolve();
 
+        expect(state.setHostTabId).toHaveBeenCalledWith(null);
         expect(frame.postMessage).toHaveBeenCalledWith({
             action: 'SET_HOST_CONTEXT',
             payload: { isTab: false },
+        });
+    });
+
+    it('routes browser control toggles through the standalone host tab id', () => {
+        const frame = createFrame();
+        const state = createState();
+        state.getCurrentTabId.mockReturnValue(null);
+        state.getMessageTargetTabId.mockReturnValue(777);
+        const bridge = new MessageBridge(frame, state);
+
+        bridge.forwardToBackground({
+            action: 'TOGGLE_BROWSER_CONTROL',
+            enabled: true,
+            hostIsTab: true,
+        });
+
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+            action: 'TOGGLE_BROWSER_CONTROL',
+            enabled: true,
+            hostIsTab: true,
+            sidePanelTabId: 777,
+        });
+    });
+
+    it('routes browser-control prompts through the standalone host tab id', () => {
+        const frame = createFrame();
+        const state = createState();
+        state.getCurrentTabId.mockReturnValue(33);
+        state.getMessageTargetTabId.mockReturnValue(777);
+        const bridge = new MessageBridge(frame, state);
+
+        bridge.forwardToBackground({
+            action: 'SEND_PROMPT',
+            text: 'Open Google',
+            enableBrowserControl: true,
+            hostIsTab: true,
+        });
+
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+            action: 'SEND_PROMPT',
+            text: 'Open Google',
+            enableBrowserControl: true,
+            hostIsTab: true,
+            sidePanelTabId: 777,
+        });
+    });
+
+    it('keeps ordinary prompt routing on the current webpage tab id', () => {
+        const frame = createFrame();
+        const state = createState();
+        state.getCurrentTabId.mockReturnValue(33);
+        state.getMessageTargetTabId.mockReturnValue(777);
+        const bridge = new MessageBridge(frame, state);
+
+        bridge.forwardToBackground({
+            action: 'SEND_PROMPT',
+            text: 'Use page context only',
+            enableBrowserControl: false,
+        });
+
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+            action: 'SEND_PROMPT',
+            text: 'Use page context only',
+            enableBrowserControl: false,
+            sidePanelTabId: 33,
+        });
+    });
+
+    it('forwards runtime messages addressed to the standalone host tab', () => {
+        const frame = createFrame();
+        const state = createState();
+        state.getCurrentTabId.mockReturnValue(null);
+        state.getMessageTargetTabId.mockReturnValue(777);
+        const bridge = new MessageBridge(frame, state);
+
+        bridge.handleRuntimeMessage({
+            action: 'TAB_LOCKED',
+            tabId: 777,
+            tab: { id: 700, url: 'https://www.google.com/search?q=' },
+        });
+        bridge.handleRuntimeMessage({
+            action: 'TAB_LOCKED',
+            tabId: 778,
+            tab: { id: 701, url: 'https://example.test/' },
+        });
+
+        expect(frame.postMessage).toHaveBeenCalledTimes(1);
+        expect(frame.postMessage).toHaveBeenCalledWith({
+            action: 'BACKGROUND_MESSAGE',
+            payload: {
+                action: 'TAB_LOCKED',
+                tabId: 777,
+                tab: { id: 700, url: 'https://www.google.com/search?q=' },
+            },
         });
     });
 
@@ -239,6 +400,94 @@ describe('MessageBridge model persistence', () => {
         });
     });
 
+    it('does not restore the sidebar expanded preference when storage read fails', () => {
+        const frame = createFrame();
+        const state = createState();
+        const bridge = new MessageBridge(frame, state);
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        chrome.storage.local.get.mockImplementation((keys, callback) => {
+            chrome.runtime.lastError = { message: 'Storage read failed' };
+            callback({});
+            chrome.runtime.lastError = null;
+        });
+
+        bridge.handleWindowMessage({
+            source: frame.getWindow(),
+            data: {
+                action: 'GET_SIDEBAR_EXPANDED',
+            },
+        });
+
+        expect(frame.postMessage).not.toHaveBeenCalledWith(
+            expect.objectContaining({ action: 'RESTORE_SIDEBAR_EXPANDED' })
+        );
+        expect(warn).toHaveBeenCalledWith(
+            'Unable to restore sidebar expanded state after storage read failed:',
+            expect.any(Error)
+        );
+
+        warn.mockRestore();
+    });
+
+    it('restores connection settings on request', () => {
+        const frame = createFrame();
+        const state = createState();
+        const bridge = new MessageBridge(frame, state);
+        chrome.storage.local.get.mockImplementation((keys, callback) =>
+            callback({
+                geminiProvider: 'openai',
+                geminiOpenaiModel: 'gpt-4.1, gpt-5',
+                geminiOpenaiSelectedModel: 'gpt-5',
+            })
+        );
+
+        bridge.handleWindowMessage({
+            source: frame.getWindow(),
+            data: {
+                action: 'GET_CONNECTION_SETTINGS',
+            },
+        });
+
+        expect(frame.postMessage).toHaveBeenCalledWith({
+            action: 'RESTORE_CONNECTION_SETTINGS',
+            payload: expect.objectContaining({
+                provider: 'openai',
+                openaiModel: 'gpt-4.1, gpt-5',
+                openaiSelectedModel: 'gpt-5',
+                selectedModel: 'gpt-5',
+            }),
+        });
+    });
+
+    it('does not restore connection settings when storage read fails', () => {
+        const frame = createFrame();
+        const state = createState();
+        const bridge = new MessageBridge(frame, state);
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        chrome.storage.local.get.mockImplementation((keys, callback) => {
+            chrome.runtime.lastError = { message: 'Storage read failed' };
+            callback({});
+            chrome.runtime.lastError = null;
+        });
+
+        bridge.handleWindowMessage({
+            source: frame.getWindow(),
+            data: {
+                action: 'GET_CONNECTION_SETTINGS',
+            },
+        });
+
+        expect(frame.postMessage).not.toHaveBeenCalledWith(
+            expect.objectContaining({ action: 'RESTORE_CONNECTION_SETTINGS' })
+        );
+        expect(warn).toHaveBeenCalledWith(
+            'Unable to restore connection settings after storage read failed:',
+            expect.any(Error)
+        );
+
+        warn.mockRestore();
+    });
+
     it('restores the text selection blacklist preference', () => {
         const frame = createFrame();
         const state = createState();
@@ -264,6 +513,35 @@ describe('MessageBridge model persistence', () => {
             action: 'RESTORE_TEXT_SELECTION_BLACKLIST',
             payload: 'github.com',
         });
+    });
+
+    it('does not restore image tool preference when storage read fails', () => {
+        const frame = createFrame();
+        const state = createState();
+        const bridge = new MessageBridge(frame, state);
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        chrome.storage.local.get.mockImplementation((keys, callback) => {
+            chrome.runtime.lastError = { message: 'Storage read failed' };
+            callback({});
+            chrome.runtime.lastError = null;
+        });
+
+        bridge.handleWindowMessage({
+            source: frame.getWindow(),
+            data: {
+                action: 'GET_IMAGE_TOOLS',
+            },
+        });
+
+        expect(frame.postMessage).not.toHaveBeenCalledWith(
+            expect.objectContaining({ action: 'RESTORE_IMAGE_TOOLS' })
+        );
+        expect(warn).toHaveBeenCalledWith(
+            '[Gemini Nexus] Failed to restore image tools setting:',
+            'Storage read failed'
+        );
+
+        warn.mockRestore();
     });
 
     it('saves and restores custom selection tools', () => {
@@ -381,6 +659,37 @@ describe('MessageBridge model persistence', () => {
                 }),
             ])
         );
+    });
+
+    it('does not write stale sessions when the safe-save storage read fails', () => {
+        const frame = createFrame();
+        const state = createState();
+        const bridge = new MessageBridge(frame, state);
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        chrome.storage.local.get.mockImplementation((keys, callback) => {
+            chrome.runtime.lastError = { message: 'Storage read failed' };
+            callback({});
+            chrome.runtime.lastError = null;
+        });
+
+        bridge.handleWindowMessage({
+            source: frame.getWindow(),
+            data: {
+                action: 'SAVE_SESSIONS',
+                payload: [
+                    {
+                        id: 'session-1',
+                        title: 'Stale',
+                        timestamp: 100,
+                        messages: [{ role: 'user', text: 'Hi' }],
+                    },
+                ],
+            },
+        });
+
+        expect(state.save).not.toHaveBeenCalled();
+        expect(chrome.storage.local.set).not.toHaveBeenCalled();
+        warn.mockRestore();
     });
 
     it('applies group updates without truncating newer stored messages', async () => {
@@ -618,6 +927,63 @@ describe('MessageBridge model persistence', () => {
             action: 'DATA_IMPORT_RESULT',
             payload: { kind: 'history', ok: true, error: null },
         });
+    });
+
+    it('reports history import read failures instead of writing partial data', async () => {
+        const frame = createFrame();
+        const state = createState();
+        const bridge = new MessageBridge(frame, state);
+        chrome.storage.local.get.mockImplementation((keys, callback) => {
+            chrome.runtime.lastError = { message: 'Storage read failed' };
+            callback({});
+            chrome.runtime.lastError = null;
+        });
+
+        bridge.importHistoryData({
+            type: 'GeminiNexus-History',
+            history: [{ id: 'new-session', title: 'Imported' }],
+        });
+
+        await vi.waitFor(() =>
+            expect(frame.postMessage).toHaveBeenCalledWith({
+                action: 'DATA_IMPORT_RESULT',
+                payload: {
+                    kind: 'history',
+                    ok: false,
+                    error: 'Storage read failed',
+                },
+            })
+        );
+        expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    });
+
+    it('reports settings import write failures instead of showing success', async () => {
+        const frame = createFrame();
+        const state = createState();
+        const bridge = new MessageBridge(frame, state);
+        chrome.storage.local.set.mockImplementation((update, callback) => {
+            chrome.runtime.lastError = { message: 'Storage quota exceeded' };
+            callback?.();
+            chrome.runtime.lastError = null;
+        });
+
+        bridge.importSettingsData({
+            type: 'GeminiNexus-Settings',
+            settings: {
+                geminiTheme: 'dark',
+            },
+        });
+
+        await vi.waitFor(() =>
+            expect(frame.postMessage).toHaveBeenCalledWith({
+                action: 'DATA_IMPORT_RESULT',
+                payload: {
+                    kind: 'settings',
+                    ok: false,
+                    error: 'Storage quota exceeded',
+                },
+            })
+        );
     });
 
     it('captures a selected display and forwards a still frame to the sandbox', async () => {
