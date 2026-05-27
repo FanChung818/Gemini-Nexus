@@ -94,13 +94,14 @@ describe('settings layout styles', () => {
         expect(formsCss).toMatch(/\.settings-input\.settings-select\s*{[^}]*width:\s*100%/s);
     });
 
-    it('keeps wide-page tools visible and keeps the full-page launcher available in side panels', async () => {
+    it('hides webpage-context tools only in standalone chat tabs', async () => {
         const inputCss = await readCss('./input.css');
         const headerCss = await readCss('./header.css');
 
-        expect(inputCss).not.toMatch(
-            /body\.layout-wide\s+\.tool-btn\.context-aware\s*{[^}]*display:\s*none/s
+        expect(inputCss).toMatch(
+            /body\.host-tab\s+\.tool-btn\.context-aware\s*{[^}]*display:\s*none/s
         );
+        expect(inputCss).not.toMatch(/body\.layout-wide\s+\.tool-btn\.context-aware/s);
         expect(headerCss).toMatch(/body\.host-tab\s+#open-full-page-btn\s*{[^}]*display:\s*none/s);
         expect(headerCss).not.toMatch(
             /@media\s*\(max-width:\s*600px\)[\s\S]*#open-full-page-btn\s*{[^}]*display:\s*none/s

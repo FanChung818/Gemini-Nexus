@@ -53,6 +53,7 @@
                 resultText: getToolbarElement('result-text'),
                 askProviderSelect: getToolbarElement('ask-provider-select'),
                 askModelSelect: getToolbarElement('ask-model-select'),
+                askThinkingToggle: getToolbarElement('ask-thinking-toggle'),
                 windowFooter: getToolbarElement('window-footer'),
                 footerActions: getToolbarElement('footer-actions'),
                 footerStop: getToolbarElement('footer-stop'),

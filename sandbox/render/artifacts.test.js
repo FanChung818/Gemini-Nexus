@@ -7,6 +7,7 @@ import {
     enhanceLiveArtifacts,
     getArtifactKind,
     sanitizeArtifactMarkup,
+    setGraphvizLoaderForTest,
     setMermaidLoaderForTest,
 } from './artifacts.js';
 import { setLanguagePreference } from '../core/i18n.js';
@@ -38,7 +39,9 @@ async function flushMicrotasks() {
 describe('Live Artifact previews', () => {
     afterEach(() => {
         document.body.innerHTML = '';
+        document.documentElement.removeAttribute('data-theme');
         setLanguagePreference('en');
+        setGraphvizLoaderForTest();
         setMermaidLoaderForTest();
     });
 
@@ -46,7 +49,10 @@ describe('Live Artifact previews', () => {
         expect(getArtifactKind('html', '<div>Hello</div>')).toBe('html');
         expect(getArtifactKind('svg', '<svg viewBox="0 0 1 1"></svg>')).toBe('svg');
         expect(getArtifactKind('mermaid', 'graph TD\n  A --> B')).toBe('mermaid');
+        expect(getArtifactKind('graphviz', 'digraph G { A -> B; }')).toBe('graphviz');
+        expect(getArtifactKind('dot', 'digraph G { A -> B; }')).toBe('graphviz');
         expect(getArtifactKind('plaintext', 'sequenceDiagram\n  A->>B: Hi')).toBe('mermaid');
+        expect(getArtifactKind('text', 'digraph G {\n  A -> B;\n}')).toBe('graphviz');
         expect(getArtifactKind('javascript', 'console.log("no preview")')).toBeNull();
     });
 
@@ -123,6 +129,103 @@ describe('Live Artifact previews', () => {
         expect(body?.innerHTML).not.toContain('onclick');
     });
 
+    it('shows a compact error instead of Mermaid error SVG artwork', async () => {
+        const preview = createLiveArtifactPreview('mermaid', 'graph TD\n  A -->', {
+            renderMermaid: vi.fn(
+                async () =>
+                    '<svg><g class="error-icon"></g><text>Syntax error in text</text><text>mermaid version 10.9.6</text></svg>'
+            ),
+        });
+        document.body.appendChild(preview);
+        await flushMicrotasks();
+
+        const body = preview.querySelector('.live-artifact-body-mermaid');
+
+        expect(body?.classList.contains('live-artifact-body-error')).toBe(true);
+        expect(body?.querySelector('.live-artifact-error')).not.toBeNull();
+        expect(body?.querySelector('svg')).toBeNull();
+        expect(body?.innerHTML).not.toContain('error-icon');
+    });
+
+    it('keeps streaming Mermaid parse failures in the loading state', async () => {
+        const preview = createLiveArtifactPreview('mermaid', 'graph TD\n  A -->', {
+            deferMermaidErrors: true,
+            renderMermaid: vi.fn(async () => {
+                throw new Error('Syntax error in text');
+            }),
+        });
+        document.body.appendChild(preview);
+        await flushMicrotasks();
+
+        const body = preview.querySelector('.live-artifact-body-mermaid');
+
+        expect(body?.classList.contains('live-artifact-body-loading')).toBe(true);
+        expect(body?.classList.contains('live-artifact-body-error')).toBe(false);
+        expect(body?.textContent).toBe('Rendering preview...');
+    });
+
+    it('enhances Graphviz code blocks with sanitized rendered SVG output', async () => {
+        const root = document.createElement('div');
+        const wrapper = createCodeBlock('dot', 'digraph G { A -> B; }');
+        root.appendChild(wrapper);
+        document.body.appendChild(root);
+        const renderGraphviz = vi.fn(
+            async () =>
+                '<svg onclick="alert(1)"><script>alert(2)</script><text>Rendered</text></svg>'
+        );
+
+        enhanceLiveArtifacts(root, { renderGraphviz });
+        await flushMicrotasks();
+
+        const preview = wrapper.querySelector('.live-artifact-preview');
+        const body = wrapper.querySelector('.live-artifact-body-graphviz');
+
+        expect(renderGraphviz).toHaveBeenCalledWith('digraph G { A -> B; }');
+        expect(preview?.dataset.liveArtifactKind).toBe('graphviz');
+        expect(body?.textContent).toContain('Rendered');
+        expect(body?.innerHTML).not.toContain('<script');
+        expect(body?.innerHTML).not.toContain('onclick');
+    });
+
+    it('keeps streaming Graphviz render failures in the loading state', async () => {
+        const preview = createLiveArtifactPreview('graphviz', 'digraph G { A ->', {
+            deferGraphvizErrors: true,
+            renderGraphviz: vi.fn(async () => {
+                throw new Error('syntax error near line 1');
+            }),
+        });
+        document.body.appendChild(preview);
+        await flushMicrotasks();
+
+        const body = preview.querySelector('.live-artifact-body-graphviz');
+
+        expect(body?.classList.contains('live-artifact-body-loading')).toBe(true);
+        expect(body?.classList.contains('live-artifact-body-error')).toBe(false);
+        expect(body?.textContent).toBe('Rendering preview...');
+    });
+
+    it('can use an injected Graphviz loader for the default renderer', async () => {
+        const renderSVGElement = vi.fn((source) => {
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.innerHTML = '<text>Loaded</text>';
+            return svg;
+        });
+
+        setGraphvizLoaderForTest(async () => ({
+            instance: async () => ({ renderSVGElement }),
+        }));
+
+        const preview = createLiveArtifactPreview('graphviz', 'digraph G { A -> B; }');
+        document.body.appendChild(preview);
+        await flushMicrotasks();
+
+        expect(renderSVGElement).toHaveBeenCalledWith(expect.stringContaining('rankdir="LR";'));
+        expect(renderSVGElement).toHaveBeenCalledWith(
+            expect.stringContaining('graph [bgcolor="transparent" fontcolor="#374151" margin="0"];')
+        );
+        expect(preview.textContent).toContain('Loaded');
+    });
+
     it('does not duplicate previews when the same node is enhanced again', () => {
         const wrapper = createCodeBlock('svg', '<svg viewBox="0 0 1 1"></svg>');
 
@@ -133,9 +236,11 @@ describe('Live Artifact previews', () => {
     });
 
     it('can use an injected Mermaid loader for the default renderer', async () => {
+        const initialize = vi.fn();
         setMermaidLoaderForTest(async () => ({
             default: {
-                initialize: vi.fn(),
+                initialize,
+                parse: vi.fn(async () => true),
                 render: vi.fn(async () => ({ svg: '<svg><text>Loaded</text></svg>' })),
             },
         }));
@@ -144,6 +249,11 @@ describe('Live Artifact previews', () => {
         document.body.appendChild(preview);
         await flushMicrotasks();
 
+        expect(initialize).toHaveBeenCalledWith(
+            expect.objectContaining({
+                flowchart: expect.objectContaining({ htmlLabels: false, useMaxWidth: true }),
+            })
+        );
         expect(preview.textContent).toContain('Loaded');
     });
 

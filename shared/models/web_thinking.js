@@ -1,12 +1,11 @@
-import { getWebModelHeaderConfig } from './web_models.js';
+import './web_model_catalog.js';
+import './web_thinking_global.js';
 
-export const DEFAULT_WEB_THINKING_LEVEL = 'high';
-export const WEB_THINKING_LEVELS = Object.freeze(['minimal', 'low', 'medium', 'high']);
-export const WEB_NATIVE_THINKING_LEVELS = Object.freeze({
-    STANDARD: 1,
-    EXTENDED: 2,
-    DEEP_THINK: 3,
-});
+const webThinking = globalThis.GeminiNexusWebThinking;
+
+export const DEFAULT_WEB_THINKING_LEVEL = webThinking.DEFAULT_WEB_THINKING_LEVEL;
+export const WEB_THINKING_LEVELS = webThinking.WEB_THINKING_LEVELS;
+export const WEB_NATIVE_THINKING_LEVELS = webThinking.WEB_NATIVE_THINKING_LEVELS;
 
 export function normalizeWebThinkingLevel(level, fallback = DEFAULT_WEB_THINKING_LEVEL) {
     const normalized = String(level || '')
@@ -16,12 +15,11 @@ export function normalizeWebThinkingLevel(level, fallback = DEFAULT_WEB_THINKING
 }
 
 export function supportsWebThinking(model) {
-    return Boolean(getWebModelHeaderConfig(model));
+    return webThinking.supportsWebThinking(model);
 }
 
 export function getWebThinkingFastLevel(model) {
-    const config = getWebModelHeaderConfig(model);
-    return normalizeWebThinkingLevel(config?.fastThinkingLevel, 'low');
+    return normalizeWebThinkingLevel(webThinking.getWebThinkingFastLevel(model), 'low');
 }
 
 export function normalizeWebThinkingLevelForModel(

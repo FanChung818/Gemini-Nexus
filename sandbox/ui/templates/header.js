@@ -32,7 +32,7 @@ export const HeaderTemplate = `
 
         <div class="header-right">
             <button id="tab-switcher-btn" class="icon-btn" hidden data-i18n-title="selectTabTooltip" title="Select a tab to control">
-                ${TemplateIcons.TAB_STACK}
+                ${TemplateIcons.ACTIVE_TAB}
             </button>
             <button id="open-full-page-btn" class="icon-btn" data-i18n-title="openFullPageTooltip" title="Open in Full Page">
                 ${TemplateIcons.EXTERNAL_OPEN}

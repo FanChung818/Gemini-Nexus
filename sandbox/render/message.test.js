@@ -2,6 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { appendMessage } from './message.js';
+import { renderContent } from './content.js';
 
 vi.mock('./content.js', () => ({
     renderContent: vi.fn((contentDiv, text) => {
@@ -69,6 +70,30 @@ describe('appendMessage copy button', () => {
         );
     });
 
+    it('passes current streaming and final render state to message content', () => {
+        const container = document.createElement('div');
+        const controller = appendMessage(container, '', 'ai', null, '', null, {
+            isStreaming: true,
+            autoScroll: false,
+        });
+
+        controller.update('Partial mermaid block', undefined, { isStreaming: true });
+        expect(renderContent).toHaveBeenLastCalledWith(
+            expect.any(HTMLDivElement),
+            'Partial mermaid block',
+            'ai',
+            expect.objectContaining({ isStreaming: true })
+        );
+
+        controller.finalize('Final mermaid block', undefined);
+        expect(renderContent).toHaveBeenLastCalledWith(
+            expect.any(HTMLDivElement),
+            'Final mermaid block',
+            'ai',
+            expect.objectContaining({ isStreaming: false, isFinal: true })
+        );
+    });
+
     it('uses AMC-style rows, action rails, and content containers for normal messages', () => {
         const container = document.createElement('div');
 
@@ -95,5 +120,45 @@ describe('appendMessage copy button', () => {
         expect(userController.div.querySelector('.message-avatar-user')).not.toBeNull();
         expect(userController.div.querySelector('.message-actions .copy-btn')).not.toBeNull();
         expect(userController.div.querySelector('.message-actions .edit-btn')).not.toBeNull();
+    });
+
+    it('groups consecutive normal messages from the same role like AMC', () => {
+        const container = document.createElement('div');
+
+        const firstAi = appendMessage(container, 'First assistant answer', 'ai', null, '', null, {
+            autoScroll: false,
+        });
+        const secondAi = appendMessage(
+            container,
+            'Follow-up assistant answer',
+            'ai',
+            null,
+            '',
+            null,
+            {
+                autoScroll: false,
+            }
+        );
+        const firstUser = appendMessage(container, 'First user message', 'user', null, '', null, {
+            autoScroll: false,
+            onEdit: vi.fn(),
+        });
+        const secondUser = appendMessage(
+            container,
+            'Follow-up user message',
+            'user',
+            null,
+            '',
+            null,
+            {
+                autoScroll: false,
+                onEdit: vi.fn(),
+            }
+        );
+
+        expect(firstAi.div.classList.contains('msg-grouped')).toBe(false);
+        expect(secondAi.div.classList.contains('msg-grouped')).toBe(true);
+        expect(firstUser.div.classList.contains('msg-grouped')).toBe(false);
+        expect(secondUser.div.classList.contains('msg-grouped')).toBe(true);
     });
 });

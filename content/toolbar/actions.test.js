@@ -205,6 +205,33 @@ describe('ToolbarActions', () => {
         );
     });
 
+    it('passes the current Web thinking level with selected-text quick asks', async () => {
+        const ui = {
+            hide: vi.fn(),
+            getProvider: vi.fn(() => 'web'),
+            getWebThinkingLevel: vi.fn(() => 'minimal'),
+            showAskWindow: vi.fn(async () => {}),
+            showLoading: vi.fn(),
+            setInputValue: vi.fn(),
+        };
+        const actions = new window.GeminiToolbarActions(ui);
+
+        await actions.handleQuickAction(
+            'summarize',
+            'Long text',
+            { x: 1, y: 2 },
+            '8c46e95b1a07cecc'
+        );
+
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                action: 'QUICK_ASK',
+                provider: 'web',
+                webThinkingLevel: 'minimal',
+            })
+        );
+    });
+
     it('uses selected translation targets when translating images', async () => {
         const ui = {
             provider: 'web',
@@ -292,6 +319,44 @@ describe('ToolbarActions', () => {
                 model: 'grok-4.3',
                 provider: 'openai',
                 imageMode: 'chat',
+            })
+        );
+    });
+
+    it('does not keep stale Web thinking options when retrying with a non-Web provider', async () => {
+        const ui = {
+            provider: 'web',
+            getProvider: vi.fn(() => 'web'),
+            getWebThinkingLevel: vi.fn(() => 'minimal'),
+            hide: vi.fn(),
+            showAskWindow: vi.fn(async () => {}),
+            showLoading: vi.fn(),
+            setInputValue: vi.fn(),
+            getSelectedModel: vi.fn(() => 'claude-sonnet'),
+        };
+        const actions = new window.GeminiToolbarActions(ui);
+
+        await actions.handleQuickAction(
+            'summarize',
+            'Long text',
+            { x: 1, y: 2 },
+            '8c46e95b1a07cecc'
+        );
+        chrome.runtime.sendMessage.mockClear();
+        ui.getProvider.mockReturnValue('official');
+        ui.getWebThinkingLevel.mockReturnValue('');
+
+        actions.handleRetry();
+
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+            expect.not.objectContaining({
+                webThinkingLevel: expect.anything(),
+            })
+        );
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                provider: 'official',
+                model: 'claude-sonnet',
             })
         );
     });

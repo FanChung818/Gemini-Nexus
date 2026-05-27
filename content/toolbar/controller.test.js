@@ -7,7 +7,11 @@ function installControllerDependencies() {
         build: vi.fn(),
         setCallbacks: vi.fn(),
         updateModelList: vi.fn(),
+        updateWebThinkingToggle: vi.fn(),
         getProvider: vi.fn(() => 'web'),
+        getSelectedModel: vi.fn(() => '8c46e95b1a07cecc'),
+        getWebThinkingLevel: vi.fn(() => 'high'),
+        setWebThinkingLevel: vi.fn(),
         showAskWindow: vi.fn(),
         showError: vi.fn(),
         setCustomSelectionTools: vi.fn(),
@@ -48,6 +52,22 @@ describe('GeminiToolbarController model persistence', () => {
     beforeEach(async () => {
         vi.resetModules();
         ui = installControllerDependencies();
+        globalThis.GeminiNexusWebThinking = {
+            DEFAULT_WEB_THINKING_LEVEL: 'high',
+            normalizeWebThinkingLevel: (level) =>
+                ['minimal', 'low', 'medium', 'high'].includes(String(level).toLowerCase())
+                    ? String(level).toLowerCase()
+                    : 'high',
+            normalizeWebThinkingLevelForModel: (model, level) =>
+                model === 'e6fa609c3fa255c0' && level === 'minimal' ? 'low' : level || 'high',
+            getNextWebThinkingLevel: (model, level) =>
+                level === (model === 'e6fa609c3fa255c0' ? 'low' : 'minimal')
+                    ? 'high'
+                    : model === 'e6fa609c3fa255c0'
+                      ? 'low'
+                      : 'minimal',
+        };
+        window.GeminiNexusWebThinking = globalThis.GeminiNexusWebThinking;
         globalThis.chrome = {
             storage: {
                 local: {
@@ -55,6 +75,7 @@ describe('GeminiToolbarController model persistence', () => {
                         geminiProvider: 'web',
                         geminiModel: 'sidepanel-model',
                         geminiToolbarModel: 'toolbar-model',
+                        geminiWebThinkingLevel: 'high',
                     })),
                     set: vi.fn(),
                 },
@@ -158,6 +179,35 @@ describe('GeminiToolbarController model persistence', () => {
         });
         expect(chrome.storage.local.set).not.toHaveBeenCalledWith({
             geminiOpenaiSelectedModel: 'gpt-5.1',
+        });
+    });
+
+    it('toggles the shared Gemini Web thinking level from the toolbar button', () => {
+        ui.getSelectedModel.mockReturnValue('8c46e95b1a07cecc');
+        ui.getWebThinkingLevel.mockReturnValue('high');
+        const controller = new window.GeminiToolbarController();
+
+        controller.handleWebThinkingToggle();
+
+        expect(ui.setWebThinkingLevel).toHaveBeenCalledWith('minimal');
+        expect(chrome.storage.local.set).toHaveBeenCalledWith({
+            geminiWebThinkingLevel: 'minimal',
+        });
+    });
+
+    it('normalizes unsupported minimal thinking when switching to a Pro Web model', () => {
+        ui.getProvider.mockReturnValue('web');
+        ui.getWebThinkingLevel.mockReturnValue('minimal');
+        const controller = new window.GeminiToolbarController();
+
+        controller.handleModelChange('e6fa609c3fa255c0');
+
+        expect(ui.setWebThinkingLevel).toHaveBeenCalledWith('low');
+        expect(chrome.storage.local.set).toHaveBeenCalledWith({
+            geminiWebThinkingLevel: 'low',
+        });
+        expect(chrome.storage.local.set).toHaveBeenCalledWith({
+            geminiToolbarModel: 'e6fa609c3fa255c0',
         });
     });
 

@@ -88,6 +88,10 @@ export class TabSelectorController {
         if (this.controlBar) {
             this.controlBar.hidden = !this.controlVisible;
         }
+        if (this.triggerBtn) {
+            this.triggerBtn.hidden = true;
+            if (this.controlVisible) this.resetTrigger();
+        }
     }
 
     updateControlState({ tab = null, attached = false } = {}) {
@@ -237,6 +241,11 @@ export class TabSelectorController {
 
     updateTrigger(tab) {
         if (!this.triggerBtn) return;
+        if (this.controlVisible) {
+            this.triggerBtn.hidden = true;
+            this.resetTrigger();
+            return;
+        }
 
         this.triggerBtn.innerHTML = '';
 
@@ -259,7 +268,7 @@ export class TabSelectorController {
 
     resetTrigger() {
         if (!this.triggerBtn) return;
-        this.triggerBtn.innerHTML = TemplateIcons.TAB_STACK;
+        this.triggerBtn.innerHTML = TemplateIcons.ACTIVE_TAB;
         this.triggerBtn.title = t('selectTabTooltip') || 'Select a tab to control';
         this.triggerBtn.classList.remove('tab-switcher-locked');
     }

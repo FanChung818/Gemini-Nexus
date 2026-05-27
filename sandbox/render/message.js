@@ -85,6 +85,15 @@ export function appendMessage(
         renderContent(contentDiv, displayText, renderRole, options);
     };
 
+    const syncRenderOptions = (state = {}) => {
+        if (state.isStreaming !== undefined) {
+            options.isStreaming = state.isStreaming === true;
+        }
+        if (state.isFinal !== undefined) {
+            options.isFinal = state.isFinal === true;
+        }
+    };
+
     const getVisibleMessageText = () => {
         return role === 'ai'
             ? cleanupStructuredSourceText(currentText, currentSources)
@@ -206,6 +215,7 @@ export function appendMessage(
     const controller = {
         div: messageElement,
         update: (newText, newThoughts, state = {}) => {
+            syncRenderOptions(state);
             if (newText !== undefined) {
                 currentText = newText;
                 if (state.toolStatus !== undefined) {
@@ -242,6 +252,11 @@ export function appendMessage(
             // as the content expands downwards.
         },
         finalize: (newText, newThoughts, state = {}) => {
+            syncRenderOptions({
+                ...state,
+                isStreaming: false,
+                isFinal: true,
+            });
             if (newText !== undefined) {
                 currentText = newText;
                 if (state.suppressCopy !== undefined) {

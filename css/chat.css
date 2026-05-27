@@ -454,8 +454,16 @@ body.layout-wide .msg.ai {
     margin-top: 24px;
 }
 
+#chat-history > :not([hidden]) + .msg.msg-grouped {
+    margin-top: 6px;
+}
+
 #chat-history > :not([hidden]) + .msg.msg-compact-chain {
     margin-top: 10px;
+}
+
+.msg.msg-grouped .message-avatar {
+    visibility: hidden;
 }
 
 .copy-btn {

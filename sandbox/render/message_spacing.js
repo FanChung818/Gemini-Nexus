@@ -15,6 +15,15 @@ function isCompactSpacingPair(previousKind, currentKind) {
     );
 }
 
+function isGroupedMessagePair(previousMessage, currentMessage, currentKind) {
+    if (!previousMessage || currentKind !== 'normal') return false;
+    if (previousMessage.dataset?.messageSpacingKind !== 'normal') return false;
+
+    const previousRole = previousMessage.dataset?.messageRole || '';
+    const currentRole = currentMessage.dataset?.messageRole || '';
+    return Boolean(previousRole && currentRole && previousRole === currentRole);
+}
+
 export function getMessageSpacingKind({ kind, role, thoughts, visibleText }) {
     if (isToolMessageKind(kind)) return 'tool';
     if (role === 'ai' && hasDisplayableThoughts(thoughts) && !hasDisplayableText(visibleText)) {
@@ -31,6 +40,10 @@ export function syncMessageSpacing(container, div, getSpacingKind, { skipNext = 
 
     const previousKind = div.previousElementSibling?.dataset?.messageSpacingKind || '';
     div.classList.toggle('msg-compact-chain', isCompactSpacingPair(previousKind, spacingKind));
+    div.classList.toggle(
+        'msg-grouped',
+        isGroupedMessagePair(div.previousElementSibling, div, spacingKind)
+    );
 
     if (skipNext) return;
     const nextController = div.nextElementSibling?.__messageController;

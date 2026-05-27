@@ -180,6 +180,53 @@ describe('ToolbarEvents', () => {
         events.disconnect();
     });
 
+    it('notifies the controller when the Web thinking toggle is clicked', () => {
+        const askThinkingToggle = document.createElement('button');
+        const askModelSelect = document.createElement('select');
+        const askInput = document.createElement('input');
+        const askWindow = document.createElement('div');
+        const resultText = document.createElement('div');
+        const handleWebThinkingToggle = vi.fn();
+
+        const events = new window.GeminiToolbarEvents({
+            actions: {
+                triggerAction: vi.fn(),
+                cancelAsk: vi.fn(),
+                stopAsk: vi.fn(),
+            },
+            handleImageClick: vi.fn(),
+            handleImageHover: vi.fn(),
+            handleProviderChange: vi.fn(),
+            handleModelChange: vi.fn(),
+            handleWebThinkingToggle,
+            isWindowVisible: vi.fn(() => false),
+            isVisible: vi.fn(() => false),
+            hide: vi.fn(),
+            hideImageButton: vi.fn(),
+            saveWindowDimensions: vi.fn(),
+            codeCopy: {
+                handle: vi.fn(),
+            },
+        });
+
+        events.bind(
+            {
+                askInput,
+                askModelSelect,
+                askThinkingToggle,
+                askWindow,
+                resultText,
+                buttons: {},
+            },
+            askWindow
+        );
+
+        askThinkingToggle.click();
+
+        expect(handleWebThinkingToggle).toHaveBeenCalledTimes(1);
+        events.disconnect();
+    });
+
     it('notifies the controller when translation target choices change', () => {
         const askModelSelect = document.createElement('select');
         const askInput = document.createElement('input');

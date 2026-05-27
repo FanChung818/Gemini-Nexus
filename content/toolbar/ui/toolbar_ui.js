@@ -34,6 +34,57 @@
         return getConfig().DEFAULT_OPENAI_MODEL || '';
     }
 
+    function getWebThinking() {
+        return globalThis.GeminiNexusWebThinking || window.GeminiNexusWebThinking || null;
+    }
+
+    function getDefaultWebThinkingLevel() {
+        return getWebThinking()?.DEFAULT_WEB_THINKING_LEVEL || 'high';
+    }
+
+    function getThinkingToggleTitle(level, fastLevel) {
+        const strings = getStrings();
+        if (level === fastLevel) {
+            return fastLevel === 'minimal'
+                ? strings.toolbarThinkingMinimalFastTitle || 'Thinking: Minimal (Fast Mode)'
+                : strings.toolbarThinkingLowFastTitle || 'Thinking: Low (Fast Mode)';
+        }
+        return strings.toolbarThinkingHighTitle || 'Thinking: High (Deep Mode)';
+    }
+
+    function syncWebThinkingToggle(button, settings = {}, model) {
+        const webThinking = getWebThinking();
+        if (!button || !webThinking) return false;
+
+        const shouldShow = settings.provider === 'web' && webThinking.supportsWebThinking?.(model);
+        button.hidden = !shouldShow;
+        if (!shouldShow) {
+            button.classList.remove('is-fast');
+            button.removeAttribute('data-thinking-level');
+            button.removeAttribute('data-fast-thinking-level');
+            button.setAttribute('aria-pressed', 'false');
+            return false;
+        }
+
+        const level = webThinking.normalizeWebThinkingLevelForModel(
+            model,
+            settings.webThinkingLevel
+        );
+        const fastLevel = webThinking.getWebThinkingFastLevel(model);
+        const isFast = level === fastLevel;
+
+        button.classList.toggle('is-fast', isFast);
+        button.dataset.thinkingLevel = level;
+        button.dataset.fastThinkingLevel = fastLevel;
+        button.title = getThinkingToggleTitle(level, fastLevel);
+        button.setAttribute(
+            'aria-label',
+            getStrings().toolbarThinkingToggleAria || 'Toggle thinking level'
+        );
+        button.setAttribute('aria-pressed', isFast ? 'true' : 'false');
+        return true;
+    }
+
     function createCustomModelOptions(rawModels, fallbackOption) {
         const modelIds = String(rawModels || '')
             .split(',')
@@ -55,6 +106,7 @@
             this.callbacks = {};
             this.isBuilt = false;
             this.provider = getConfig().DEFAULT_PROVIDER || 'web';
+            this.webThinkingLevel = getDefaultWebThinkingLevel();
             this.translationTargetStore = new TranslationTargetStore();
 
             this.grammarManager = null;
@@ -138,11 +190,17 @@
 
         handleModelChange(model) {
             this.fireCallback('onModelChange', model);
+            this.updateWebThinkingToggle();
         }
 
         handleProviderChange(provider) {
             this.provider = provider || 'web';
+            this.updateWebThinkingToggle();
             this.fireCallback('onProviderChange', this.provider);
+        }
+
+        handleWebThinkingToggle() {
+            this.fireCallback('onWebThinkingToggle');
         }
 
         setCustomSelectionTools(tools) {
@@ -172,6 +230,8 @@
                 this.callbacks.onModelChange(...args);
             } else if (type === 'onProviderChange' && this.callbacks.onProviderChange) {
                 this.callbacks.onProviderChange(...args);
+            } else if (type === 'onWebThinkingToggle' && this.callbacks.onWebThinkingToggle) {
+                this.callbacks.onWebThinkingToggle(...args);
             } else if (this.callbacks.onAction) {
                 this.callbacks.onAction(...args);
             }
@@ -289,6 +349,9 @@
         updateModelList(settings, currentModel) {
             const provider = settings.provider || (settings.useOfficialApi ? 'official' : 'web');
             this.provider = provider;
+            this.webThinkingLevel =
+                getWebThinking()?.normalizeWebThinkingLevel?.(settings.webThinkingLevel) ||
+                getDefaultWebThinkingLevel();
             this.view.setSelectedProvider(provider);
             let options = [];
 
@@ -308,6 +371,30 @@
             }
 
             this.view.updateModelOptions(options, currentModel);
+            this.updateWebThinkingToggle();
+        }
+
+        getWebThinkingLevel() {
+            return this.webThinkingLevel || getDefaultWebThinkingLevel();
+        }
+
+        setWebThinkingLevel(level) {
+            const webThinking = getWebThinking();
+            this.webThinkingLevel =
+                webThinking?.normalizeWebThinkingLevelForModel?.(this.getSelectedModel(), level) ||
+                getDefaultWebThinkingLevel();
+            this.updateWebThinkingToggle();
+        }
+
+        updateWebThinkingToggle() {
+            syncWebThinkingToggle(
+                this.view?.elements?.askThinkingToggle,
+                {
+                    provider: this.provider,
+                    webThinkingLevel: this.getWebThinkingLevel(),
+                },
+                this.getSelectedModel()
+            );
         }
 
         setGrammarMode(enabled, sourceElement = null, selectionRange = null) {

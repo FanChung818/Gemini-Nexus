@@ -49,6 +49,7 @@ describe('GeminiToolbarTemplates', () => {
                 close: 'Close',
                 askPlaceholder: 'Ask Gemini...',
                 toolbarProviderLabel: 'Popup provider',
+                toolbarThinkingToggleAria: 'Toggle thinking level',
                 providerWebShort: 'Web',
                 providerOfficialShort: 'API',
                 providerOpenAIShort: 'OpenAI',
@@ -108,6 +109,19 @@ describe('GeminiToolbarTemplates', () => {
         expect(providerSelect.getAttribute('title')).toBe('Popup provider');
         expect(options.map((option) => option.value)).toEqual(['web', 'official', 'openai']);
         expect(options.map((option) => option.textContent)).toEqual(['Web', 'API', 'OpenAI']);
+    });
+
+    it('renders the Web thinking toggle with the lightning icon in the ask window header', () => {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = window.GeminiToolbarTemplates.mainStructure;
+
+        const button = wrapper.querySelector('#ask-thinking-toggle');
+
+        expect(button).not.toBeNull();
+        expect(button.hidden).toBe(true);
+        expect(button.getAttribute('title')).toBe('Toggle thinking level');
+        expect(button.getAttribute('aria-pressed')).toBe('false');
+        expect(button.querySelector('[data-icon="ZAP"]')).not.toBeNull();
     });
 
     it('renders a hidden multi-language translation target dropdown in the ask window', () => {

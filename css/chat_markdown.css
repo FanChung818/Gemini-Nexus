@@ -160,22 +160,38 @@
     background: #ffffff;
 }
 
-.live-artifact-body-mermaid {
+.live-artifact-body-mermaid,
+.live-artifact-body-graphviz {
     display: grid;
     place-items: center;
+    min-height: 150px;
+    max-height: none;
     padding: 16px;
 }
 
-.live-artifact-body-mermaid svg {
+.live-artifact-body-mermaid svg,
+.live-artifact-body-graphviz svg {
     display: block;
     max-width: 100%;
     height: auto;
+}
+
+.live-artifact-body-error {
+    display: flex;
+    min-height: 72px;
+    max-height: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
 }
 
 .live-artifact-body-loading,
 .live-artifact-error {
     color: #4f5968;
     font-size: 13px;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
 }
 
 .live-artifact-frame {

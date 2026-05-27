@@ -26,4 +26,26 @@ describe('FooterTemplate', () => {
             textareaShell.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING
         ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     });
+
+    it('marks webpage-context tools separately from standalone-supported tools', () => {
+        document.body.innerHTML = FooterTemplate;
+
+        [
+            'page-context-btn',
+            'quote-btn',
+            'ocr-btn',
+            'screenshot-translate-btn',
+            'snip-btn',
+        ].forEach((buttonId) => {
+            expect(document.getElementById(buttonId).classList.contains('context-aware')).toBe(
+                true
+            );
+        });
+
+        ['browser-control-btn', 'screen-capture-btn'].forEach((buttonId) => {
+            expect(document.getElementById(buttonId).classList.contains('context-aware')).toBe(
+                false
+            );
+        });
+    });
 });

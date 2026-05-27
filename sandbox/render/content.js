@@ -357,7 +357,10 @@ export function renderContent(contentDiv, text, role, options = {}) {
             });
         }
 
-        enhanceLiveArtifacts(contentDiv);
+        enhanceLiveArtifacts(contentDiv, {
+            deferMermaidErrors: options.isStreaming === true && options.isFinal !== true,
+            deferGraphvizErrors: options.isStreaming === true && options.isFinal !== true,
+        });
     } else {
         // User message OR fallback if marked not loaded yet
         contentDiv.innerText = text;

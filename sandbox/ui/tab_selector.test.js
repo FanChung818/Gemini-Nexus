@@ -34,6 +34,28 @@ describe('TabSelectorController browser control bar', () => {
         expect(trigger.hasAttribute('style')).toBe(false);
     });
 
+    it('keeps the header tab switcher hidden while the persistent control bar is active', () => {
+        const controller = new TabSelectorController();
+        const trigger = document.getElementById('tab-switcher-btn');
+
+        trigger.hidden = false;
+        controller.setControlVisible(true);
+        controller.updateControlState({
+            tab: {
+                id: 7,
+                title: 'OpenAI News | OpenAI',
+                url: 'https://openai.com/news/',
+                favIconUrl: 'https://openai.com/favicon.ico',
+                controllable: true,
+            },
+            attached: true,
+        });
+
+        expect(trigger.hidden).toBe(true);
+        expect(trigger.innerHTML).not.toContain('favicon.ico');
+        expect(document.getElementById('browser-control-bar').hidden).toBe(false);
+    });
+
     it('shows the controlled tab state in the persistent control bar', () => {
         const controller = new TabSelectorController();
 
@@ -126,11 +148,11 @@ describe('TabSelectorController browser control bar', () => {
         expect(tabRow.querySelectorAll('[style]')).toHaveLength(0);
     });
 
-    it('resets the trigger button with the shared tab stack icon', () => {
+    it('resets the trigger button with the shared active tab icon', () => {
         const controller = new TabSelectorController();
         const trigger = document.getElementById('tab-switcher-btn');
         const expected = document.createElement('div');
-        expected.innerHTML = TemplateIcons.TAB_STACK;
+        expected.innerHTML = TemplateIcons.ACTIVE_TAB;
 
         controller.resetTrigger();
 

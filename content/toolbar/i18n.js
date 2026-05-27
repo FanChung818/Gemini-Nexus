@@ -126,6 +126,14 @@
             close: isZh ? '关闭' : 'Close',
             askPlaceholder: isZh ? '询问 Gemini...' : 'Ask Gemini...',
             toolbarProviderLabel: isZh ? '弹窗模型来源' : 'Popup provider',
+            toolbarThinkingToggleAria: isZh ? '切换思考等级' : 'Toggle thinking level',
+            toolbarThinkingMinimalFastTitle: isZh
+                ? '思考：最低（快速模式）'
+                : 'Thinking: Minimal (Fast Mode)',
+            toolbarThinkingLowFastTitle: isZh
+                ? '思考：低（快速模式）'
+                : 'Thinking: Low (Fast Mode)',
+            toolbarThinkingHighTitle: isZh ? '思考：高（深度模式）' : 'Thinking: High (Deep Mode)',
             providerWebShort: isZh ? '网页' : 'Web',
             providerOfficialShort: isZh ? 'API' : 'API',
             providerOpenAIShort: isZh ? 'OpenAI' : 'OpenAI',

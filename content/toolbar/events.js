@@ -46,6 +46,7 @@
                 askInput,
                 askProviderSelect,
                 askModelSelect,
+                askThinkingToggle,
                 translationTargets,
                 translationTargetTrigger,
             } = elements;
@@ -91,6 +92,12 @@
                 this.controller.handleProviderChange?.(event.target.value);
                 const Layout = window.GeminiViewLayout;
                 if (Layout && Layout.resizeSelect) Layout.resizeSelect(event.target);
+            });
+
+            this._add(askThinkingToggle, 'click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.controller.handleWebThinkingToggle?.();
             });
 
             this._add(translationTargets, 'change', (event) => {

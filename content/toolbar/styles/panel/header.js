@@ -256,6 +256,44 @@
             color: #1f1f1f;
         }
 
+        .ask-thinking-toggle {
+            width: 32px;
+            height: 32px;
+            flex: 0 0 32px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            background: transparent;
+            color: #5f6368;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            outline: none;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+        }
+        .ask-thinking-toggle[hidden] {
+            display: none !important;
+        }
+        .ask-thinking-toggle svg {
+            width: 18px;
+            height: 18px;
+            transition: fill 0.2s;
+        }
+        .ask-thinking-toggle:hover {
+            background: #f0f1f1;
+            border-color: #dadce0;
+            color: #1f1f1f;
+        }
+        .ask-thinking-toggle:focus-visible {
+            box-shadow: 0 0 0 2px rgba(11, 87, 208, 0.14);
+        }
+        .ask-thinking-toggle.is-fast {
+            color: #eab308;
+        }
+        .ask-thinking-toggle.is-fast svg {
+            fill: currentColor;
+        }
+
         .icon-btn {
             background: transparent;
             border: none;

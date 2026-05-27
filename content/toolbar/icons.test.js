@@ -41,4 +41,8 @@ describe('GeminiToolbarIcons', () => {
         expect(window.GeminiToolbarIcons.REMOVE_TEXT).not.toContain('M20 21v-2a4 4 0 0 0-4-4H8');
         expect(window.GeminiToolbarIcons.REMOVE_TEXT).not.toContain('<circle cx="12" cy="7" r="4"');
     });
+
+    it('matches the sidebar lightning icon shape for Web thinking', () => {
+        expect(window.GeminiToolbarIcons.ZAP).toContain('13 2 3 14 12 14 11 22 21 10 12 10 13 2');
+    });
 });

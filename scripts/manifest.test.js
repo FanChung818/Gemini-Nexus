@@ -28,6 +28,7 @@ const classicContentSupportFiles = [
     'shared/dom/crop_global.js',
     'shared/media/youtube_global.js',
     'shared/models/web_model_catalog.js',
+    'shared/models/web_thinking_global.js',
     'shared/ui/copy_feedback.js',
     'shared/utils/id_global.js',
 ];
@@ -110,13 +111,16 @@ describe('manifest content scripts', () => {
         const listedFiles = manifest.content_scripts.flatMap((entry) => entry.js ?? []);
         const configIndex = listedFiles.indexOf('shared/config/constants_global.js');
         const catalogIndex = listedFiles.indexOf('shared/models/web_model_catalog.js');
+        const thinkingIndex = listedFiles.indexOf('shared/models/web_thinking_global.js');
         const modelOptionsIndex = listedFiles.indexOf('content/toolbar/model_options.js');
 
         expect(configIndex).toBeGreaterThan(-1);
         expect(catalogIndex).toBeGreaterThan(-1);
+        expect(thinkingIndex).toBeGreaterThan(-1);
         expect(modelOptionsIndex).toBeGreaterThan(-1);
         expect(configIndex).toBeLessThan(catalogIndex);
-        expect(catalogIndex).toBeLessThan(modelOptionsIndex);
+        expect(catalogIndex).toBeLessThan(thinkingIndex);
+        expect(thinkingIndex).toBeLessThan(modelOptionsIndex);
         for (const dependentFile of [
             'content/toolbar/templates.js',
             'content/toolbar/ui/toolbar_ui.js',

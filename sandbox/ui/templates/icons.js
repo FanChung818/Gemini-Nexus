@@ -310,6 +310,18 @@ export const TemplateIcons = {
             <path d="M18 22V8a2 2 0 0 0-2-2H2"></path>
         </svg>
     `,
+    ACTIVE_TAB: icon`
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+            <path d="M3 9h18"></path>
+            <path d="M7 6.5h.01"></path>
+            <path d="M10 6.5h.01"></path>
+            <path d="M7 13h10"></path>
+            <path d="M7 17h6"></path>
+        </svg>
+    `,
     TAB_STACK: icon`
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"

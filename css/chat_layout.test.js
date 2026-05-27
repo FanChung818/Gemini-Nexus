@@ -31,6 +31,12 @@ describe('chat message layout styles', () => {
         expect(chatCss).toMatch(/\.message-action-rail\s*{[^}]*width:\s*40px/s);
         expect(chatCss).toMatch(/\.message-actions\s*{[^}]*opacity:\s*0/s);
         expect(chatCss).toMatch(/\.msg:hover\s+\.message-actions,[^{]*{[^}]*opacity:\s*1/s);
+        expect(chatCss).toMatch(
+            /#chat-history\s*>\s*:not\(\[hidden\]\)\s*\+\s*\.msg\.msg-grouped\s*{[^}]*margin-top:\s*6px/s
+        );
+        expect(chatCss).toMatch(
+            /\.msg\.msg-grouped\s+\.message-avatar\s*{[^}]*visibility:\s*hidden/s
+        );
         expect(markdownCss).toContain('.message-content-container .msg-content');
         expect(markdownCss).toMatch(
             /\.message-content-container\s+\.msg-content\s*{[^}]*overflow-wrap:\s*anywhere/s
@@ -49,5 +55,19 @@ describe('chat message layout styles', () => {
         expect(mediaCss).toMatch(/\.generated-image\s*{[^}]*width:\s*100%/s);
         expect(mediaCss).toMatch(/\.generated-image\s*{[^}]*max-width:\s*100%/s);
         expect(mediaCss).toMatch(/\.generated-image\s*{[^}]*box-sizing:\s*border-box/s);
+    });
+
+    it('keeps diagram previews expanded and compact on errors', async () => {
+        const markdownCss = await readCss('chat_markdown.css');
+
+        expect(markdownCss).toMatch(
+            /\.live-artifact-body-mermaid,[\s\S]*\.live-artifact-body-graphviz\s*{[^}]*max-height:\s*none/s
+        );
+        expect(markdownCss).toMatch(
+            /\.live-artifact-body-mermaid svg,[\s\S]*\.live-artifact-body-graphviz svg\s*{[^}]*max-width:\s*100%/s
+        );
+        expect(markdownCss).toMatch(/\.live-artifact-body-error\s*{[^}]*min-height:\s*72px/s);
+        expect(markdownCss).toMatch(/\.live-artifact-error\s*{[^}]*overflow-wrap:\s*anywhere/s);
+        expect(markdownCss).toMatch(/\.live-artifact-error\s*{[^}]*white-space:\s*pre-wrap/s);
     });
 });

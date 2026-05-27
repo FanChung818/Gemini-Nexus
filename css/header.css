@@ -259,11 +259,13 @@ body.layout-wide.sidebar-collapsed .browser-control-bar {
         left: 12px;
         right: 12px;
         top: 56px;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr) auto auto;
     }
 
     .browser-control-status {
-        display: none;
+        height: 24px;
+        padding: 0 7px;
+        font-size: 10px;
     }
 }
 

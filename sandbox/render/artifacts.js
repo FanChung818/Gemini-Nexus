@@ -4,6 +4,7 @@ import { t } from '../core/i18n.js';
 const HTML_LANGUAGES = new Set(['html', 'htm', 'xhtml']);
 const SVG_LANGUAGES = new Set(['svg']);
 const MERMAID_LANGUAGES = new Set(['mermaid', 'mmd']);
+const GRAPHVIZ_LANGUAGES = new Set(['graphviz', 'dot']);
 const TEXT_LANGUAGES = new Set(['', 'plaintext', 'text', 'txt']);
 const DANGEROUS_TAGS = new Set([
     'applet',
@@ -29,6 +30,9 @@ const URI_ATTRS = new Set([
 
 let mermaidLoader = () => import('mermaid');
 let mermaidModulePromise = null;
+let graphvizLoader = () => import('@viz-js/viz');
+let graphvizInstancePromise = null;
+const graphvizCache = new Map();
 
 function escapeHtml(text) {
     return String(text || '')
@@ -82,6 +86,10 @@ function looksLikeMermaid(code) {
     );
 }
 
+function looksLikeGraphviz(code) {
+    return /^\s*(?:strict\s+)?(?:di)?graph(?:\s+[\w\d_"]+)?\s*\{/i.test(code);
+}
+
 export function getArtifactKind(language, code = '') {
     const normalizedLanguage = normalizeLanguage(language);
     const trimmedCode = String(code || '').trim();
@@ -89,11 +97,13 @@ export function getArtifactKind(language, code = '') {
     if (HTML_LANGUAGES.has(normalizedLanguage)) return 'html';
     if (SVG_LANGUAGES.has(normalizedLanguage)) return 'svg';
     if (MERMAID_LANGUAGES.has(normalizedLanguage)) return 'mermaid';
+    if (GRAPHVIZ_LANGUAGES.has(normalizedLanguage)) return 'graphviz';
     if (looksLikeSvg(trimmedCode)) return 'svg';
 
     if (TEXT_LANGUAGES.has(normalizedLanguage)) {
         if (looksLikeHtml(trimmedCode)) return 'html';
         if (looksLikeMermaid(trimmedCode)) return 'mermaid';
+        if (looksLikeGraphviz(trimmedCode)) return 'graphviz';
     }
 
     return null;
@@ -211,6 +221,24 @@ async function loadMermaidModule() {
     return mermaidModulePromise;
 }
 
+async function loadGraphvizInstance() {
+    if (!graphvizInstancePromise) {
+        graphvizInstancePromise = graphvizLoader()
+            .then((module) => {
+                const createInstance = module.instance || module.default?.instance;
+                if (typeof createInstance !== 'function') {
+                    throw new Error(t('liveArtifactPreviewFailed'));
+                }
+                return createInstance();
+            })
+            .catch((error) => {
+                graphvizInstancePromise = null;
+                throw error;
+            });
+    }
+    return graphvizInstancePromise;
+}
+
 async function renderMermaidToSvg(code) {
     const mermaid = await loadMermaidModule();
     mermaid.initialize({
@@ -218,14 +246,114 @@ async function renderMermaidToSvg(code) {
         securityLevel: 'strict',
         theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default',
         fontFamily: 'inherit',
+        flowchart: {
+            htmlLabels: false,
+            useMaxWidth: true,
+        },
     });
+
+    if (typeof mermaid.parse === 'function') {
+        const parseResult = await mermaid.parse(code, { suppressErrors: false });
+        if (parseResult === false) {
+            throw new Error(t('liveArtifactPreviewFailed'));
+        }
+    }
 
     const result = await mermaid.render(createPrefixedId('mermaid_svg'), code);
     return result?.svg || '';
 }
 
+function isMermaidErrorSvg(svg) {
+    const text = String(svg || '').toLowerCase();
+    return (
+        /class=["'][^"']*error-icon/i.test(svg) ||
+        (text.includes('syntax error in text') && text.includes('mermaid version'))
+    );
+}
+
+function getGraphvizThemeKey() {
+    return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+
+function getGraphvizLayoutDirection(code) {
+    const match = String(code || '').match(/rankdir\s*=\s*(["']?)(LR|TB|RL|BT)\1/i);
+    if (!match) return 'LR';
+
+    const direction = match[2].toUpperCase();
+    if (direction === 'TB' || direction === 'BT') return 'TB';
+    return 'LR';
+}
+
+function prepareGraphvizCode(code, themeKey = getGraphvizThemeKey()) {
+    let processedCode = String(code || '');
+    const effectiveLayout = getGraphvizLayoutDirection(processedCode);
+    const rankdirRegex = /(rankdir\s*=\s*)(["']?)(LR|TB|RL|BT)\2/gi;
+
+    if (rankdirRegex.test(processedCode)) {
+        processedCode = processedCode.replace(rankdirRegex, `$1"${effectiveLayout}"`);
+    } else {
+        const graphMatch = processedCode.match(
+            /(\s*(?:strict\s+)?(?:di)?graph\s+[\w\d_"]*\s*\{|\s*(?:strict\s+)?(?:di)?graph\s*\{)/i
+        );
+        if (graphMatch) {
+            processedCode = processedCode.replace(
+                graphMatch[0],
+                `${graphMatch[0]}\n  rankdir="${effectiveLayout}";`
+            );
+        }
+    }
+
+    const color = themeKey === 'dark' ? '#e4e4e7' : '#374151';
+    const themeDefaults = `
+        graph [bgcolor="transparent" fontcolor="${color}" margin="0"];
+        node [color="${color}" fontcolor="${color}"];
+        edge [color="${color}" fontcolor="${color}"];
+      `;
+
+    const openBraceIndex = processedCode.indexOf('{');
+    if (openBraceIndex !== -1) {
+        processedCode =
+            processedCode.slice(0, openBraceIndex + 1) +
+            themeDefaults +
+            processedCode.slice(openBraceIndex + 1);
+    }
+
+    return {
+        code: processedCode,
+        layout: effectiveLayout,
+        theme: themeKey,
+    };
+}
+
+async function renderGraphvizToSvg(code) {
+    const source = String(code || '');
+    if (!source.trim()) return '';
+
+    const prepared = prepareGraphvizCode(source);
+    const cacheKey = `${prepared.theme}::${prepared.layout}::${source}`;
+    if (graphvizCache.has(cacheKey)) return graphvizCache.get(cacheKey);
+
+    const vizInstance = await loadGraphvizInstance();
+    const svgElement = await vizInstance.renderSVGElement(prepared.code);
+    svgElement.style.maxWidth = '100%';
+    svgElement.style.height = 'auto';
+    svgElement.style.display = 'block';
+
+    const svg = svgElement.outerHTML;
+    graphvizCache.set(cacheKey, svg);
+    return svg;
+}
+
+function setPreviewLoading(body) {
+    body.classList.remove('live-artifact-body-error');
+    body.classList.add('live-artifact-body-loading');
+    body.setAttribute('aria-busy', 'true');
+    body.textContent = t('liveArtifactRendering');
+}
+
 function setPreviewError(body, message) {
     body.classList.remove('live-artifact-body-loading');
+    body.classList.add('live-artifact-body-error');
     body.removeAttribute('aria-busy');
     body.innerHTML = '';
 
@@ -235,28 +363,71 @@ function setPreviewError(body, message) {
     body.appendChild(error);
 }
 
-function renderMermaidPreview(body, code, renderMermaid = renderMermaidToSvg) {
-    body.classList.add('live-artifact-body-loading');
-    body.setAttribute('aria-busy', 'true');
-    body.textContent = t('liveArtifactRendering');
+function setPreviewSvg(body, svg) {
+    body.classList.remove('live-artifact-body-loading', 'live-artifact-body-error');
+    body.removeAttribute('aria-busy');
+    body.innerHTML = svg;
+}
+
+function renderMermaidPreview(body, code, renderMermaid = renderMermaidToSvg, options = {}) {
+    const deferErrors = options.deferErrors === true;
+    setPreviewLoading(body);
 
     Promise.resolve(renderMermaid(code))
         .then((svg) => {
             if (!body.isConnected) return;
+            if (isMermaidErrorSvg(svg)) {
+                throw new Error(t('liveArtifactPreviewFailed'));
+            }
+
             const sanitizedSvg = sanitizeArtifactMarkup(svg, 'svg');
             if (!sanitizedSvg) {
                 setPreviewError(body, t('liveArtifactPreviewFailed'));
                 return;
             }
 
-            body.classList.remove('live-artifact-body-loading');
-            body.removeAttribute('aria-busy');
-            body.innerHTML = sanitizedSvg;
+            setPreviewSvg(body, sanitizedSvg);
         })
         .catch((error) => {
             if (!body.isConnected) return;
+            if (deferErrors) {
+                setPreviewLoading(body);
+                return;
+            }
+
             const errorMessage = error instanceof Error ? error.message : '';
             setPreviewError(body, errorMessage || t('liveArtifactPreviewFailed'));
+        });
+}
+
+function formatGraphvizErrorMessage(error) {
+    const message = error instanceof Error ? error.message : '';
+    return message.replace(/.*error:\s*/i, '') || t('liveArtifactPreviewFailed');
+}
+
+function renderGraphvizPreview(body, code, renderGraphviz = renderGraphvizToSvg, options = {}) {
+    const deferErrors = options.deferErrors === true;
+    setPreviewLoading(body);
+
+    Promise.resolve(renderGraphviz(code))
+        .then((svg) => {
+            if (!body.isConnected) return;
+            const sanitizedSvg = sanitizeArtifactMarkup(svg, 'svg');
+            if (!sanitizedSvg && String(code || '').trim()) {
+                setPreviewError(body, t('liveArtifactPreviewFailed'));
+                return;
+            }
+
+            setPreviewSvg(body, sanitizedSvg);
+        })
+        .catch((error) => {
+            if (!body.isConnected) return;
+            if (deferErrors) {
+                setPreviewLoading(body);
+                return;
+            }
+
+            setPreviewError(body, formatGraphvizErrorMessage(error));
         });
 }
 
@@ -285,7 +456,16 @@ export function createLiveArtifactPreview(kind, code, options = {}) {
     preview.appendChild(body);
 
     if (kind === 'mermaid') {
-        renderMermaidPreview(body, code, options.renderMermaid);
+        renderMermaidPreview(body, code, options.renderMermaid, {
+            deferErrors: options.deferMermaidErrors === true,
+        });
+        return preview;
+    }
+
+    if (kind === 'graphviz') {
+        renderGraphvizPreview(body, code, options.renderGraphviz, {
+            deferErrors: options.deferGraphvizErrors === true,
+        });
         return preview;
     }
 
@@ -324,4 +504,10 @@ export function enhanceLiveArtifacts(root, options = {}) {
 export function setMermaidLoaderForTest(loader) {
     mermaidLoader = typeof loader === 'function' ? loader : () => import('mermaid');
     mermaidModulePromise = null;
+}
+
+export function setGraphvizLoaderForTest(loader) {
+    graphvizLoader = typeof loader === 'function' ? loader : () => import('@viz-js/viz');
+    graphvizInstancePromise = null;
+    graphvizCache.clear();
 }

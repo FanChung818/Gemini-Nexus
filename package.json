@@ -27,6 +27,7 @@
         "vitest": "^3.2.4"
     },
     "dependencies": {
+        "@viz-js/viz": "^3.25.0",
         "highlight.js": "^11.11.1",
         "katex": "^0.16.45",
         "marked": "^18.0.3",

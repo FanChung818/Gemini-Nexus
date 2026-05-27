@@ -119,6 +119,9 @@
                     <select id="ask-model-select" class="ask-model-select">
                         ${WEB_MODEL_OPTIONS}
                     </select>
+                    <button class="ask-thinking-toggle" id="ask-thinking-toggle" type="button" hidden title="${toolbarStrings.toolbarThinkingToggleAria || 'Toggle thinking level'}" aria-label="${toolbarStrings.toolbarThinkingToggleAria || 'Toggle thinking level'}" aria-pressed="false">
+                        ${ICONS.ZAP}
+                    </button>
                     <button class="icon-btn" id="btn-header-close" title="${toolbarStrings.close}">${ICONS.CLOSE}</button>
                 </div>
             </div>

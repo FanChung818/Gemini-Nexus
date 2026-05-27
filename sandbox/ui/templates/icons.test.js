@@ -19,6 +19,7 @@ describe('TemplateIcons', () => {
         expect(TemplateIcons.SHARE).toContain('<svg');
         expect(TemplateIcons.STOP).toContain('<svg');
         expect(TemplateIcons.SUMMARY).toContain('<svg');
+        expect(TemplateIcons.ACTIVE_TAB).toContain('<svg');
         expect(TemplateIcons.KEY).toContain('<svg');
         expect(TemplateIcons.KEY).toContain(
             'M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z'
@@ -52,5 +53,18 @@ describe('TemplateIcons', () => {
         expect(TemplateIcons.TAB_STACK).toContain('M3 8v11a2 2 0 0 0 2 2h12');
         expect(TemplateIcons.TAB_STACK).not.toContain('M2 6h20v13a2 2 0 0 1-2 2H4');
         expect(TemplateIcons.TAB_STACK).not.toContain('M2 6l2.5-3.5A2 2 0 0 1');
+    });
+
+    it('uses a webpage window icon for the active tab trigger', () => {
+        expect(TemplateIcons.ACTIVE_TAB).toContain(
+            '<rect x="3" y="4" width="18" height="16" rx="2"></rect>'
+        );
+        expect(TemplateIcons.ACTIVE_TAB).toContain('M3 9h18');
+        expect(TemplateIcons.ACTIVE_TAB).toContain('M7 6.5h.01');
+        expect(TemplateIcons.ACTIVE_TAB).toContain('M10 6.5h.01');
+        expect(TemplateIcons.ACTIVE_TAB).toContain('M7 13h10');
+        expect(TemplateIcons.ACTIVE_TAB).toContain('M7 17h6');
+        expect(TemplateIcons.ACTIVE_TAB).not.toContain('m11 13 5.5 7');
+        expect(TemplateIcons.ACTIVE_TAB).not.toContain('M3 8v11a2 2 0 0 0 2 2h12');
     });
 });

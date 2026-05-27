@@ -10,10 +10,15 @@
         'geminiModel',
         'geminiProvider',
         'geminiUseOfficialApi',
+        'geminiWebThinkingLevel',
         'geminiOfficialModel',
         'geminiOpenaiModel',
         'geminiOpenaiSelectedModel',
     ];
+
+    function getWebThinking() {
+        return globalThis.GeminiNexusWebThinking || window.GeminiNexusWebThinking || null;
+    }
 
     class ToolbarController {
         constructor() {
@@ -62,6 +67,7 @@
                 onAction: this.handleAction,
                 onProviderChange: (provider) => this.handleProviderChange(provider),
                 onModelChange: (model) => this.handleModelChange(model),
+                onWebThinkingToggle: () => this.handleWebThinkingToggle(),
                 onImageBtnHover: (isHovering) => {
                     if (isHovering) {
                         this.imageDetector.cancelHide();
@@ -109,6 +115,7 @@
                 useOfficialApi: result.geminiUseOfficialApi,
                 officialModel: result.geminiOfficialModel,
                 openaiModel: result.geminiOpenaiModel,
+                webThinkingLevel: result.geminiWebThinkingLevel,
             };
 
             const provider =
@@ -225,6 +232,9 @@
 
         handleModelChange(model) {
             const provider = this.ui.getProvider ? this.ui.getProvider() : 'web';
+            if (provider === 'web') {
+                this.syncWebThinkingForModel(model, { saveIfChanged: true });
+            }
             if (provider === 'openai') {
                 chrome.storage.local.set({ [TOOLBAR_OPENAI_MODEL_STORAGE_KEY]: model });
                 return;
@@ -234,7 +244,57 @@
         }
 
         handleProviderChange(provider) {
+            if (provider !== 'web') {
+                this.ui.updateWebThinkingToggle?.();
+            } else {
+                this.syncWebThinkingForModel(this.ui.getSelectedModel?.(), {
+                    saveIfChanged: false,
+                });
+            }
             chrome.storage.local.set({ [TOOLBAR_PROVIDER_STORAGE_KEY]: provider });
+        }
+
+        syncWebThinkingForModel(
+            model = this.ui.getSelectedModel?.(),
+            { saveIfChanged = false } = {}
+        ) {
+            const webThinking = getWebThinking();
+            if (!webThinking || !this.ui) return null;
+
+            const provider = this.ui.getProvider ? this.ui.getProvider() : 'web';
+            if (provider !== 'web') {
+                this.ui.updateWebThinkingToggle?.();
+                return null;
+            }
+
+            const previousLevel =
+                this.ui.getWebThinkingLevel?.() || webThinking.DEFAULT_WEB_THINKING_LEVEL;
+            const nextLevel = webThinking.normalizeWebThinkingLevelForModel(model, previousLevel);
+            this.ui.setWebThinkingLevel?.(nextLevel);
+
+            if (saveIfChanged && previousLevel && previousLevel !== nextLevel) {
+                chrome.storage.local.set({ geminiWebThinkingLevel: nextLevel });
+            }
+
+            return nextLevel;
+        }
+
+        handleWebThinkingToggle() {
+            const webThinking = getWebThinking();
+            if (!webThinking || !this.ui) return;
+
+            const provider = this.ui.getProvider ? this.ui.getProvider() : 'web';
+            if (provider !== 'web') {
+                this.ui.updateWebThinkingToggle?.();
+                return;
+            }
+
+            const model = this.ui.getSelectedModel?.();
+            const currentLevel =
+                this.ui.getWebThinkingLevel?.() || webThinking.DEFAULT_WEB_THINKING_LEVEL;
+            const nextLevel = webThinking.getNextWebThinkingLevel(model, currentLevel);
+            this.ui.setWebThinkingLevel?.(nextLevel);
+            chrome.storage.local.set({ geminiWebThinkingLevel: nextLevel });
         }
 
         handleAction(actionType, data) {

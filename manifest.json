@@ -73,6 +73,7 @@
                 "content/speech_reader.js",
                 "shared/config/constants_global.js",
                 "shared/models/web_model_catalog.js",
+                "shared/models/web_thinking_global.js",
                 "content/toolbar/model_options.js",
                 "content/toolbar/templates.js",
                 "content/toolbar/view/layout.js",
