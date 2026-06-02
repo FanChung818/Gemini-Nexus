@@ -1,7 +1,8 @@
 (function () {
     const catalog = globalThis.GeminiNexusWebModelCatalog;
 
-    const DEFAULT_WEB_THINKING_LEVEL = 'high';
+    const DEFAULT_WEB_THINKING_LEVEL = 'minimal';
+    const DEEP_WEB_THINKING_LEVEL = 'high';
     const WEB_THINKING_LEVELS = Object.freeze(['minimal', 'low', 'medium', 'high']);
     const WEB_NATIVE_THINKING_LEVELS = Object.freeze({
         STANDARD: 1,
@@ -40,7 +41,7 @@
     function getNextWebThinkingLevel(model, currentLevel) {
         const normalized = normalizeWebThinkingLevelForModel(model, currentLevel);
         const fastLevel = getWebThinkingFastLevel(model);
-        return normalized === fastLevel ? DEFAULT_WEB_THINKING_LEVEL : fastLevel;
+        return normalized === fastLevel ? DEEP_WEB_THINKING_LEVEL : fastLevel;
     }
 
     function getWebNativeThinkingLevel(model, level) {

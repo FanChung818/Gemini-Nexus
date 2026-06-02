@@ -35,6 +35,12 @@ describe('package-extension', () => {
                     run_at: 'document_end',
                 },
                 {
+                    matches: ['<all_urls>'],
+                    js: ['content/shortcut_frame_bridge.js'],
+                    run_at: 'document_start',
+                    all_frames: true,
+                },
+                {
                     matches: ['https://gemini.google.com/*'],
                     js: ['content/gemini_watermark_page.js'],
                     run_at: 'document_start',
@@ -48,6 +54,12 @@ describe('package-extension', () => {
                 matches: ['<all_urls>'],
                 js: ['content/index.js'],
                 run_at: 'document_end',
+            },
+            {
+                matches: ['<all_urls>'],
+                js: ['content/shortcut_frame_bridge.js'],
+                run_at: 'document_start',
+                all_frames: true,
             },
             {
                 matches: ['https://gemini.google.com/*'],

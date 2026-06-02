@@ -3,6 +3,7 @@ import './constants_global.js';
 const config = globalThis.GeminiNexusConfig;
 
 export const DEFAULT_SHORTCUTS = config.DEFAULT_SHORTCUTS;
+export const normalizeShortcutDefaults = config.normalizeShortcutDefaults;
 export const DEFAULT_PROVIDER = config.DEFAULT_PROVIDER;
 export const DEFAULT_STORED_GEMINI_MODEL = config.DEFAULT_STORED_GEMINI_MODEL;
 export const DEFAULT_OFFICIAL_MODEL = config.DEFAULT_OFFICIAL_MODEL;

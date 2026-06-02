@@ -1,18 +1,18 @@
 (function () {
-    const DEFAULT_WEB_MODEL = '8c46e95b1a07cecc';
+    const DEFAULT_WEB_MODEL = '56fdd199312815e2';
 
     const WEB_MODEL_OPTIONS = Object.freeze(
         [
-            { value: '8c46e95b1a07cecc', label: '3.1 Flash-Lite' },
             { value: '56fdd199312815e2', label: '3.5 Flash' },
+            { value: '8c46e95b1a07cecc', label: '3.1 Flash-Lite' },
             { value: 'e6fa609c3fa255c0', label: '3.1 Pro' },
         ].map((option) => Object.freeze(option))
     );
 
     const LEGACY_WEB_MODEL_ALIASES = Object.freeze({
-        'gemini-2.5-flash': DEFAULT_WEB_MODEL,
-        'gemini-3.1-flash-lite': DEFAULT_WEB_MODEL,
-        'gemini-3-flash': DEFAULT_WEB_MODEL,
+        'gemini-2.5-flash': '8c46e95b1a07cecc',
+        'gemini-3.1-flash-lite': '8c46e95b1a07cecc',
+        'gemini-3-flash': '8c46e95b1a07cecc',
         'gemini-3.5-flash': '56fdd199312815e2',
         'gemini-3-flash-thinking': '56fdd199312815e2',
         'gemini-3.1-pro': 'e6fa609c3fa255c0',

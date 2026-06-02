@@ -57,6 +57,8 @@ describe('content index text selection blacklist', () => {
         delete window.GeminiSelectionBlacklist;
         delete window.GeminiContentSettingsSync;
         delete window.GeminiNexusContentReady;
+        delete window.GeminiNexusToolbarControllerInstance;
+        delete window.GeminiNexusSelectionOverlayInstance;
     });
 
     it('disables selection toolbar on blacklisted current pages', async () => {
@@ -93,6 +95,50 @@ describe('content index text selection blacklist', () => {
 
         expect(window.GeminiNexusContentReady).toBe(true);
         expect(controller.setSelectionEnabled).toHaveBeenCalledWith(true);
+    });
+
+    it('rebinds shortcut events and message routing when content scripts are reinjected', async () => {
+        vi.resetModules();
+        const controller = {};
+        const selectionOverlay = {};
+        const shortcuts = { setController: vi.fn() };
+        const router = { init: vi.fn() };
+
+        window.GeminiNexusPageGuard = { isDisabled: false };
+        window.GeminiNexusContentReady = true;
+        window.GeminiNexusToolbarControllerInstance = controller;
+        window.GeminiNexusSelectionOverlayInstance = selectionOverlay;
+        window.GeminiShortcuts = shortcuts;
+        window.GeminiMessageRouter = router;
+        window.GeminiToolbarController = vi.fn();
+
+        await import('./index.js');
+
+        expect(shortcuts.setController).toHaveBeenCalledWith(controller);
+        expect(window.GeminiToolbarController).not.toHaveBeenCalled();
+        expect(router.init).toHaveBeenCalledWith(controller, selectionOverlay);
+    });
+
+    it('creates a fresh selection overlay when reinjecting over an older ready page', async () => {
+        vi.resetModules();
+        const controller = {};
+        const overlay = {};
+        const shortcuts = { setController: vi.fn() };
+        const router = { init: vi.fn() };
+
+        window.GeminiNexusPageGuard = { isDisabled: false };
+        window.GeminiNexusContentReady = true;
+        window.GeminiNexusToolbarControllerInstance = controller;
+        window.GeminiShortcuts = shortcuts;
+        window.GeminiMessageRouter = router;
+        window.GeminiNexusOverlay = vi.fn(() => overlay);
+        window.GeminiToolbarController = vi.fn();
+
+        await import('./index.js');
+
+        expect(window.GeminiNexusOverlay).toHaveBeenCalledWith();
+        expect(window.GeminiNexusSelectionOverlayInstance).toBe(overlay);
+        expect(router.init).toHaveBeenCalledWith(controller, overlay);
     });
 
     it('loads and hot-updates custom selection tools', async () => {

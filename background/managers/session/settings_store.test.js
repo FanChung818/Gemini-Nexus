@@ -48,7 +48,7 @@ describe('getConnectionSettings', () => {
         expect(chrome.storage.local.set).toHaveBeenCalledWith({ geminiApiKeyPointer: 1 });
     });
 
-    it('restores Gemini Web thinking level with a high default', async () => {
+    it('restores Gemini Web thinking level with a fast default', async () => {
         storedSettings = {
             geminiProvider: 'web',
             geminiWebThinkingLevel: 'minimal',
@@ -64,7 +64,7 @@ describe('getConnectionSettings', () => {
         storedSettings = { geminiProvider: 'web' };
         await expect(getConnectionSettings()).resolves.toEqual(
             expect.objectContaining({
-                webThinkingLevel: 'high',
+                webThinkingLevel: 'minimal',
             })
         );
     });

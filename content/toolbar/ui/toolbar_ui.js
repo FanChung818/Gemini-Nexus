@@ -53,7 +53,7 @@
     }
 
     function getDefaultWebThinkingLevel() {
-        return getWebThinking()?.DEFAULT_WEB_THINKING_LEVEL || 'high';
+        return getWebThinking()?.DEFAULT_WEB_THINKING_LEVEL || 'minimal';
     }
 
     function getThinkingToggleTitle(level, fastLevel) {

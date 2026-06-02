@@ -14,8 +14,8 @@ describe('connection settings helpers', () => {
         expect(createConnectionSettingsPayload({})).toEqual({
             provider: 'web',
             useOfficialApi: false,
-            selectedModel: '8c46e95b1a07cecc',
-            webThinkingLevel: 'high',
+            selectedModel: '56fdd199312815e2',
+            webThinkingLevel: 'minimal',
             webTemporaryChat: false,
             openaiSelectedModel: '',
             officialBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
@@ -123,7 +123,7 @@ describe('connection settings helpers', () => {
         expect(getConnectionProvider({})).toBe('web');
         expect(getSelectedModelForProvider({}, 'openai')).toBe('openai_custom');
         expect(getSelectedModelForProvider({}, 'deepseek')).toBe('deepseek-v4-pro');
-        expect(getSelectedModelForProvider({}, 'web')).toBe('8c46e95b1a07cecc');
+        expect(getSelectedModelForProvider({}, 'web')).toBe('56fdd199312815e2');
     });
 
     it('declares the storage keys needed for connection restore', () => {

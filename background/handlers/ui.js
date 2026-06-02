@@ -12,7 +12,11 @@ import {
 import { handleMcpListTools, handleMcpTestConnection } from './ui_mcp_tools.js';
 import { handleCheckPageContext, handleGetActiveSelection } from './ui_page_context.js';
 import { handleProviderModelList } from './ui_provider_models.js';
-import { handleOpenSidePanel, handleToggleSidePanelControl } from './ui_sidepanel.js';
+import {
+    handleOpenSidePanel,
+    handleToggleSidePanel,
+    handleToggleSidePanelControl,
+} from './ui_sidepanel.js';
 import { handleGetOpenTabs, handleSwitchTab } from './ui_tab_actions.js';
 
 export class UIMessageHandler {
@@ -44,6 +48,17 @@ export class UIMessageHandler {
         if (request.action === 'OPEN_SIDE_PANEL') {
             handleOpenSidePanel(context, request, sender, sendResponse);
             return true;
+        }
+
+        if (request.action === 'TOGGLE_SIDE_PANEL') {
+            handleToggleSidePanel(context, request, sender, sendResponse);
+            return true;
+        }
+
+        if (request.action === 'SIDE_PANEL_CLOSED') {
+            this.sidePanelScopeManager?.markClosedForTab?.(request.tabId);
+            sendResponse({ status: 'processed' });
+            return false;
         }
 
         if (request.action === 'TOGGLE_SIDE_PANEL_CONTROL') {
@@ -130,12 +145,10 @@ export class UIMessageHandler {
     }
 
     _getTargetSidePanelTabId(request, sender) {
-        if (Number.isInteger(request?.sidePanelTabId) && request.sidePanelTabId > 0) {
-            return request.sidePanelTabId;
-        }
-        if (Number.isInteger(sender?.tab?.id) && sender.tab.id > 0) {
-            return sender.tab.id;
-        }
-        return null;
+        const requestTabId = request?.sidePanelTabId;
+        if (Number.isInteger(requestTabId) && requestTabId > 0) return requestTabId;
+
+        const senderTabId = sender?.tab?.id;
+        return Number.isInteger(senderTabId) && senderTabId > 0 ? senderTabId : null;
     }
 }

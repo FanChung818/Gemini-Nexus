@@ -4,6 +4,8 @@ const ALARM_NAME = 'gemini_cookie_rotate';
 const ROTATE_URL = 'https://accounts.google.com/RotateCookies';
 // Matches Python implementation (540s = 9 minutes)
 const INTERVAL_MINUTES = 9;
+const MIN_ROTATION_INTERVAL_MS = 60000;
+const LAST_ROTATION_ATTEMPT_KEY = 'geminiKeepAliveLastRotationAttempt';
 
 class KeepAliveManager {
     constructor() {
@@ -33,18 +35,42 @@ class KeepAliveManager {
         }
     }
 
-    async performRotation() {
-        const now = Date.now();
-        // Throttling: Don't rotate if successfully done in last 60s
-        // (Matches Python logic to avoid 429 Too Many Requests)
-        if (now - this.lastRotation < 60000) {
-            return;
-        }
+    async _getLastRotationAttempt() {
+        try {
+            const result = await chrome.storage?.local?.get?.([LAST_ROTATION_ATTEMPT_KEY]);
+            const storedValue = result?.[LAST_ROTATION_ATTEMPT_KEY];
+            if (Number.isFinite(storedValue)) {
+                this.lastRotation = storedValue;
+            }
+        } catch {}
 
+        return this.lastRotation;
+    }
+
+    async _setLastRotationAttempt(timestamp) {
+        this.lastRotation = timestamp;
+        try {
+            await chrome.storage?.local?.set?.({
+                [LAST_ROTATION_ATTEMPT_KEY]: timestamp,
+            });
+        } catch {}
+    }
+
+    async performRotation() {
         if (this.isRotating) return;
         this.isRotating = true;
 
+        const now = Date.now();
+
         try {
+            const lastRotationAttempt = await this._getLastRotationAttempt();
+            // Throttling: Don't rotate if attempted in last 60s
+            // (Matches Python logic to avoid 429 Too Many Requests)
+            if (now - lastRotationAttempt < MIN_ROTATION_INTERVAL_MS) {
+                return;
+            }
+
+            await this._setLastRotationAttempt(now);
             debugLog('[Gemini Nexus] Keep-Alive: Rotating cookies...');
 
             // This endpoint refreshes __Secure-1PSIDTS
@@ -61,7 +87,7 @@ class KeepAliveManager {
             });
 
             if (response.ok) {
-                this.lastRotation = Date.now();
+                await this._setLastRotationAttempt(Date.now());
                 this.consecutiveErrors = 0;
                 debugLog('[Gemini Nexus] Keep-Alive: Rotation successful');
             } else {

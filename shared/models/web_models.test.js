@@ -8,11 +8,11 @@ import {
 
 describe('web model metadata', () => {
     it('lists current chat models with stable values', () => {
-        expect(DEFAULT_WEB_MODEL).toBe('8c46e95b1a07cecc');
+        expect(DEFAULT_WEB_MODEL).toBe('56fdd199312815e2');
 
         expect(createWebModelOptions()).toEqual([
-            { value: '8c46e95b1a07cecc', label: '3.1 Flash-Lite' },
             { value: '56fdd199312815e2', label: '3.5 Flash' },
+            { value: '8c46e95b1a07cecc', label: '3.1 Flash-Lite' },
             { value: 'e6fa609c3fa255c0', label: '3.1 Pro' },
         ]);
     });

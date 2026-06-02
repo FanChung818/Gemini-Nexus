@@ -20,8 +20,8 @@ describe('toolbar web model helper', () => {
 
     it('lists only current Web chat models', () => {
         expect(window.GeminiWebModels.createOptions()).toEqual([
-            { value: '8c46e95b1a07cecc', label: '3.1 Flash-Lite' },
             { value: '56fdd199312815e2', label: '3.5 Flash' },
+            { value: '8c46e95b1a07cecc', label: '3.1 Flash-Lite' },
             { value: 'e6fa609c3fa255c0', label: '3.1 Pro' },
         ]);
         expect(window.GeminiWebModels.createOptionMarkup()).not.toContain(

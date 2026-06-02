@@ -41,6 +41,24 @@ describe('manifest content scripts', () => {
         expect(manifest.permissions).toContain('tabGroups');
     });
 
+    it('declares an Alt shortcut for quick ask', async () => {
+        const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
+
+        expect(manifest.commands['quick-ask'].suggested_key).toEqual({
+            default: 'Alt+Q',
+            mac: 'Option+Q',
+        });
+    });
+
+    it('declares a browser-level shortcut for area OCR', async () => {
+        const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
+
+        expect(manifest.commands['area-ocr'].suggested_key).toEqual({
+            default: 'Alt+O',
+            mac: 'Option+O',
+        });
+    });
+
     it('uses explicit icon assets for each manifest icon size', async () => {
         const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
 
@@ -79,6 +97,21 @@ describe('manifest content scripts', () => {
                 expect.arrayContaining(['*.mhtml*', '*.mht*', '*.MHTML*', '*.MHT*'])
             );
         }
+    });
+
+    it('uses a lightweight all-frame bridge for iframe shortcut capture', async () => {
+        const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
+        const bridgeEntry = manifest.content_scripts.find((entry) =>
+            entry.js?.includes('content/shortcut_frame_bridge.js')
+        );
+
+        expect(bridgeEntry).toMatchObject({
+            matches: ['<all_urls>'],
+            js: ['content/shortcut_frame_bridge.js'],
+            run_at: 'document_start',
+            all_frames: true,
+            match_about_blank: true,
+        });
     });
 
     it('runs the Gemini page watermark cleanup in the main world only on Gemini pages', async () => {

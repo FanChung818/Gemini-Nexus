@@ -5,20 +5,85 @@
         return;
     }
 
-    const DEFAULT_SHORTCUTS = {
-        quickAsk: 'Ctrl+G',
-        openPanel: 'Alt+S',
+    const nexusConfig = globalThis.GeminiNexusConfig || {};
+    const DEFAULT_SHORTCUTS = nexusConfig.DEFAULT_SHORTCUTS || {
+        quickAsk: 'Alt+Q',
+        openPanel: 'Alt+G',
         browserControl: 'Ctrl+B',
         ocrCapture: 'Alt+O',
     };
+    const LEGACY_DEFAULT_SHORTCUTS = [
+        {
+            quickAsk: 'Ctrl+Q',
+            openPanel: 'Alt+G',
+            browserControl: 'Ctrl+B',
+            ocrCapture: 'Alt+O',
+        },
+        {
+            quickAsk: 'Ctrl+G',
+            openPanel: 'Alt+S',
+            browserControl: 'Ctrl+B',
+            ocrCapture: 'Alt+O',
+        },
+    ];
     const MODIFIER_KEYS = ['ctrl', 'alt', 'shift', 'meta', 'command'];
 
+    function isDefaultShortcutValue(key, value) {
+        return (
+            value === DEFAULT_SHORTCUTS[key] ||
+            LEGACY_DEFAULT_SHORTCUTS.some((shortcuts) => value === shortcuts[key])
+        );
+    }
+
+    function normalizeDefaultShortcutValue(key, value) {
+        return isDefaultShortcutValue(key, value) ? DEFAULT_SHORTCUTS[key] : value;
+    }
+
     function normalizeShortcuts(shortcuts) {
+        if (typeof nexusConfig.normalizeShortcutDefaults === 'function') {
+            return nexusConfig.normalizeShortcutDefaults(shortcuts);
+        }
+
         const stored =
             shortcuts && typeof shortcuts === 'object' && !Array.isArray(shortcuts)
                 ? shortcuts
                 : {};
-        return { ...DEFAULT_SHORTCUTS, ...stored };
+        const usesOnlyDefaultValues = Object.keys(DEFAULT_SHORTCUTS).every((key) => {
+            if (!Object.prototype.hasOwnProperty.call(stored, key)) return true;
+            return isDefaultShortcutValue(key, stored[key]);
+        });
+        const migrated = { ...stored };
+
+        if (usesOnlyDefaultValues) {
+            Object.keys(DEFAULT_SHORTCUTS).forEach((key) => {
+                if (Object.prototype.hasOwnProperty.call(migrated, key)) {
+                    migrated[key] = normalizeDefaultShortcutValue(key, migrated[key]);
+                }
+            });
+        }
+
+        return { ...DEFAULT_SHORTCUTS, ...migrated };
+    }
+
+    function needsShortcutMigration(stored, normalized) {
+        if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return false;
+        return ['quickAsk', 'openPanel'].some(
+            (key) =>
+                Object.prototype.hasOwnProperty.call(stored, key) && stored[key] !== normalized[key]
+        );
+    }
+
+    function persistShortcutMigration(stored, normalized) {
+        if (!needsShortcutMigration(stored, normalized)) return;
+
+        try {
+            const result = chrome.storage.local.set({ geminiShortcuts: normalized });
+            result?.catch?.((error) => {
+                console.warn('Failed to migrate Gemini Nexus shortcuts:', error?.message || error);
+            });
+        } catch (error) {
+            console.warn('Failed to migrate Gemini Nexus shortcuts:', error?.message || error);
+        }
     }
 
     function getStorageReadError() {
@@ -30,6 +95,22 @@
         if (target.closest('[contenteditable=""], [contenteditable="true"]')) return true;
         const tagName = target.tagName.toLowerCase();
         return tagName === 'input' || tagName === 'textarea' || tagName === 'select';
+    }
+
+    function getCodeKey(event) {
+        if (typeof event?.code !== 'string') return '';
+        const letterMatch = event.code.match(/^Key([A-Z])$/i);
+        if (letterMatch) return letterMatch[1].toLowerCase();
+        const digitMatch = event.code.match(/^Digit([0-9])$/);
+        if (digitMatch) return digitMatch[1];
+        return '';
+    }
+
+    function sendRuntimeMessage(message) {
+        try {
+            const result = chrome.runtime.sendMessage(message);
+            result?.catch?.(() => {});
+        } catch {}
     }
 
     class ShortcutManager {
@@ -54,6 +135,7 @@
                 }
 
                 this.appShortcuts = normalizeShortcuts(result?.geminiShortcuts);
+                persistShortcutMigration(result?.geminiShortcuts, this.appShortcuts);
             });
 
             chrome.storage.onChanged.addListener(this.handleStorageChange);
@@ -64,6 +146,7 @@
         handleStorageChange(changes, area) {
             if (area === 'local' && changes.geminiShortcuts) {
                 this.appShortcuts = normalizeShortcuts(changes.geminiShortcuts.newValue);
+                persistShortcutMigration(changes.geminiShortcuts.newValue, this.appShortcuts);
             }
         }
 
@@ -74,12 +157,36 @@
         }
 
         handleKeydown(event) {
-            if (isEditableShortcutTarget(event.target)) return;
+            const isEditableTarget = isEditableShortcutTarget(event.target);
+
+            if (this.match(event, this.appShortcuts.quickAsk)) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (this.toolbarController) {
+                    this.toolbarController.showGlobalInput();
+                } else {
+                    sendRuntimeMessage({ action: 'SHOW_QUICK_ASK_FROM_SHORTCUT' });
+                }
+                return;
+            }
+
+            if (this.match(event, this.appShortcuts.ocrCapture)) {
+                event.preventDefault();
+                event.stopPropagation();
+                sendRuntimeMessage({
+                    action: 'START_AREA_OCR_FROM_SHORTCUT',
+                    mode: 'ocr',
+                    source: 'local',
+                });
+                return;
+            }
+
+            if (isEditableTarget) return;
 
             if (this.match(event, this.appShortcuts.openPanel)) {
                 event.preventDefault();
                 event.stopPropagation();
-                Promise.resolve(chrome.runtime.sendMessage({ action: 'OPEN_SIDE_PANEL' }))
+                Promise.resolve(chrome.runtime.sendMessage({ action: 'TOGGLE_SIDE_PANEL' }))
                     .then((response) => {
                         if (response?.status === 'error') {
                             this.toolbarController?.showExtensionError?.(
@@ -95,30 +202,10 @@
                 return;
             }
 
-            if (this.match(event, this.appShortcuts.quickAsk)) {
-                event.preventDefault();
-                event.stopPropagation();
-                if (this.toolbarController) {
-                    this.toolbarController.showGlobalInput();
-                }
-                return;
-            }
-
             if (this.match(event, this.appShortcuts.browserControl)) {
                 event.preventDefault();
                 event.stopPropagation();
                 chrome.runtime.sendMessage({ action: 'TOGGLE_SIDE_PANEL_CONTROL' });
-                return;
-            }
-
-            if (this.match(event, this.appShortcuts.ocrCapture)) {
-                event.preventDefault();
-                event.stopPropagation();
-                chrome.runtime.sendMessage({
-                    action: 'INITIATE_CAPTURE',
-                    mode: 'ocr',
-                    source: 'local',
-                });
                 return;
             }
         }
@@ -143,7 +230,8 @@
             const mainKeys = parts.filter((part) => !MODIFIER_KEYS.includes(part));
             if (mainKeys.length !== 1) return false;
 
-            return key === mainKeys[0];
+            const mainKey = mainKeys[0];
+            return key === mainKey || getCodeKey(event) === mainKey;
         }
     }
 

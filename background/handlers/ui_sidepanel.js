@@ -23,6 +23,12 @@ export function handleToggleSidePanelControl(context, request, sender, sendRespo
     );
 }
 
+export function handleToggleSidePanel(context, request, sender, sendResponse) {
+    respondWithUiTask(sendResponse, () => toggleSidePanel(context, request, sender), {
+        errorLabel: 'Side panel toggle error',
+    });
+}
+
 async function openSidePanel(context, request, sender) {
     if (!sender.tab) {
         return { status: 'error', error: 'No active tab for side panel.' };
@@ -77,6 +83,18 @@ async function openSidePanel(context, request, sender) {
 
     queueSidePanelFollowupMessages(request, sender);
     return { status: 'opened' };
+}
+
+async function toggleSidePanel(context, request, sender) {
+    if (!sender.tab) {
+        return { status: 'error', error: 'No active tab for side panel.' };
+    }
+
+    if (context.sidePanelScopeManager?.toggleForTab) {
+        return context.sidePanelScopeManager.toggleForTab(sender.tab.id, sender.tab.windowId);
+    }
+
+    return openSidePanel(context, request, sender);
 }
 
 async function toggleSidePanelControl(context, request, sender) {

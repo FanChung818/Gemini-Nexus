@@ -8,6 +8,11 @@ import { setupContextMenus } from './menus.js';
 import { setupMessageListener } from './messages.js';
 import { keepAliveManager } from './managers/keep_alive.js';
 import { setupContentScriptInjection } from './content_injection.js';
+import { setupPageShortcutCommands } from './page_shortcut_commands.js';
+import {
+    showQuickAskForTab,
+    startAreaOcrForTab as startAreaOcrForTabWithManager,
+} from './page_shortcut_tab_actions.js';
 
 const logManager = new LogManager();
 
@@ -28,9 +33,33 @@ chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
 sidePanelScopeManager.init();
 chrome.action.onClicked.addListener((tab) => {
     if (!tab?.id || !tab.windowId) return;
-    sidePanelScopeManager.openForTab(tab.id, tab.windowId).catch((error) => {
-        console.error('Could not open side panel from action click:', error);
+    sidePanelScopeManager.toggleForTab(tab.id, tab.windowId).catch((error) => {
+        console.error('Could not toggle side panel from action click:', error);
     });
+});
+
+async function startAreaOcrForTab(tab) {
+    await startAreaOcrForTabWithManager(tab, imageManager);
+}
+
+chrome.commands?.onCommand?.addListener((command, tab) => {
+    if (command === 'quick-ask') {
+        showQuickAskForTab(tab).catch((error) => {
+            console.error('Could not open quick ask from command:', error);
+        });
+        return;
+    }
+
+    if (command === 'area-ocr') {
+        startAreaOcrForTab(tab).catch((error) => {
+            console.error('Could not start area OCR from command:', error);
+        });
+    }
+});
+
+setupPageShortcutCommands({
+    showQuickAskForTab,
+    startAreaOcrForTab,
 });
 
 setupContextMenus();

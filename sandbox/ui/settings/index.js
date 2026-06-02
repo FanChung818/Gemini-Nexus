@@ -41,6 +41,7 @@ import {
     DEFAULT_SHORTCUTS,
     DEFAULT_SIDE_PANEL_SCOPE,
     DEFAULT_THINKING_LEVEL,
+    normalizeShortcutDefaults,
 } from '../../../shared/config/constants.js';
 import { createDefaultMcpServer } from '../../../shared/settings/connection.js';
 import { DEFAULT_WEB_THINKING_LEVEL } from '../../../shared/models/web_thinking.js';
@@ -323,9 +324,7 @@ export class SettingsController {
     }
 
     updateShortcuts(payload) {
-        const stored =
-            payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
-        this.shortcuts = { ...this.defaultShortcuts, ...stored };
+        this.shortcuts = normalizeShortcutDefaults(payload);
         this.view.setShortcuts(this.shortcuts);
     }
 

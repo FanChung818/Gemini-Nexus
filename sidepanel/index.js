@@ -12,6 +12,12 @@ if (globalThis.chrome && chrome.runtime && chrome.storage && chrome.tabs) {
 
     stateManager.init();
     messageBridge.init();
+
+    window.addEventListener('pagehide', () => {
+        const tabId = stateManager.getMessageTargetTabId?.();
+        if (!Number.isInteger(tabId) || tabId <= 0) return;
+        chrome.runtime.sendMessage({ action: 'SIDE_PANEL_CLOSED', tabId }).catch(() => {});
+    });
 } else {
     const iframe = document.getElementById('sandbox-frame');
     if (iframe) iframe.addEventListener('load', () => frameManager.reveal(), { once: true });

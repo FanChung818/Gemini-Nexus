@@ -1,8 +1,8 @@
 import {
     DEFAULT_CONTEXT_MODE,
     DEFAULT_CONTEXT_RECENT_TURNS,
-    DEFAULT_SHORTCUTS,
     DEFAULT_SIDE_PANEL_SCOPE,
+    normalizeShortcutDefaults,
     normalizeContextRecentTurns,
 } from '../shared/config/constants.js';
 import {
@@ -72,7 +72,7 @@ export class StandaloneSettingsBridge {
 
     async restoreInitialState() {
         const localStorageData = await getLocalStorageData(SETTINGS_STORAGE_KEYS);
-        const shortcuts = { ...DEFAULT_SHORTCUTS, ...(localStorageData.geminiShortcuts || {}) };
+        const shortcuts = normalizeShortcutDefaults(localStorageData.geminiShortcuts);
 
         this.controller.updateShortcuts(shortcuts);
         this.controller.updateTheme(

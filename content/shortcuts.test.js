@@ -9,6 +9,7 @@ async function installShortcuts() {
 function createKeyboardEvent(key, modifiers = {}) {
     return new KeyboardEvent('keydown', {
         key,
+        code: modifiers.code,
         ctrlKey: modifiers.ctrlKey === true,
         altKey: modifiers.altKey === true,
         shiftKey: modifiers.shiftKey === true,
@@ -29,6 +30,7 @@ describe('ShortcutManager', () => {
             storage: {
                 local: {
                     get: vi.fn((keys, callback) => callback({})),
+                    set: vi.fn(),
                 },
                 onChanged: {
                     addListener: vi.fn((listener) => {
@@ -48,21 +50,24 @@ describe('ShortcutManager', () => {
     it('matches configured shortcuts by key and modifiers', () => {
         const shortcuts = window.GeminiShortcuts;
 
-        expect(shortcuts.match(createKeyboardEvent('G', { ctrlKey: true }), 'Ctrl+G')).toBe(true);
-        expect(shortcuts.match(createKeyboardEvent('g', { ctrlKey: true }), 'Ctrl+G')).toBe(true);
-        expect(shortcuts.match(createKeyboardEvent('G', { altKey: true }), 'Ctrl+G')).toBe(false);
-        expect(shortcuts.match(createKeyboardEvent('G', { ctrlKey: true }), 'Ctrl+Alt+G')).toBe(
+        expect(shortcuts.match(createKeyboardEvent('Q', { ctrlKey: true }), 'Ctrl+Q')).toBe(true);
+        expect(shortcuts.match(createKeyboardEvent('q', { ctrlKey: true }), 'Ctrl+Q')).toBe(true);
+        expect(shortcuts.match(createKeyboardEvent('Q', { altKey: true }), 'Ctrl+Q')).toBe(false);
+        expect(shortcuts.match(createKeyboardEvent('Q', { ctrlKey: true }), 'Ctrl+Alt+Q')).toBe(
             false
         );
+        expect(
+            shortcuts.match(createKeyboardEvent('ø', { altKey: true, code: 'KeyO' }), 'Alt+O')
+        ).toBe(true);
     });
 
-    it('opens the side panel for the configured shortcut', () => {
-        const event = createKeyboardEvent('S', { altKey: true });
+    it('toggles the side panel for the configured shortcut', () => {
+        const event = createKeyboardEvent('G', { altKey: true });
 
         document.dispatchEvent(event);
 
         expect(event.defaultPrevented).toBe(true);
-        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ action: 'OPEN_SIDE_PANEL' });
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ action: 'TOGGLE_SIDE_PANEL' });
     });
 
     it('updates shortcuts from storage changes', () => {
@@ -79,7 +84,7 @@ describe('ShortcutManager', () => {
 
         document.dispatchEvent(createKeyboardEvent('O', { ctrlKey: true }));
 
-        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ action: 'OPEN_SIDE_PANEL' });
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ action: 'TOGGLE_SIDE_PANEL' });
     });
 
     it('restores default shortcuts when the stored shortcut config is removed', () => {
@@ -105,8 +110,8 @@ describe('ShortcutManager', () => {
         document.dispatchEvent(createKeyboardEvent('O', { ctrlKey: true }));
         expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
 
-        document.dispatchEvent(createKeyboardEvent('S', { altKey: true }));
-        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ action: 'OPEN_SIDE_PANEL' });
+        document.dispatchEvent(createKeyboardEvent('G', { altKey: true }));
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ action: 'TOGGLE_SIDE_PANEL' });
     });
 
     it('does not enable default shortcuts when the initial shortcut read fails', async () => {
@@ -123,7 +128,7 @@ describe('ShortcutManager', () => {
         try {
             await installShortcuts();
 
-            document.dispatchEvent(createKeyboardEvent('S', { altKey: true }));
+            document.dispatchEvent(createKeyboardEvent('G', { altKey: true }));
 
             expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
             expect(warnSpy).toHaveBeenCalledWith(
@@ -141,9 +146,79 @@ describe('ShortcutManager', () => {
         };
         window.GeminiShortcuts.setController(controller);
 
-        document.dispatchEvent(createKeyboardEvent('G', { ctrlKey: true }));
+        document.dispatchEvent(createKeyboardEvent('œ', { altKey: true, code: 'KeyQ' }));
 
         expect(controller.showGlobalInput).toHaveBeenCalledWith();
+    });
+
+    it('migrates stored legacy default shortcuts to the current defaults', async () => {
+        vi.resetModules();
+        storageChangeListener = null;
+        chrome.storage.local.get.mockImplementation((keys, callback) =>
+            callback({
+                geminiShortcuts: {
+                    quickAsk: 'Ctrl+G',
+                    openPanel: 'Alt+S',
+                    browserControl: 'Ctrl+B',
+                    ocrCapture: 'Alt+O',
+                },
+            })
+        );
+        chrome.storage.local.set.mockClear();
+
+        await installShortcuts();
+
+        const controller = {
+            showGlobalInput: vi.fn(),
+        };
+        window.GeminiShortcuts.setController(controller);
+
+        document.dispatchEvent(createKeyboardEvent('œ', { altKey: true, code: 'KeyQ' }));
+
+        expect(controller.showGlobalInput).toHaveBeenCalledWith();
+        expect(chrome.storage.local.set).toHaveBeenCalledWith({
+            geminiShortcuts: {
+                quickAsk: 'Alt+Q',
+                openPanel: 'Alt+G',
+                browserControl: 'Ctrl+B',
+                ocrCapture: 'Alt+O',
+            },
+        });
+    });
+
+    it('migrates stored previous default quick ask shortcuts to the current default', async () => {
+        vi.resetModules();
+        storageChangeListener = null;
+        chrome.storage.local.get.mockImplementation((keys, callback) =>
+            callback({
+                geminiShortcuts: {
+                    quickAsk: 'Ctrl+Q',
+                    openPanel: 'Alt+G',
+                    browserControl: 'Ctrl+B',
+                    ocrCapture: 'Alt+O',
+                },
+            })
+        );
+        chrome.storage.local.set.mockClear();
+
+        await installShortcuts();
+
+        const controller = {
+            showGlobalInput: vi.fn(),
+        };
+        window.GeminiShortcuts.setController(controller);
+
+        document.dispatchEvent(createKeyboardEvent('œ', { altKey: true, code: 'KeyQ' }));
+
+        expect(controller.showGlobalInput).toHaveBeenCalledWith();
+        expect(chrome.storage.local.set).toHaveBeenCalledWith({
+            geminiShortcuts: {
+                quickAsk: 'Alt+Q',
+                openPanel: 'Alt+G',
+                browserControl: 'Ctrl+B',
+                ocrCapture: 'Alt+O',
+            },
+        });
     });
 
     it('starts local OCR capture for the configured shortcut', () => {
@@ -153,7 +228,20 @@ describe('ShortcutManager', () => {
 
         expect(event.defaultPrevented).toBe(true);
         expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
-            action: 'INITIATE_CAPTURE',
+            action: 'START_AREA_OCR_FROM_SHORTCUT',
+            mode: 'ocr',
+            source: 'local',
+        });
+    });
+
+    it('starts local OCR capture for macOS option-modified letter keys', () => {
+        const event = createKeyboardEvent('ø', { altKey: true, code: 'KeyO' });
+
+        document.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+            action: 'START_AREA_OCR_FROM_SHORTCUT',
             mode: 'ocr',
             source: 'local',
         });
@@ -170,6 +258,46 @@ describe('ShortcutManager', () => {
         expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
     });
 
+    it('opens quick ask while typing in editable fields', () => {
+        const controller = {
+            showGlobalInput: vi.fn(),
+        };
+        window.GeminiShortcuts.setController(controller);
+        const input = document.createElement('input');
+        document.body.appendChild(input);
+        input.focus();
+        const event = createKeyboardEvent('œ', { altKey: true, code: 'KeyQ' });
+
+        input.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(controller.showGlobalInput).toHaveBeenCalledWith();
+    });
+
+    it('starts OCR capture while typing in editable fields', () => {
+        const input = document.createElement('input');
+        document.body.appendChild(input);
+        input.focus();
+        const event = createKeyboardEvent('ø', { altKey: true, code: 'KeyO' });
+
+        input.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+            action: 'START_AREA_OCR_FROM_SHORTCUT',
+            mode: 'ocr',
+            source: 'local',
+        });
+    });
+
+    it('routes quick ask through the background shortcut command when no controller is attached', () => {
+        document.dispatchEvent(createKeyboardEvent('œ', { altKey: true, code: 'KeyQ' }));
+
+        expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+            action: 'SHOW_QUICK_ASK_FROM_SHORTCUT',
+        });
+    });
+
     it('shows toolbar feedback when opening the side panel fails', async () => {
         chrome.runtime.sendMessage = vi.fn(() =>
             Promise.resolve({ status: 'error', error: 'No side panel' })
@@ -180,7 +308,7 @@ describe('ShortcutManager', () => {
         };
         window.GeminiShortcuts.setController(controller);
 
-        document.dispatchEvent(createKeyboardEvent('S', { altKey: true }));
+        document.dispatchEvent(createKeyboardEvent('G', { altKey: true }));
         await Promise.resolve();
 
         expect(controller.showExtensionError).toHaveBeenCalledWith('No side panel');

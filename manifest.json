@@ -36,10 +36,24 @@
     "commands": {
         "_execute_action": {
             "suggested_key": {
-                "default": "Alt+S",
-                "mac": "Alt+S"
+                "default": "Alt+G",
+                "mac": "Alt+G"
             },
             "description": "Open Gemini Nexus Sidebar"
+        },
+        "quick-ask": {
+            "suggested_key": {
+                "default": "Alt+Q",
+                "mac": "Option+Q"
+            },
+            "description": "Open Gemini Nexus Quick Ask"
+        },
+        "area-ocr": {
+            "suggested_key": {
+                "default": "Alt+O",
+                "mac": "Option+O"
+            },
+            "description": "Start Gemini Nexus Area OCR"
         }
     },
     "side_panel": {
@@ -114,6 +128,14 @@
                 "content/index.js"
             ],
             "run_at": "document_end"
+        },
+        {
+            "matches": ["<all_urls>"],
+            "exclude_globs": ["*.mhtml*", "*.mht*", "*.MHTML*", "*.MHT*"],
+            "js": ["content/shortcut_frame_bridge.js"],
+            "run_at": "document_start",
+            "all_frames": true,
+            "match_about_blank": true
         },
         {
             "matches": ["https://gemini.google.com/*"],

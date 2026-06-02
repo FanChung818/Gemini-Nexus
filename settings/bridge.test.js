@@ -11,8 +11,8 @@ vi.mock('../sidepanel/core/downloads.js', () => ({
 function createController() {
     return {
         defaultShortcuts: {
-            quickAsk: 'Ctrl+G',
-            openPanel: 'Alt+S',
+            quickAsk: 'Alt+Q',
+            openPanel: 'Alt+G',
             browserControl: 'Ctrl+B',
             ocrCapture: 'Alt+O',
         },
@@ -92,7 +92,7 @@ describe('StandaloneSettingsBridge', () => {
         await bridge.restoreInitialState();
 
         expect(controller.updateShortcuts).toHaveBeenCalledWith(
-            expect.objectContaining({ quickAsk: 'Alt+Q', openPanel: 'Alt+S' })
+            expect.objectContaining({ quickAsk: 'Alt+Q', openPanel: 'Alt+G' })
         );
         expect(controller.updateTextSelection).toHaveBeenCalledWith(false);
         expect(controller.updateTextSelectionBlacklist).toHaveBeenCalledWith('github.com');

@@ -9,7 +9,7 @@ const rootDir = path.resolve(__dirname, '..');
 function readManifestContentScriptOrder() {
     const manifest = JSON.parse(readFileSync(path.join(rootDir, 'manifest.json'), 'utf8'));
     return manifest.content_scripts
-        .filter((entry) => entry.world !== 'MAIN')
+        .filter((entry) => entry.world !== 'MAIN' && entry.all_frames !== true)
         .flatMap((entry) => entry.js ?? []);
 }
 

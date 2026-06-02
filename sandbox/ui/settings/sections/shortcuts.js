@@ -1,5 +1,18 @@
 import { getSettingsElement } from '../dom.js';
 
+function getShortcutKey(event) {
+    const code = typeof event.code === 'string' ? event.code : '';
+    const letterMatch = code.match(/^Key([A-Z])$/i);
+    if (letterMatch) return letterMatch[1].toUpperCase();
+
+    const digitMatch = code.match(/^Digit([0-9])$/);
+    if (digitMatch) return digitMatch[1];
+
+    let normalizedKey = event.key.toUpperCase();
+    if (normalizedKey === ' ') normalizedKey = 'Space';
+    return normalizedKey;
+}
+
 export class ShortcutsSection {
     constructor() {
         this.elements = {};
@@ -36,9 +49,7 @@ export class ShortcutsSection {
             if (event.shiftKey) keys.push('Shift');
             if (event.metaKey) keys.push('Meta');
 
-            let normalizedKey = event.key.toUpperCase();
-            if (normalizedKey === ' ') normalizedKey = 'Space';
-            keys.push(normalizedKey);
+            keys.push(getShortcutKey(event));
 
             inputEl.value = keys.join('+');
         });

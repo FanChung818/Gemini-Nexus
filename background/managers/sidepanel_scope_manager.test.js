@@ -38,6 +38,38 @@ describe('SidePanelScopeManager tab-scoped paths', () => {
             enabled: true,
         });
         expect(chrome.sidePanel.open).toHaveBeenCalledWith({ tabId: 123, windowId: 456 });
+        expect(manager.isOpenForTab(123)).toBe(true);
+    });
+
+    it('toggles an open remembered-tab panel closed and restores tab options', async () => {
+        vi.useFakeTimers();
+        const manager = new SidePanelScopeManager();
+
+        await manager.openForTab(123, 456);
+        chrome.sidePanel.setOptions.mockClear();
+
+        const result = await manager.toggleForTab(123, 456);
+
+        expect(result).toEqual({ status: 'closed' });
+        expect(manager.isOpenForTab(123)).toBe(false);
+        expect(chrome.sidePanel.setOptions).toHaveBeenCalledWith({ tabId: 123, enabled: false });
+
+        await vi.runAllTimersAsync();
+        expect(chrome.sidePanel.setOptions).toHaveBeenCalledWith({
+            tabId: 123,
+            path: 'sidepanel/index.html?tabId=123',
+            enabled: true,
+        });
+        vi.useRealTimers();
+    });
+
+    it('toggles a closed remembered-tab panel open', async () => {
+        const manager = new SidePanelScopeManager();
+
+        const result = await manager.toggleForTab(123, 456);
+
+        expect(result).toEqual({ status: 'opened' });
+        expect(chrome.sidePanel.open).toHaveBeenCalledWith({ tabId: 123, windowId: 456 });
     });
 
     it('starts opening remembered-tab panels without waiting for async setup', async () => {

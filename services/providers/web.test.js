@@ -71,7 +71,7 @@ describe('sendWebMessage', () => {
         expect(modelHeader[8]).toEqual([4, 5, 6, 8]);
         expect(modelHeader[11]).toBe(1);
         expect(modelHeader[14]).toBe(1);
-        expect(modelHeader[15]).toBe(2);
+        expect(modelHeader[15]).toBe(1);
         expect(modelHeader[16]).toMatch(/^[0-9A-F-]{36}$/);
         expect(init.credentials).toBe('include');
 

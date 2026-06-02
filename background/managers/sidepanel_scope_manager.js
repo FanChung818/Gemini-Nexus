@@ -15,6 +15,7 @@ export class SidePanelScopeManager {
     constructor() {
         this.scope = DEFAULT_SIDE_PANEL_SCOPE;
         this.enabledTabs = {};
+        this.openTabs = {};
     }
 
     init() {
@@ -81,6 +82,8 @@ export class SidePanelScopeManager {
         });
 
         chrome.tabs.onRemoved.addListener((tabId) => {
+            this.markClosedForTab(tabId);
+
             if (this.enabledTabs[tabId]) {
                 delete this.enabledTabs[tabId];
                 this.persistEnabledTabs().catch((error) => {
@@ -134,6 +137,20 @@ export class SidePanelScopeManager {
         if (!tabId) return false;
         if (this.scope === 'global') return true;
         return this.enabledTabs[tabId] === true;
+    }
+
+    isOpenForTab(tabId) {
+        return this.openTabs[tabId] === true;
+    }
+
+    markOpenForTab(tabId) {
+        if (!tabId) return;
+        this.openTabs[tabId] = true;
+    }
+
+    markClosedForTab(tabId) {
+        if (!tabId) return;
+        delete this.openTabs[tabId];
     }
 
     async applyToTab(tabId) {
@@ -211,5 +228,44 @@ export class SidePanelScopeManager {
             ]);
             await this.openAfterSetup({ tabId, windowId }, [defaultOptionsPromise]);
         }
+
+        this.markOpenForTab(tabId);
+    }
+
+    async closeForTab(tabId) {
+        if (!tabId) return;
+
+        this.markClosedForTab(tabId);
+
+        try {
+            await chrome.sidePanel.setOptions({ tabId, enabled: false });
+            setTimeout(() => {
+                chrome.sidePanel
+                    .setOptions({
+                        tabId,
+                        path: getPanelPathForTab(tabId),
+                        enabled: this.isEnabledForTab(tabId),
+                    })
+                    .catch((error) => {
+                        console.warn(
+                            '[SidePanelScopeManager] Failed to restore side panel options:',
+                            error
+                        );
+                    });
+            }, 250);
+        } catch (error) {
+            console.error('Failed to close side panel:', error);
+            throw error;
+        }
+    }
+
+    async toggleForTab(tabId, windowId) {
+        if (this.isOpenForTab(tabId)) {
+            await this.closeForTab(tabId);
+            return { status: 'closed' };
+        }
+
+        await this.openForTab(tabId, windowId);
+        return { status: 'opened' };
     }
 }

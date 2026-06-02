@@ -57,7 +57,7 @@ export function createPackagedManifest(manifest) {
     const contentScripts = [];
 
     for (const entry of manifest.content_scripts ?? []) {
-        if (entry.world === 'MAIN') {
+        if (entry.world === 'MAIN' || entry.all_frames === true) {
             contentScripts.push(entry);
             continue;
         }
@@ -208,12 +208,12 @@ async function writeContentBundle() {
 }
 
 async function copyUnbundledContentScripts() {
-    /** @type {{ content_scripts?: Array<{ world?: string, js?: string[] }> }} */
+    /** @type {{ content_scripts?: Array<{ world?: string, all_frames?: boolean, js?: string[] }> }} */
     const manifest = JSON.parse(await readFile(path.join(rootDir, 'manifest.json'), 'utf8'));
     const files = [
         ...new Set(
             (manifest.content_scripts ?? [])
-                .filter((entry) => entry.world === 'MAIN')
+                .filter((entry) => entry.world === 'MAIN' || entry.all_frames === true)
                 .flatMap((entry) => entry.js ?? [])
         ),
     ];

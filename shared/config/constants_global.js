@@ -1,10 +1,59 @@
 (function () {
     const DEFAULT_SHORTCUTS = Object.freeze({
-        quickAsk: 'Ctrl+G',
-        openPanel: 'Alt+S',
+        quickAsk: 'Alt+Q',
+        openPanel: 'Alt+G',
         browserControl: 'Ctrl+B',
         ocrCapture: 'Alt+O',
     });
+    const LEGACY_DEFAULT_SHORTCUTS = Object.freeze([
+        Object.freeze({
+            quickAsk: 'Ctrl+Q',
+            openPanel: 'Alt+G',
+            browserControl: 'Ctrl+B',
+            ocrCapture: 'Alt+O',
+        }),
+        Object.freeze({
+            quickAsk: 'Ctrl+G',
+            openPanel: 'Alt+S',
+            browserControl: 'Ctrl+B',
+            ocrCapture: 'Alt+O',
+        }),
+    ]);
+    const SHORTCUT_KEYS = Object.freeze(Object.keys(DEFAULT_SHORTCUTS));
+
+    function isShortcutObject(shortcuts) {
+        return shortcuts && typeof shortcuts === 'object' && !Array.isArray(shortcuts);
+    }
+
+    function isDefaultShortcutValue(key, value) {
+        return (
+            value === DEFAULT_SHORTCUTS[key] ||
+            LEGACY_DEFAULT_SHORTCUTS.some((shortcuts) => value === shortcuts[key])
+        );
+    }
+
+    function normalizeDefaultShortcutValue(key, value) {
+        return isDefaultShortcutValue(key, value) ? DEFAULT_SHORTCUTS[key] : value;
+    }
+
+    function normalizeShortcutDefaults(shortcuts) {
+        const stored = isShortcutObject(shortcuts) ? shortcuts : {};
+        const usesOnlyDefaultValues = SHORTCUT_KEYS.every((key) => {
+            if (!Object.prototype.hasOwnProperty.call(stored, key)) return true;
+            return isDefaultShortcutValue(key, stored[key]);
+        });
+        const migrated = { ...stored };
+
+        if (usesOnlyDefaultValues) {
+            SHORTCUT_KEYS.forEach((key) => {
+                if (Object.prototype.hasOwnProperty.call(migrated, key)) {
+                    migrated[key] = normalizeDefaultShortcutValue(key, migrated[key]);
+                }
+            });
+        }
+
+        return { ...DEFAULT_SHORTCUTS, ...migrated };
+    }
 
     const CONTEXT_RECENT_TURNS_LIMITS = Object.freeze({
         MIN: 1,
@@ -83,8 +132,9 @@
 
     globalThis.GeminiNexusConfig = Object.freeze({
         DEFAULT_SHORTCUTS,
+        normalizeShortcutDefaults,
         DEFAULT_PROVIDER: 'web',
-        DEFAULT_STORED_GEMINI_MODEL: '8c46e95b1a07cecc',
+        DEFAULT_STORED_GEMINI_MODEL: '56fdd199312815e2',
         DEFAULT_OFFICIAL_MODEL: 'gemini-3-flash-preview',
         DEFAULT_OFFICIAL_MODELS: 'gemini-3-flash-preview, gemini-3.1-pro-preview',
         DEFAULT_OFFICIAL_BASE_URL: 'https://generativelanguage.googleapis.com/v1beta',

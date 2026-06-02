@@ -1,19 +1,33 @@
 (function () {
+    window.GeminiMessageRouter?.destroy?.();
+
     class MessageRouter {
         constructor() {
             this.toolbarController = null;
             this.selectionOverlay = null;
             this.captureSource = null;
             this.captureTargetSidePanelTabId = null;
+            this.handleRuntimeMessage = (request, sender, sendResponse) => {
+                return this.handle(request, sender, sendResponse);
+            };
+            this.isInitialized = false;
         }
 
         init(toolbarController, selectionOverlay) {
+            if (this.isInitialized) this.destroy();
             this.toolbarController = toolbarController;
             this.selectionOverlay = selectionOverlay;
+            chrome.runtime.onMessage.addListener(this.handleRuntimeMessage);
+            this.isInitialized = true;
+        }
 
-            chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-                return this.handle(request, sender, sendResponse);
-            });
+        destroy() {
+            if (this.isInitialized) {
+                chrome.runtime?.onMessage?.removeListener?.(this.handleRuntimeMessage);
+            }
+            this.isInitialized = false;
+            this.toolbarController = null;
+            this.selectionOverlay = null;
         }
 
         resetCaptureState() {
@@ -52,6 +66,14 @@
             if (request.action === 'SHOW_EXTENSION_ERROR') {
                 if (this.toolbarController) {
                     this.toolbarController.showExtensionError(request.message);
+                }
+                sendResponse({ status: 'ok' });
+                return true;
+            }
+
+            if (request.action === 'SHOW_QUICK_ASK') {
+                if (this.toolbarController) {
+                    this.toolbarController.showGlobalInput(false);
                 }
                 sendResponse({ status: 'ok' });
                 return true;

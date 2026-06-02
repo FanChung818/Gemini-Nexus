@@ -11,10 +11,10 @@ import {
 } from './web_thinking.js';
 
 describe('web thinking helpers', () => {
-    it('defaults Gemini Web thinking to high and normalizes invalid levels', () => {
-        expect(DEFAULT_WEB_THINKING_LEVEL).toBe('high');
+    it('defaults Gemini Web thinking to fast mode and normalizes invalid levels', () => {
+        expect(DEFAULT_WEB_THINKING_LEVEL).toBe('minimal');
         expect(normalizeWebThinkingLevel('LOW')).toBe('low');
-        expect(normalizeWebThinkingLevel('unknown')).toBe('high');
+        expect(normalizeWebThinkingLevel('unknown')).toBe('minimal');
     });
 
     it('uses minimal as the fast toggle for Flash models and low for Pro', () => {

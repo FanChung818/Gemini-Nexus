@@ -17,6 +17,15 @@ describe('web thinking toggle UI', () => {
         button = installButton();
     });
 
+    it('defaults Flash to the active fast state when no thinking level is stored', () => {
+        syncWebThinkingToggle(button, { provider: 'web' }, '56fdd199312815e2');
+
+        expect(button.hidden).toBe(false);
+        expect(button.classList.contains('is-fast')).toBe(true);
+        expect(button.dataset.thinkingLevel).toBe('minimal');
+        expect(button.getAttribute('aria-pressed')).toBe('true');
+    });
+
     it('shows the fast active state for Gemini Web Flash models', () => {
         syncWebThinkingToggle(
             button,

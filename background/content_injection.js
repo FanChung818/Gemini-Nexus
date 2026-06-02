@@ -25,6 +25,10 @@ function hasGeminiNexusWatermarkPageScript() {
     return window.GeminiNexusWatermarkPage?.installed === true;
 }
 
+function hasGeminiNexusShortcutFrameBridge() {
+    return window.GeminiNexusShortcutFrameBridgeReady === true;
+}
+
 function globToRegExp(glob) {
     return new RegExp(
         `^${glob
@@ -125,9 +129,20 @@ async function isWatermarkPageScriptInjected(tabId, scripting = chrome.scripting
     return results?.some((result) => result.result === true) === true;
 }
 
+async function isAllFrameShortcutBridgeInjected(tabId, scripting = chrome.scripting) {
+    const results = await scripting.executeScript({
+        target: { tabId, allFrames: true },
+        func: hasGeminiNexusShortcutFrameBridge,
+    });
+    return results?.length > 0 && results.every((result) => result.result === true);
+}
+
 async function injectContentScriptEntry(tabId, entry, scripting = chrome.scripting) {
     const options = {
-        target: { tabId },
+        target: {
+            tabId,
+            ...(entry.all_frames ? { allFrames: true } : {}),
+        },
         files: entry.js,
     };
 
@@ -141,6 +156,7 @@ async function injectContentScriptEntry(tabId, entry, scripting = chrome.scripti
 export async function injectContentScriptsIntoTab(tab, options = {}) {
     const scripting = options.scripting || chrome.scripting;
     const manifest = options.manifest || chrome.runtime.getManifest();
+    const force = options.force === true;
     const tabId = tab?.id;
     const url = tab?.url || tab?.pendingUrl || '';
 
@@ -150,18 +166,35 @@ export async function injectContentScriptsIntoTab(tab, options = {}) {
 
     try {
         const entries = getMatchingContentScriptEntries(manifest, url);
-        const normalEntries = entries.filter((entry) => entry.world !== 'MAIN');
+        const allFrameShortcutBridgeEntries = entries.filter(
+            (entry) =>
+                entry.world !== 'MAIN' &&
+                entry.all_frames === true &&
+                entry.js.includes('content/shortcut_frame_bridge.js')
+        );
+        const normalEntries = entries.filter(
+            (entry) => entry.world !== 'MAIN' && !allFrameShortcutBridgeEntries.includes(entry)
+        );
         const mainEntries = entries.filter((entry) => entry.world === 'MAIN');
         let injected = false;
 
-        if (normalEntries.length > 0 && !(await isAlreadyInjected(tabId, scripting))) {
+        if (normalEntries.length > 0 && (force || !(await isAlreadyInjected(tabId, scripting)))) {
             for (const entry of normalEntries) {
                 await injectContentScriptEntry(tabId, entry, scripting);
                 injected = true;
             }
         }
 
-        if (mainEntries.length > 0 && !(await isWatermarkPageScriptInjected(tabId, scripting))) {
+        for (const entry of allFrameShortcutBridgeEntries) {
+            if (!force && (await isAllFrameShortcutBridgeInjected(tabId, scripting))) continue;
+            await injectContentScriptEntry(tabId, entry, scripting);
+            injected = true;
+        }
+
+        if (
+            mainEntries.length > 0 &&
+            (force || !(await isWatermarkPageScriptInjected(tabId, scripting)))
+        ) {
             for (const entry of mainEntries) {
                 await injectContentScriptEntry(tabId, entry, scripting);
                 injected = true;
@@ -187,11 +220,19 @@ export async function injectContentScriptsIntoOpenTabs(options = {}) {
     return results;
 }
 
-export function setupContentScriptInjection() {
+function initializeOpenTabs(reason) {
+    injectContentScriptsIntoOpenTabs().catch((error) => {
+        console.warn(`[Gemini Nexus] Failed to initialize existing tabs${reason}:`, error);
+    });
+}
+
+export function setupContentScriptInjection(options = {}) {
+    if (options.initializeOpenTabs !== false) {
+        queueMicrotask(() => initializeOpenTabs(' on startup'));
+    }
+
     chrome.runtime.onInstalled.addListener(() => {
-        injectContentScriptsIntoOpenTabs().catch((error) => {
-            console.warn('[Gemini Nexus] Failed to initialize existing tabs:', error);
-        });
+        initializeOpenTabs(' after install or update');
     });
 
     chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo, tab) => {

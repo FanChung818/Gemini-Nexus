@@ -6,6 +6,7 @@ const webThinking = globalThis.GeminiNexusWebThinking;
 export const DEFAULT_WEB_THINKING_LEVEL = webThinking.DEFAULT_WEB_THINKING_LEVEL;
 export const WEB_THINKING_LEVELS = webThinking.WEB_THINKING_LEVELS;
 export const WEB_NATIVE_THINKING_LEVELS = webThinking.WEB_NATIVE_THINKING_LEVELS;
+const DEEP_WEB_THINKING_LEVEL = 'high';
 
 export function normalizeWebThinkingLevel(level, fallback = DEFAULT_WEB_THINKING_LEVEL) {
     const normalized = String(level || '')
@@ -37,7 +38,7 @@ export function normalizeWebThinkingLevelForModel(
 export function getNextWebThinkingLevel(model, currentLevel) {
     const normalized = normalizeWebThinkingLevelForModel(model, currentLevel);
     const fastLevel = getWebThinkingFastLevel(model);
-    return normalized === fastLevel ? DEFAULT_WEB_THINKING_LEVEL : fastLevel;
+    return normalized === fastLevel ? DEEP_WEB_THINKING_LEVEL : fastLevel;
 }
 
 export function getWebNativeThinkingLevel(model, level) {

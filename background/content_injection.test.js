@@ -16,6 +16,13 @@ const testManifest = {
             js: ['content/page_guard.js', 'content/index.js'],
         },
         {
+            matches: ['<all_urls>'],
+            js: ['content/shortcut_frame_bridge.js'],
+            run_at: 'document_start',
+            all_frames: true,
+            match_about_blank: true,
+        },
+        {
             matches: ['https://gemini.google.com/*'],
             js: ['content/gemini_watermark_page.js'],
             run_at: 'document_start',
@@ -59,6 +66,7 @@ describe('content script startup injection', () => {
         expect(getContentScriptFiles()).toEqual([
             'content/page_guard.js',
             'content/index.js',
+            'content/shortcut_frame_bridge.js',
             'content/gemini_watermark_page.js',
         ]);
     });
@@ -69,12 +77,24 @@ describe('content script startup injection', () => {
                 js: ['content/page_guard.js', 'content/index.js'],
                 world: 'ISOLATED',
             }),
+            expect.objectContaining({
+                js: ['content/shortcut_frame_bridge.js'],
+                all_frames: true,
+                match_about_blank: true,
+                world: 'ISOLATED',
+            }),
         ]);
         expect(
             getMatchingContentScriptEntries(testManifest, 'https://gemini.google.com/app')
         ).toEqual([
             expect.objectContaining({
                 js: ['content/page_guard.js', 'content/index.js'],
+                world: 'ISOLATED',
+            }),
+            expect.objectContaining({
+                js: ['content/shortcut_frame_bridge.js'],
+                all_frames: true,
+                match_about_blank: true,
                 world: 'ISOLATED',
             }),
             expect.objectContaining({
@@ -100,10 +120,16 @@ describe('content script startup injection', () => {
             target: { tabId: 12 },
             files: ['content/page_guard.js', 'content/index.js'],
         });
+        expect(chrome.scripting.executeScript).toHaveBeenNthCalledWith(4, {
+            target: { tabId: 12, allFrames: true },
+            files: ['content/shortcut_frame_bridge.js'],
+        });
     });
 
     it('injects the Gemini main-world watermark script only on Gemini pages', async () => {
         chrome.scripting.executeScript
+            .mockResolvedValueOnce([{ result: false }])
+            .mockResolvedValueOnce([{ result: undefined }])
             .mockResolvedValueOnce([{ result: false }])
             .mockResolvedValueOnce([{ result: undefined }])
             .mockResolvedValueOnce([{ result: false }])
@@ -119,12 +145,16 @@ describe('content script startup injection', () => {
             target: { tabId: 12 },
             files: ['content/page_guard.js', 'content/index.js'],
         });
-        expect(chrome.scripting.executeScript).toHaveBeenNthCalledWith(3, {
+        expect(chrome.scripting.executeScript).toHaveBeenNthCalledWith(4, {
+            target: { tabId: 12, allFrames: true },
+            files: ['content/shortcut_frame_bridge.js'],
+        });
+        expect(chrome.scripting.executeScript).toHaveBeenNthCalledWith(5, {
             target: { tabId: 12 },
             world: 'MAIN',
             func: expect.any(Function),
         });
-        expect(chrome.scripting.executeScript).toHaveBeenNthCalledWith(4, {
+        expect(chrome.scripting.executeScript).toHaveBeenNthCalledWith(6, {
             target: { tabId: 12 },
             files: ['content/gemini_watermark_page.js'],
             world: 'MAIN',
@@ -135,6 +165,8 @@ describe('content script startup injection', () => {
         chrome.scripting.executeScript
             .mockResolvedValueOnce([{ result: true }])
             .mockResolvedValueOnce([{ result: false }])
+            .mockResolvedValueOnce([{ result: undefined }])
+            .mockResolvedValueOnce([{ result: false }])
             .mockResolvedValueOnce([{ result: undefined }]);
 
         const result = await injectContentScriptsIntoTab({
@@ -144,11 +176,19 @@ describe('content script startup injection', () => {
 
         expect(result.status).toBe('injected');
         expect(chrome.scripting.executeScript).toHaveBeenNthCalledWith(2, {
+            target: { tabId: 12, allFrames: true },
+            func: expect.any(Function),
+        });
+        expect(chrome.scripting.executeScript).toHaveBeenNthCalledWith(3, {
+            target: { tabId: 12, allFrames: true },
+            files: ['content/shortcut_frame_bridge.js'],
+        });
+        expect(chrome.scripting.executeScript).toHaveBeenNthCalledWith(4, {
             target: { tabId: 12 },
             world: 'MAIN',
             func: expect.any(Function),
         });
-        expect(chrome.scripting.executeScript).toHaveBeenNthCalledWith(3, {
+        expect(chrome.scripting.executeScript).toHaveBeenNthCalledWith(5, {
             target: { tabId: 12 },
             files: ['content/gemini_watermark_page.js'],
             world: 'MAIN',
@@ -156,12 +196,33 @@ describe('content script startup injection', () => {
     });
 
     it('skips tabs that already have Gemini Nexus content scripts', async () => {
-        chrome.scripting.executeScript.mockResolvedValueOnce([{ result: true }]);
+        chrome.scripting.executeScript
+            .mockResolvedValueOnce([{ result: true }])
+            .mockResolvedValueOnce([{ result: true }]);
 
         const result = await injectContentScriptsIntoTab({ id: 12, url: 'https://example.com' });
 
         expect(result.status).toBe('already-injected');
-        expect(chrome.scripting.executeScript).toHaveBeenCalledTimes(1);
+        expect(chrome.scripting.executeScript).toHaveBeenCalledTimes(2);
+    });
+
+    it('force-injects the current content bundle over older already-injected pages', async () => {
+        chrome.scripting.executeScript.mockResolvedValue([{ result: undefined }]);
+
+        const result = await injectContentScriptsIntoTab(
+            { id: 12, url: 'https://example.com' },
+            { force: true }
+        );
+
+        expect(result.status).toBe('injected');
+        expect(chrome.scripting.executeScript).toHaveBeenNthCalledWith(1, {
+            target: { tabId: 12 },
+            files: ['content/page_guard.js', 'content/index.js'],
+        });
+        expect(chrome.scripting.executeScript).toHaveBeenNthCalledWith(2, {
+            target: { tabId: 12, allFrames: true },
+            files: ['content/shortcut_frame_bridge.js'],
+        });
     });
 
     it('walks currently open tabs after install or update', async () => {
@@ -173,6 +234,9 @@ describe('content script startup injection', () => {
         chrome.scripting.executeScript
             .mockResolvedValueOnce([{ result: false }])
             .mockResolvedValueOnce([{ result: undefined }])
+            .mockResolvedValueOnce([{ result: false }])
+            .mockResolvedValueOnce([{ result: undefined }])
+            .mockResolvedValueOnce([{ result: true }])
             .mockResolvedValueOnce([{ result: true }]);
 
         const results = await injectContentScriptsIntoOpenTabs();
@@ -186,7 +250,7 @@ describe('content script startup injection', () => {
     });
 
     it('registers install-time startup injection', async () => {
-        setupContentScriptInjection();
+        setupContentScriptInjection({ initializeOpenTabs: false });
 
         const listener = chrome.runtime.onInstalled.addListener.mock.calls[0][0];
         expect(listener).toEqual(expect.any(Function));
@@ -197,8 +261,17 @@ describe('content script startup injection', () => {
         expect(chrome.tabs.query).toHaveBeenCalledWith({});
     });
 
-    it('injects restored discarded tabs after they finish loading', async () => {
+    it('checks already open tabs when the background worker starts', async () => {
+        chrome.tabs.query.mockResolvedValue([]);
+
         setupContentScriptInjection();
+        await new Promise((resolve) => queueMicrotask(resolve));
+
+        expect(chrome.tabs.query).toHaveBeenCalledWith({});
+    });
+
+    it('injects restored discarded tabs after they finish loading', async () => {
+        setupContentScriptInjection({ initializeOpenTabs: false });
         const listener = chrome.tabs.onUpdated.addListener.mock.calls[0][0];
         chrome.scripting.executeScript
             .mockResolvedValueOnce([{ result: false }])
@@ -217,7 +290,7 @@ describe('content script startup injection', () => {
     });
 
     it('checks the active tab when the browser activates an existing page', async () => {
-        setupContentScriptInjection();
+        setupContentScriptInjection({ initializeOpenTabs: false });
         const listener = chrome.tabs.onActivated.addListener.mock.calls[0][0];
         chrome.tabs.get.mockResolvedValue({ id: 8, url: 'https://active.test/' });
         chrome.scripting.executeScript

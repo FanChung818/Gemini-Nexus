@@ -8,12 +8,12 @@ export const ShortcutsSettingsTemplate = `
             <div class="setting-shortcut-list">
                 <div class="setting-shortcut-row">
                     <span class="setting-shortcut-title" data-i18n="quickAsk">Quick Ask</span>
-                    <input type="text" id="shortcut-quick-ask" class="shortcut-input" readonly value="Ctrl+G">
+                    <input type="text" id="shortcut-quick-ask" class="shortcut-input" readonly value="Alt+Q">
                 </div>
 
                 <div class="setting-shortcut-row">
                     <span class="setting-shortcut-title" data-i18n="openSidePanel">Side Panel</span>
-                    <input type="text" id="shortcut-open-panel" class="shortcut-input" readonly value="Alt+S">
+                    <input type="text" id="shortcut-open-panel" class="shortcut-input" readonly value="Alt+G">
                 </div>
 
                 <div class="setting-shortcut-row">

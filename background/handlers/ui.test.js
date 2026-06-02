@@ -261,6 +261,38 @@ describe('UIMessageHandler browser control tab ownership', () => {
         );
     });
 
+    it('toggles the side panel through the side panel scope manager', async () => {
+        const sidePanelScopeManager = {
+            toggleForTab: vi.fn(() => Promise.resolve({ status: 'closed' })),
+        };
+        const sendResponse = vi.fn();
+        const handler = new UIMessageHandler({}, controlManager, null, sidePanelScopeManager);
+
+        const handled = handler.handle(
+            { action: 'TOGGLE_SIDE_PANEL' },
+            { tab: { id: 9, windowId: 4 } },
+            sendResponse
+        );
+
+        expect(handled).toBe(true);
+        await vi.waitFor(() => expect(sendResponse).toHaveBeenCalledWith({ status: 'closed' }));
+        expect(sidePanelScopeManager.toggleForTab).toHaveBeenCalledWith(9, 4);
+    });
+
+    it('marks the side panel closed when the side panel page unloads', () => {
+        const sidePanelScopeManager = {
+            markClosedForTab: vi.fn(),
+        };
+        const sendResponse = vi.fn();
+        const handler = new UIMessageHandler({}, controlManager, null, sidePanelScopeManager);
+
+        const handled = handler.handle({ action: 'SIDE_PANEL_CLOSED', tabId: 9 }, {}, sendResponse);
+
+        expect(handled).toBe(false);
+        expect(sidePanelScopeManager.markClosedForTab).toHaveBeenCalledWith(9);
+        expect(sendResponse).toHaveBeenCalledWith({ status: 'processed' });
+    });
+
     it('clears pending side panel actions when opening the side panel fails', async () => {
         vi.spyOn(console, 'error').mockImplementation(() => {});
         globalThis.chrome = {

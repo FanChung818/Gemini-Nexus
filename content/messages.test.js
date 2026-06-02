@@ -8,6 +8,7 @@ async function installMessageRouter() {
         runtime: {
             onMessage: {
                 addListener: vi.fn(),
+                removeListener: vi.fn(),
             },
             sendMessage: vi.fn(),
         },
@@ -26,6 +27,7 @@ function createHarness() {
             handleContextAction: vi.fn(),
             handleCropResult: vi.fn(),
             hideAll: vi.fn(),
+            showGlobalInput: vi.fn(),
             showExtensionError: vi.fn(),
         },
     };
@@ -101,6 +103,33 @@ describe('GeminiMessageRouter capture routing', () => {
         expect(chrome.runtime.sendMessage).not.toHaveBeenCalledWith(
             expect.objectContaining({ action: 'SCREEN_CAPTURE_ERROR' })
         );
+    });
+
+    it('opens quick ask when requested by the browser command', async () => {
+        const router = await installMessageRouter();
+        const { overlay, toolbar } = createHarness();
+        router.init(toolbar, overlay);
+        const sendResponse = vi.fn();
+
+        const handled = router.handle({ action: 'SHOW_QUICK_ASK' }, {}, sendResponse);
+
+        expect(handled).toBe(true);
+        expect(toolbar.showGlobalInput).toHaveBeenCalledWith(false);
+        expect(sendResponse).toHaveBeenCalledWith({ status: 'ok' });
+    });
+
+    it('removes the previous router listener when content scripts are reinjected', async () => {
+        const firstRouter = await installMessageRouter();
+        const { overlay, toolbar } = createHarness();
+        firstRouter.init(toolbar, overlay);
+
+        vi.resetModules();
+        await import('./messages.js');
+
+        expect(chrome.runtime.onMessage.removeListener).toHaveBeenCalledWith(
+            firstRouter.handleRuntimeMessage
+        );
+        expect(window.GeminiMessageRouter).not.toBe(firstRouter);
     });
 
     it('clears side panel capture routing when the selection overlay is cancelled', async () => {
