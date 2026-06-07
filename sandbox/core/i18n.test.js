@@ -20,7 +20,7 @@ function getDeclaredKeys(locale) {
 
 describe('i18n translations', () => {
     it('keeps locale keys unique and separated by meaning', () => {
-        for (const locale of ['en', 'zh']) {
+        for (const locale of ['en', 'zh', 'zhTW']) {
             const keys = getDeclaredKeys(locale);
             expect(keys).toHaveLength(new Set(keys).size);
         }
@@ -32,6 +32,7 @@ describe('i18n translations', () => {
 
     it('keeps locale key order aligned for easy review', () => {
         expect(getDeclaredKeys('zh')).toEqual(getDeclaredKeys('en'));
+        expect(getDeclaredKeys('zhTW')).toEqual(getDeclaredKeys('en'));
     });
 
     it('localizes dynamic UI copy used outside data-i18n templates', () => {
@@ -43,6 +44,14 @@ describe('i18n translations', () => {
         expect(t('copyCode')).toBe('复制代码');
         expect(t('screenCapture')).toBe('屏幕截图');
         expect(t('toolStatusRunning').replace('{name}', 'browser')).toBe('正在使用 browser...');
+    });
+
+    it('supports Traditional Chinese as an explicit language preference', () => {
+        setLanguagePreference('zh-TW');
+
+        expect(t('settings')).toBe('設定');
+        expect(t('systemDefault')).toBe('跟隨系統');
+        expect(t('screenCapture')).toBe('螢幕截圖');
     });
 
     it('keeps side-panel image prompts precise and injection-resistant', () => {

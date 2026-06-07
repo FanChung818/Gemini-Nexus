@@ -18,7 +18,8 @@ export const AppearanceSettingsTemplate = `
                 <select id="language-select" class="settings-input settings-select">
                     <option value="system" data-i18n="systemDefault">System</option>
                     <option value="en">English</option>
-                    <option value="zh">中文</option>
+                    <option value="zh">简体中文</option>
+                    <option value="zh-TW">繁體中文</option>
                 </select>
             </label>
         </div>

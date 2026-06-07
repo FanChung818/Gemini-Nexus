@@ -2,8 +2,13 @@ import { translations } from './translations.js';
 
 function resolveLanguage(pref) {
     if (pref === 'system') {
-        return navigator.language.startsWith('zh') ? 'zh' : 'en';
+        const language = navigator.language.toLowerCase();
+        if (language === 'zh-tw' || language === 'zh-hk' || language === 'zh-mo') {
+            return 'zhTW';
+        }
+        return language.startsWith('zh') ? 'zh' : 'en';
     }
+    if (pref === 'zh-TW') return 'zhTW';
     return pref;
 }
 
